@@ -105,7 +105,7 @@ async def give_heel(m: types.Message):
         parse_mode="HTML"
     )
 
-@dp.message(F.text.casefold() == "инвентарь")
+@dp.message(F.text.lower() == "инвентарь")
 async def show_inv(m: types.Message):
     user = await get_user_data(m.from_user.id)
     inv = user.get('inv', [])
