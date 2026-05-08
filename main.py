@@ -18,7 +18,7 @@ def keep_alive():
 # --- НАСТРОЙКИ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
-CD = 18000 # Возвращаю 5 часов. Если нужно 5 секунд для теста — поменяй на 5.
+CD = 5 # Оставляю 5 секунд для теста, потом поменяешь на 18000
 
 # --- БАЗА ПЯТОК С FILE_ID ---
 DATA = {
@@ -72,7 +72,8 @@ DATA = {
     }
 }
 
-CH =
+# Шансы: Обыч(45), Необыч(25), Редк(15), Эпик(8), Миф(4), Лег(2), Идеал(1)
+CH = [45, 25, 15, 8, 4, 2, 1]
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -95,7 +96,7 @@ async def get_photo_id(m: types.Message):
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот полностью настроен! Пятки с фото готовы.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен! Жми кнопку.", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(Command("reset_me"))
 async def rs(m: types.Message):
@@ -123,7 +124,7 @@ async def gt(m: types.Message):
     if not avail: return await m.answer("🏆 Коллекция собрана!")
 
     rk_list = random.choices(list(DATA.keys()), weights=CH, k=1)
-    rk = rk_list
+    rk = rk_list[0]
     ps = [n for n in DATA[rk].keys() if n not in d[u]['inv']]
     if not ps: rk, name = random.choice(avail)
     else: name = random.choice(ps)
