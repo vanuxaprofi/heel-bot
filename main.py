@@ -5,22 +5,17 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from flask import Flask
 from threading import Thread
 
-# --- СЕРВЕР ДЛЯ RENDER ---
+# Мини-сервер для Render
 app = Flask('')
 @app.route('/')
 def home(): return "OK"
 def run_w(): app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
-def keep_alive():
-    t = Thread(target=run_w)
-    t.daemon = True
-    t.start()
 
-# --- НАСТРОЙКИ ---
+# Настройки
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
-CD = 18000 # Ровно 5 часов (5 * 3600 секунд)
+CD = 18000 # 5 часов
 
-# --- БАЗА ПЯТОК С FILE_ID ---
 DATA = {
     "Обычная": {
         "Сено пятка": "AgACAgIAAxkBAAPlaf2Pp7k7PXrNT0d9TgjIgwKFfDoAArwTaxv04fFLE9Pz-Di4gQsBAAMCAAN5AAM7BA",
@@ -72,9 +67,6 @@ DATA = {
     }
 }
 
-# Шансы выпадения
-CH = [45, 25, 15, 8, 4, 2, 1]
-
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
@@ -91,49 +83,37 @@ def save(d):
 @dp.message(Command("start"))
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
-    kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен! Пятки выпадают раз в 5 часов.", reply_markup=kb.as_markup(resize_keyboard=True))
+    kb.button(text="Пятка")
+    kb.button(text="Инвентарь")
+    await m.answer("🦶 Бот запущен! Кд 5 часов.", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text.lower() == "пятка")
 async def gt(m: types.Message):
-    d = load()
-    u = str(m.from_user.id)
-    now = time.time()
-    
+    d = load(); u = str(m.from_user.id); now = time.time()
     if u in d and now - d[u].get('t', 0) < CD:
         rem = int(CD - (now - d[u]['t']))
-        return await m.answer(f"⏳ Рано! Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
+        return await m.answer(f"⏳ Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
 
     if u not in d: d[u] = {'inv': [], 't': 0}
-    avail = []
-    for r_n, r_i in DATA.items():
-        for i_n in r_i.keys():
-            if i_n not in d[u]['inv']: avail.append((r_n, i_n))
-    if not avail: return await m.answer("🏆 Коллекция собрана!")
-
-    rk_list = random.choices(list(DATA.keys()), weights=CH, k=1)
-    rk = rk_list[0]
-    ps = [n for n in DATA[rk].keys() if n not in d[u]['inv']]
-    if not ps: rk, name = random.choice(avail)
-    else: name = random.choice(ps)
-
-    pic = DATA[rk][name]
-    d[u]['inv'].append(name)
-    d[u]['t'] = now
-    save(d)
     
-    cap = f"🦶 Тебе выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>"
-    await m.answer_photo(photo=pic, caption=cap, parse_mode="HTML")
+    # Список всех несобранных пяток
+    av = [(r, i) for r, items in DATA.items() for i in items if i not in d[u]['inv']]
+    if not av: return await m.answer("🏆 Коллекция собрана!")
+
+    # Берем любую одну из несобранных
+    rk, name = random.choice(av)
+    pic = DATA[rk][name]
+    
+    d[u]['inv'].append(name); d[u]['t'] = now; save(d)
+    await m.answer_photo(photo=pic, caption=f"🦶 <b>{name}</b>\n💎 Редкость: <b>{rk}</b>", parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
 async def iv(m: types.Message):
-    d = load()
-    items = d.get(str(m.from_user.id), {}).get('inv', [])
-    if not items: await m.answer("📦 Твой инвентарь пуст.")
-    else: await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in items]))
+    d = load(); items = d.get(str(m.from_user.id), {}).get('inv', [])
+    await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in items]) if items else "Пусто.")
 
 async def main():
-    keep_alive()
+    Thread(target=run_w).start()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
