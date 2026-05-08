@@ -5,7 +5,6 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from flask import Flask
 from threading import Thread
 
-# --- СЕРВЕР ДЛЯ RENDER ---
 app = Flask('')
 @app.route('/')
 def home(): return "OK"
@@ -15,64 +14,19 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# --- НАСТРОЙКИ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
-CD = 18000 # 5 часов
+CD = 18000 
 
-# --- БАЗА ПЯТОК И ССЫЛОК ---
 DATA = {
-    "Обычная": {
-        "Сено пятка": "https://ibb.co",
-        "Земляная пятка": "https://ibb.co",
-        "Водяная пятка": "https://ibb.co",
-        "Небесная пятка": "https://ibb.co",
-        "Стеклянная пятка": "https://ibb.co",
-        "Банановая пятка": "https://ibb.co",
-        "Магическая пятка": "https://ibb.co",
-        "Накаченая": "https://ibb.co"
-    },
-    "Необычная": {
-        "Какашка пятка": "https://ibb.co",
-        "Вонючая пятка": "https://ibb.co",
-        "Клубничная пятка": "https://ibb.co",
-        "Зек пятка": "https://ibb.co",
-        "Серебряная пятка": "https://ibb.co",
-        "Миньйон": "https://ibb.co"
-    },
-    "Редкая": {
-        "Пикми пятка": "https://ibb.co",
-        "Фурри пятка": "https://ibb.co",
-        "Аниме пятка": "https://ibb.co",
-        "Нарисованная пятка": "https://ibb.co",
-        "Шыповая": "https://ibb.co",
-        "Костянная": "https://ibb.co"
-    },
-    "Эпическая": {
-        "Золотая пятка": "https://ibb.co",
-        "Неоновая пятка": "https://ibb.co",
-        "Теневая пятка": "https://ibb.co",
-        "Лавовая пятка": "https://ibb.co",
-        "Готическая": "https://ibb.co"
-    },
-    "Мифическая": {
-        "Демоническая пятка": "https://ibb.co",
-        "Ангельская пятка": "https://ibb.co",
-        "Король пятка": "https://ibb.co",
-        "Радужная пятка": "https://ibb.co"
-    },
-    "Легендарная": {
-        "Алмазная пятка": "https://ibb.co",
-        "Зевс": "https://ibb.co",
-        "Мёртвая пятка": "https://ibb.co"
-    },
-    "Идеальные": {
-        "Изумрудная пятка": "https://ibb.co",
-        "Космическая пятка": "https://ibb.co"
-    }
+    "Обычная": {"Сено": "https://ibb.co", "Земляная": "https://ibb.co", "Водяная": "https://ibb.co", "Небесная": "https://ibb.co", "Стекло": "https://ibb.co", "Банановая": "https://ibb.co", "Магия": "https://ibb.co", "Накаченная": "https://ibb.co"},
+    "Необычная": {"Какашка": "https://ibb.co", "Вонючая": "https://ibb.co", "Клубника": "https://ibb.co", "Зек": "https://ibb.co", "Серебро": "https://ibb.co", "Миньон": "https://ibb.co"},
+    "Редкая": {"Пикми": "https://ibb.co", "Фурри": "https://ibb.co", "Аниме": "https://ibb.co", "Рисованная": "https://ibb.co", "Шиповая": "https://ibb.co", "Кости": "https://ibb.co"},
+    "Эпик": {"Золото": "https://ibb.co", "Неон": "https://ibb.co", "Лава": "https://ibb.co", "Готика": "https://ibb.co"},
+    "Миф": {"Демон": "https://ibb.co", "Ангел": "https://ibb.co", "Король": "https://ibb.co", "Радуга": "https://ibb.co"},
+    "Легенда": {"Алмаз": "https://ibb.co", "Зевс": "https://ibb.co", "Мертвая": "https://ibb.co"},
+    "Идеал": {"Изумруд": "https://ibb.co", "Космос": "https://ibb.co"}
 }
-
-# Шансы выпадения
 CHANCES = [45, 25, 15, 8, 4, 2, 1]
 
 bot = Bot(token=API_TOKEN)
@@ -89,34 +43,63 @@ def save(d):
     with open(DB_FILE, 'w', encoding='utf-8') as f: json.dump(d, f, ensure_ascii=False, indent=4)
 
 @dp.message(Command("start"))
-async def start(m: types.Message):
+async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот обновлен! Новые пятки и фото добавлены.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Игра запущена! Повторок больше не будет.", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text.lower() == "пятка")
-async def get_heel(m: types.Message):
+async def gt(m: types.Message):
     d = load()
     u = str(m.from_user.id)
-    if u in d and time.time() - d[u].get('t', 0) < CD:
-        r = int(CD - (time.time() - d[u]['t']))
-        return await m.answer(f"⏳ Жди {r//3600}ч. {(r%3600)//60}м.")
+    now = time.time()
     
-    rar_list = list(DATA.keys())
-    rar = random.choices(rar_list, weights=CHANCES, k=1)[0]
-    name = random.choice(list(DATA[rar].keys()))
-    pic = DATA[rar][name]
+    if u in d and now - d[u].get('t', 0) < CD:
+        rem = int(CD - (now - d[u]['t']))
+        return await m.answer(f"⏳ Жди {rem//3600}ч. {(rem%3600)//60}м.")
 
     if u not in d: d[u] = {'inv': [], 't': 0}
-    if name not in d[u]['inv']: d[u]['inv'].append(name)
-    d[u]['t'] = time.time()
-    save(d)
+    
+    # Собираем список всех пяток, которых еще нет у игрока
+    all_available = []
+    for r_name, r_items in DATA.items():
+        for i_name in r_items.keys():
+            if i_name not in d[u]['inv']:
+                all_available.append((r_name, i_name))
 
-    cap = f"🦶 Тебе выпала: <b>{name}</b>\n💎 Редкость: <b>{rar}</b>"
-    await m.answer_photo(photo=pic, caption=cap, parse_mode="HTML")
+    if not all_available:
+        return await m.answer("🏆 Поздравляем! Ты собрал ВСЕ пятки в игре!")
+
+    # Пытаемся выбрать пятку по редкости, но исключая повторки
+    found = False
+    attempts = 0
+    while not found and attempts < 100:
+        rar_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
+        # Берем пятки этой редкости, которых нет в инвентаре
+        possible_items = [name for name in DATA[rar_key].keys() if name not in d[u]['inv']]
+        
+        if possible_items:
+            name = random.choice(possible_items)
+            found = True
+        attempts += 1
+
+    # Если по шансам не повезло найти новую (редкий случай), берем любую доступную
+    if not found:
+        rar_key, name = random.choice(all_available)
+
+    pic = DATA[rar_key][name]
+    d[u]['inv'].append(name)
+    d[u]['t'] = now
+    save(d)
+    
+    cap = f"🦶 Выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rar_key}</b>"
+    try:
+        await m.answer_photo(photo=pic, caption=cap, parse_mode="HTML")
+    except:
+        await m.answer(cap, parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
-async def inv(m: types.Message):
+async def iv(m: types.Message):
     d = load()
     items = d.get(str(m.from_user.id), {}).get('inv', [])
     if not items: await m.answer("Пусто.")
@@ -124,7 +107,6 @@ async def inv(m: types.Message):
 
 async def main():
     keep_alive()
-    print("Бот запущен!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
