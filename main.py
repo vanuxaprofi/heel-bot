@@ -78,7 +78,7 @@ async def start(m: types.Message):
     kb.button(text="Инвентарь")
     await m.answer("🦶 Бот запущен!", reply_markup=kb.as_markup(resize_keyboard=True))
 
-@dp.message(F.text.casefold() == "пятка")
+@dp.message(F.text == "Пятка")
 async def give_heel(m: types.Message):
     u_id = str(m.from_user.id)
     user = await get_user_data(u_id)
@@ -102,7 +102,7 @@ async def give_heel(m: types.Message):
         parse_mode="HTML"
     )
 
-@dp.message(F.text.casefold() == "инвентарь")
+@dp.message(F.text == "Инвентарь")
 async def show_inv(m: types.Message):
     user = await get_user_data(m.from_user.id)
     inv = user.get('inv', [])
