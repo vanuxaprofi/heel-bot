@@ -1,19 +1,25 @@
-import asyncio, json, random, time, os
+import asyncio, random, time, os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from flask import Flask
 from threading import Thread
+from motor.motor_asyncio import AsyncIOMotorClient
 
-# Мини-сервер для Render
+# --- ОБЛАЧНАЯ БАЗА ДАННЫХ (MONGODB) ---
+MONGO_URL = "mongodb+srv://vanuxaproff.db.user:fBUnXNSZJfPftMUj@cluster0.cijehiv.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+client = AsyncIOMotorClient(MONGO_URL)
+db = client['heel_game']
+users_col = db['players']
+
+# --- СЕРВЕР ДЛЯ RENDER ---
 app = Flask('')
 @app.route('/')
 def home(): return "OK"
 def run_w(): app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
 
-# Настройки
+# --- НАСТРОЙКИ ИГРЫ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
-DB_FILE = 'users_data.json'
 CD = 18000 # 5 часов
 
 DATA = {
@@ -67,50 +73,51 @@ DATA = {
     }
 }
 
+CH = [45, 25, 15, 8, 4, 2, 1]
+
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-def load():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, 'r', encoding='utf-8') as f: return json.load(f)
-        except: return {}
-    return {}
-
-def save(d):
-    with open(DB_FILE, 'w', encoding='utf-8') as f: json.dump(d, f, ensure_ascii=False, indent=4)
+async def get_db_user(uid):
+    user = await users_col.find_one({"_id": uid})
+    if not user:
+        user = {"_id": uid, "inv": [], "t": 0}
+        await users_col.insert_one(user)
+    return user
 
 @dp.message(Command("start"))
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
-    kb.button(text="Пятка")
-    kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен! Кд 5 часов.", reply_markup=kb.as_markup(resize_keyboard=True))
+    kb.button(text="Пятка"), kb.button(text="Инвентарь")
+    await m.answer("🦶 Бот с вечным инвентарем готов!", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text.lower() == "пятка")
 async def gt(m: types.Message):
-    d = load(); u = str(m.from_user.id); now = time.time()
-    if u in d and now - d[u].get('t', 0) < CD:
-        rem = int(CD - (now - d[u]['t']))
+    uid = str(m.from_user.id)
+    user = await get_db_user(uid)
+    now = time.time()
+    
+    if now - user.get('t', 0) < CD:
+        rem = int(CD - (now - user['t']))
         return await m.answer(f"⏳ Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
 
-    if u not in d: d[u] = {'inv': [], 't': 0}
-    
-    # Список всех несобранных пяток
-    av = [(r, i) for r, items in DATA.items() for i in items if i not in d[u]['inv']]
-    if not av: return await m.answer("🏆 Коллекция собрана!")
+    avail = [(r, i) for r, items in DATA.items() for i in items if i not in user['inv']]
+    if not avail: return await m.answer("🏆 Коллекция собрана!")
 
-    # Берем любую одну из несобранных
-    rk, name = random.choice(av)
-    pic = DATA[rk][name]
-    
-    d[u]['inv'].append(name); d[u]['t'] = now; save(d)
-    await m.answer_photo(photo=pic, caption=f"🦶 <b>{name}</b>\n💎 Редкость: <b>{rk}</b>", parse_mode="HTML")
+    rk_list = random.choices(list(DATA.keys()), weights=CH, k=1)
+    rk = rk_list[0]
+    ps = [n for n in DATA[rk].keys() if n not in user['inv']]
+    if not ps: rk, name = random.choice(avail)
+    else: name = random.choice(ps)
+
+    await users_col.update_one({"_id": uid}, {"$push": {"inv": name}, "$set": {"t": now}})
+    await m.answer_photo(photo=DATA[rk][name], caption=f"🦶 <b>{name}</b>\n💎 Редкость: <b>{rk}</b>", parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
 async def iv(m: types.Message):
-    d = load(); items = d.get(str(m.from_user.id), {}).get('inv', [])
-    await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in items]) if items else "Пусто.")
+    user = await get_db_user(str(m.from_user.id))
+    inv = user.get('inv', [])
+    await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in inv]) if inv else "Пусто.")
 
 async def main():
     Thread(target=run_w).start()
