@@ -14,28 +14,29 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "OK"
+    return "Бот работает 24/7"
 
 def run_web_server():
+    # Render передает порт в переменную окружения PORT
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# --- ПОДКЛЮЧЕНИЕ К ВЕЧНОЙ БАЗЕ ДАННЫХ ---
+# --- ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ MONGODB ---
 MONGO_URL = "mongodb+srv://vanuxaproff.db.user:fBUnXNSZJfPftMUj@cluster0.cijehiv.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = AsyncIOMotorClient(MONGO_URL)
 db = client['heel_game_database']
 users_collection = db['players_data']
 
 # --- НАСТРОЙКИ БОТА ---
-# ТВОЙ НОВЫЙ ТОКЕН:
-API_TOKEN = '8539851697:AAHBdIUCbwqWMISMqVzwz0QYmFycBgfik8k'
+# ВАШ НОВЫЙ ТОКЕН:
+API_TOKEN = '8539851697:AAEUZs0_fOaB5BVFz82O2CVzE1N9yR58rUs'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Время ожидания (5 часов)
+# Время ожидания (5 часов в секундах)
 COOLDOWN_TIME = 18000 
 
-# --- СПИСОК ПЯТОК ---
+# --- СПИСОК ПЯТОК (БАЗА ДАННЫХ ПРЕДМЕТОВ) ---
 DATA = {
     "Обычная": {
         "Сено пятка": "AgACAgIAAxkBAAPlaf2Pp7k7PXrNT0d9TgjIgwKFfDoAArwTaxv04fFLE9Pz-Di4gQsBAAMCAAN5AAM7BA",
@@ -57,7 +58,7 @@ DATA = {
     },
     "Редкая": {
         "Пикми пятка": "AgACAgIAAxkBAAPhaf2PnXKz5ieWdDUui3Ss2GLkYP4AAroTaxv04fFLuKGCU27-HowBAAMCAAN5AAM7BA",
-        "Фурри пятка": "AgACAgIAAxkBAAPraf2Pt4eysWdXU5qpzwWhK08yYOYAAr8Taxv04fFL5D-3jabfDiMBAAMCAAN5AAM7BA",
+        "Фурри пятка": "AgACAgIAAxkBAAP6af2Pt4eysWdXU5qpzwWhK08yYOYAAr8Taxv04fFL5D-3jabfDiMBAAMCAAN5AAM7BA",
         "Аниме пятка": "AgACAgIAAxkBAAOzaf2PAUY1BbaWRiB-NDTSPaxT5i0AAp8Taxv04fFLRFBp4H059GUBAAMCAAN5AAM7BA",
         "Нарисованная пятка": "AgACAgIAAxkBAAPbaf2PjZ_SSygWK5J8cIASeDD80TMAArcTaxv04fFLK-9iWY63af8BAAMCAAN5AAM7BA",
         "Шиповая пятка": "AgACAgIAAxkBAAPJaf2PS6W9jEZSlwMflkel97Ke_rEAAq0Taxv04fFLz5T7u3QdZPgBAAMCAAN5AAM7BA",
@@ -87,7 +88,7 @@ DATA = {
     }
 }
 
-CHANCES = [45, 25, 15, 8, 4, 2, 1]
+CHANCES = [45, 25, 15, 8, 4, 2, 1] # Шансы для редкостей
 
 # --- ФУНКЦИИ БАЗЫ ДАННЫХ ---
 async def get_user_data(user_id):
@@ -98,13 +99,13 @@ async def get_user_data(user_id):
         await users_collection.insert_one(data)
     return data
 
-# --- ОБРАБОТЧИКИ ---
+# --- ОБРАБОТЧИКИ СООБЩЕНИЙ ---
 @dp.message(Command("start"))
 async def start(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка")
     kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен на сервере 24/7!", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен и готов к игре!", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text.lower() == "пятка")
 async def give_heel(m: types.Message):
@@ -112,23 +113,28 @@ async def give_heel(m: types.Message):
     user = await get_user_data(u_id)
     now = time.time()
     
+    # Проверка КД
     if now - user.get('last_t', 0) < COOLDOWN_TIME:
         rem = int(COOLDOWN_TIME - (now - user['last_t']))
         return await m.answer(f"⏳ Рано! Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
 
+    # Поиск доступных пяток (которых нет в инвентаре)
     avail = [(r, i) for r, items in DATA.items() for i in items if i not in user['inv']]
     if not avail:
-        return await m.answer("🏆 Ты собрал ВСЕ пятки!")
+        return await m.answer("🏆 Ты легенда! Все пятки собраны!")
 
+    # Ролл редкости
     rk_list = random.choices(list(DATA.keys()), weights=CHANCES, k=1)
     rk = rk_list[0]
     
+    # Выбор конкретной пятки
     ps = [n for n in DATA[rk].keys() if n not in user['inv']]
     if not ps:
-        rk, name = random.choice(avail)
+        rk, name = random.choice(avail) # Если в этой категории всё собрано, даем любую новую
     else:
         name = random.choice(ps)
 
+    # Сохранение
     await users_collection.update_one(
         {"_id": u_id}, 
         {"$push": {"inv": name}, "$set": {"last_t": now}}
@@ -147,9 +153,19 @@ async def show_inv(m: types.Message):
     else:
         await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in inv]))
 
+# --- ЗАПУСК ---
 async def main():
-    Thread(target=run_web_server).start()
+    # Запускаем веб-сервер в отдельном потоке для Render
+    Thread(target=run_web_server, daemon=True).start()
+    
+    # РЕШЕНИЕ ОШИБКИ CONFLICT: Удаляем вебхук перед стартом поллинга
+    await bot.delete_webhook(drop_pending_updates=True)
+    
+    # Запуск бота
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("Бот остановлен")
