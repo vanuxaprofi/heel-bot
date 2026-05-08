@@ -17,7 +17,6 @@ def home():
     return "OK"
 
 def run_web_server():
-    # Render использует порт 8080 по умолчанию
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -28,14 +27,15 @@ db = client['heel_game_database']
 users_collection = db['players_data']
 
 # --- НАСТРОЙКИ БОТА ---
-API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
+# ТВОЙ НОВЫЙ ТОКЕН:
+API_TOKEN = '8539851697:AAHBdIUCbwqWMISMqVzwz0QYmFycBgfik8k'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Время ожидания между пятками (18000 секунд = 5 часов)
+# Время ожидания (5 часов)
 COOLDOWN_TIME = 18000 
 
-# --- СПИСОК ВСЕХ ПЯТОК ---
+# --- СПИСОК ПЯТОК ---
 DATA = {
     "Обычная": {
         "Сено пятка": "AgACAgIAAxkBAAPlaf2Pp7k7PXrNT0d9TgjIgwKFfDoAArwTaxv04fFLE9Pz-Di4gQsBAAMCAAN5AAM7BA",
@@ -87,114 +87,69 @@ DATA = {
     }
 }
 
-# ШАНСЫ ВЫПАДЕНИЯ (в процентах)
 CHANCES = [45, 25, 15, 8, 4, 2, 1]
 
-# --- ФУНКЦИИ ДЛЯ РАБОТЫ С БАЗОЙ ---
-async def get_user_from_db(user_id):
-    user_id_str = str(user_id)
-    user_data = await users_collection.find_one({"_id": user_id_str})
-    if not user_data:
-        user_data = {"_id": user_id_str, "inv": [], "last_time": 0}
-        await users_collection.insert_one(user_data)
-    return user_data
+# --- ФУНКЦИИ БАЗЫ ДАННЫХ ---
+async def get_user_data(user_id):
+    u_id = str(user_id)
+    data = await users_collection.find_one({"_id": u_id})
+    if not data:
+        data = {"_id": u_id, "inv": [], "last_t": 0}
+        await users_collection.insert_one(data)
+    return data
 
-# --- ОБРАБОТЧИКИ КОМАНД ---
+# --- ОБРАБОТЧИКИ ---
 @dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Пятка")
-    builder.button(text="Инвентарь")
-    keyboard = builder.as_markup(resize_keyboard=True)
-    
-    await message.answer(
-        "🦶 Добро пожаловать в игру! Пятки выпадают раз в 5 часов.\n"
-        "Твой инвентарь сохраняется вечно в облаке.",
-        reply_markup=keyboard
-    )
+async def start(m: types.Message):
+    kb = ReplyKeyboardBuilder()
+    kb.button(text="Пятка")
+    kb.button(text="Инвентарь")
+    await m.answer("🦶 Бот запущен на сервере 24/7!", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text.lower() == "пятка")
-async def get_heel_handler(message: types.Message):
-    user_id = message.from_user.id
-    user_data = await get_user_from_db(user_id)
-    current_time = time.time()
+async def give_heel(m: types.Message):
+    u_id = str(m.from_user.id)
+    user = await get_user_data(u_id)
+    now = time.time()
     
-    # Проверка времени ожидания
-    if current_time - user_data.get('last_time', 0) < COOLDOWN_TIME:
-        remaining = int(COOLDOWN_TIME - (current_time - user_data['last_time']))
-        hours = remaining // 3600
-        minutes = (remaining % 3600) // 60
-        return await message.answer(f"⏳ Рано! Приходи через {hours}ч. {minutes}м.")
+    if now - user.get('last_t', 0) < COOLDOWN_TIME:
+        rem = int(COOLDOWN_TIME - (now - user['last_t']))
+        return await m.answer(f"⏳ Рано! Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
 
-    # Поиск пяток, которых еще нет в инвентаре
-    all_heels = []
-    for rarity, items in DATA.items():
-        for heel_name in items.keys():
-            if heel_name not in user_data['inv']:
-                all_heels.append((rarity, heel_name))
+    avail = [(r, i) for r, items in DATA.items() for i in items if i not in user['inv']]
+    if not avail:
+        return await m.answer("🏆 Ты собрал ВСЕ пятки!")
 
-    if not all_heels:
-        return await message.answer("🏆 Ого! Ты собрал вообще все пятки в этой игре!")
-
-    # Выбор редкости по шансам
-    rarity_list = list(DATA.keys())
-    chosen_rarity_list = random.choices(rarity_list, weights=CHANCES, k=1)
-    chosen_rarity = chosen_rarity_list[0]
+    rk_list = random.choices(list(DATA.keys()), weights=CHANCES, k=1)
+    rk = rk_list[0]
     
-    # Выбор конкретной пятки этой редкости (только новой)
-    possible_new_items = [name for name in DATA[chosen_rarity].keys() if name not in user_data['inv']]
-    
-    if not possible_new_items:
-        # Если в этой редкости всё собрано, берем любую другую новую
-        chosen_rarity, final_heel_name = random.choice(all_heels)
+    ps = [n for n in DATA[rk].keys() if n not in user['inv']]
+    if not ps:
+        rk, name = random.choice(avail)
     else:
-        final_heel_name = random.choice(possible_new_items)
+        name = random.choice(ps)
 
-    # Сохранение в базу данных
     await users_collection.update_one(
-        {"_id": str(user_id)},
-        {
-            "$push": {"inv": final_heel_name},
-            "$set": {"last_time": current_time}
-        }
+        {"_id": u_id}, 
+        {"$push": {"inv": name}, "$set": {"last_t": now}}
     )
 
-    # Отправка результата
-    photo_id = DATA[chosen_rarity][final_heel_name]
-    caption_text = (
-        f"🎉 Поздравляю! Вам выпала: <b>{final_heel_name}</b>\n"
-        f"💎 Редкость: <b>{chosen_rarity}</b>"
-    )
-    
-    await message.answer_photo(
-        photo=photo_id,
-        caption=caption_text,
-        parse_mode="HTML"
-    )
+    pic = DATA[rk][name]
+    cap = f"🎉 Поздравляю! Вам выпала: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>"
+    await m.answer_photo(photo=pic, caption=cap, parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
-async def inventory_handler(message: types.Message):
-    user_data = await get_user_from_db(message.from_user.id)
-    inventory = user_data.get('inv', [])
-    
-    if not inventory:
-        await message.answer("📦 Твой инвентарь пока пуст. Нажми «Пятка»!")
+async def show_inv(m: types.Message):
+    user = await get_user_data(m.from_user.id)
+    inv = user.get('inv', [])
+    if not inv:
+        await m.answer("📦 Твой инвентарь пока пуст.")
     else:
-        text = "📜 <b>Твоя коллекция:</b>\n\n"
-        for item in inventory:
-            text += f"— {item}\n"
-        await message.answer(text, parse_mode="HTML")
+        await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in inv]))
 
-# --- ЗАПУСК БОТА ---
 async def main():
-    # Запускаем веб-сервер в отдельном потоке для Render
     Thread(target=run_web_server).start()
-    
-    print("Бот запущен и готов к работе!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        print("Бот остановлен")
+    asyncio.run(main())
