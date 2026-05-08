@@ -30,8 +30,8 @@ DATA = {
     "Легендарная": {"Алмазная пятка": "https://ibb.co", "Зевс пятка": "https://ibb.co", "Мертвая пятка": "https://ibb.co"},
     "Идеальная": {"Изумрудная пятка": "https://ibb.co", "Космическая пятка": "https://ibb.co"}
 }
-# Шансы: Обыч(45), Необыч(25), Редк(15), Эпик(8), Миф(4), Лег(2), Идеал(1)
-CHANCES = [45, 25, 15, 8, 4, 2, 1]
+# Шансы: Обыч, Необыч, Редк, Эпик, Миф, Лег, Идеал
+CH = [45, 25, 15, 8, 4, 2, 1]
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -50,16 +50,16 @@ def save(d):
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен! Кулдаун 5 секунд.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен!", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(Command("reset_me"))
-async def reset(m: types.Message):
+async def rs(m: types.Message):
     d = load()
     u = str(m.from_user.id)
     if u in d:
         del d[u]
         save(d)
-        await m.answer("♻️ Прогресс сброшен!")
+        await m.answer("♻️ Сброшено!")
 
 @dp.message(F.text.lower() == "пятка")
 async def gt(m: types.Message):
@@ -71,41 +71,36 @@ async def gt(m: types.Message):
 
     if u not in d: d[u] = {'inv': [], 't': 0}
     
-    available = []
+    avail = []
     for r_n, r_i in DATA.items():
         for i_n in r_i.keys():
-            if i_n not in d[u]['inv']: available.append((r_n, i_n))
+            if i_n not in d[u]['inv']: avail.append((r_n, i_n))
 
-    if not available: return await m.answer("🏆 Ты собрал все пятки!")
+    if not avail: return await m.answer("🏆 Собрал всё!")
 
-    rar_list = list(DATA.keys())
-    rar_key = random.choices(rar_list, weights=CHANCES, k=1)[0]
-    poss = [n for n in DATA[rar_key].keys() if n not in d[u]['inv']]
+    rk = random.choices(list(DATA.keys()), weights=CH, k=1)[0]
+    ps = [n for n in DATA[rk].keys() if n not in d[u]['inv']]
     
-    if not poss:
-        rar_key, name = random.choice(available)
-    else:
-        name = random.choice(poss)
+    if not ps: rk, name = random.choice(avail)
+    else: name = random.choice(ps)
 
-    pic_url = DATA[rar_key][name]
+    pic = DATA[rk][name]
     d[u]['inv'].append(name)
     d[u]['t'] = now
     save(d)
     
-    cap = f"🦶 Тебе выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rar_key}</b>"
-    
+    cp = f"🦶 Тебе выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>"
     try:
-        photo = URLInputFile(pic_url)
-        await m.answer_photo(photo=photo, caption=cap, parse_mode="HTML")
+        await m.answer_photo(photo=URLInputFile(pic), caption=cp, parse_mode="HTML")
     except:
-        await m.answer(cap, parse_mode="HTML")
+        await m.answer(cp, parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
 async def iv(m: types.Message):
     d = load()
     items = d.get(str(m.from_user.id), {}).get('inv', [])
-    if not items: await m.answer("📦 Твой инвентарь пуст.")
-    else: await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in items]))
+    if not items: await m.answer("Пусто.")
+    else: await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in items]))
 
 async def main():
     keep_alive()
