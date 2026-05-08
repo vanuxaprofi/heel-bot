@@ -50,7 +50,6 @@ async def gt(m: types.Message):
     uid = str(m.from_user.id)
     u_data = await get_db_user(uid)
     now = time.time()
-    
     if now - u_data.get('t', 0) < CD:
         rem = int(CD - (now - u_data['t']))
         return await m.answer(f"⏳ Рано! Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
@@ -58,8 +57,9 @@ async def gt(m: types.Message):
     avail = [(r, i) for r, items in DATA.items() for i in items if i not in u_data['inv']]
     if not avail: return await m.answer("🏆 Коллекция уже собрана!")
 
-    # ВЫБОР: Обыч(45%), Необыч(25%), Редк(15%), Эпик(8%), Миф(4%), Лег(2%), Идеал(1%)
-    rk = random.choices(list(DATA.keys()), weights=, k=1)
+    # ШАНСЫ (цифры прописаны вручную):
+    rk_list = random.choices(list(DATA.keys()), weights=[45, 25, 15, 8, 4, 2, 1], k=1)
+    rk = rk_list[0]
     
     ps = [n for n in DATA[rk].keys() if n not in u_data['inv']]
     if not ps: rk, name = random.choice(avail)
