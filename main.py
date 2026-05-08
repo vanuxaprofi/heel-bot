@@ -81,7 +81,7 @@ async def start(m: types.Message):
     kb.button(text="Инвентарь")
     await m.answer("🦶 Бот запущен!", reply_markup=kb.as_markup(resize_keyboard=True))
 
-@dp.message(F.text.lower() == "пятка")
+@dp.message(F.text.casefold() == "пятка")
 async def give_heel(m: types.Message):
     u_id = str(m.from_user.id)
     user = await get_user_data(u_id)
@@ -91,7 +91,7 @@ async def give_heel(m: types.Message):
         rem = int(COOLDOWN_TIME - (now - user['last_t']))
         return await m.answer(f"⏳ Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
 
-    rk_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
+  rk_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
     name = random.choice(list(DATA[rk_key].keys()))
 
     await users_collection.update_one(
@@ -105,7 +105,7 @@ async def give_heel(m: types.Message):
         parse_mode="HTML"
     )
 
-@dp.message(F.text.lower() == "инвентарь")
+@dp.message(F.text.casefold() == "инвентарь")
 async def show_inv(m: types.Message):
     user = await get_user_data(m.from_user.id)
     inv = user.get('inv', [])
