@@ -12,7 +12,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 # --- СЕРВЕР ДЛЯ RENDER ---
 app = Flask('')
 @app.route('/')
-def home(): return "OK"
+def home(): return "Бот работает!"
+
 def run_web_server():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
@@ -27,7 +28,7 @@ users_collection = db['players_data']
 API_TOKEN = '8539851697:AAFXDrjTpm58eognPpwC2SGCxBxc3VYCJY8'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
-COOLDOWN_TIME = 5 # Установил 5 секунд для теста, как ты просил
+COOLDOWN_TIME = 5 # Кулдаун 5 секунд
 
 # --- СПИСОК ПЯТОК ---
 DATA = {
@@ -57,14 +58,16 @@ async def start(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка")
     kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен! Пришли фото, чтобы узнать его ID, или нажми на кнопку.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен! \n\n📸 Пришли фото, чтобы узнать его ID.\n⏳ Кулдаун на кнопки: 5 сек.", 
+                   reply_markup=kb.as_markup(resize_keyboard=True))
 
 # --- ПОЛУЧЕНИЕ ID ФОТО ---
 @dp.message(F.photo)
 async def get_photo_id(m: types.Message):
     photo_id = m.photo[-1].file_id
-    await m.answer(f"🆔 ID этого фото:\n<code>{photo_id}</code>", parse_mode="HTML")
+    await m.answer(f"🆔 <b>ID этого фото:</b>\n<code>{photo_id}</code>", parse_mode="HTML")
 
+# --- ОБРАБОТКА КНОПКИ ПЯТКА ---
 @dp.message(F.text == "Пятка")
 async def give_heel(m: types.Message):
     u_id = str(m.from_user.id)
@@ -73,11 +76,10 @@ async def give_heel(m: types.Message):
     
     if now - user.get('last_t', 0) < COOLDOWN_TIME:
         rem = int(COOLDOWN_TIME - (now - user['last_t']))
-        return await m.answer(f"⏳ Кулдаун! Жди {rem} сек.")
+        return await m.answer(f"⏳ Подожди {rem} сек.")
 
-    rk_list = random.choices(list(DATA.keys()), weights=CHANCES, k=1)
-    rk = rk_list[0]
-    name = random.choice(list(DATA[rk].keys()))
+    rk_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
+    name = random.choice(list(DATA[rk_key].keys()))
 
     await users_collection.update_one(
         {"_id": u_id}, 
@@ -85,11 +87,12 @@ async def give_heel(m: types.Message):
     )
 
     await m.answer_photo(
-        photo=DATA[rk][name], 
-        caption=f"🎉 Вам выпала: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>", 
+        photo=DATA[rk_key][name], 
+        caption=f"🎉 Вам выпала: <b>{name}</b>\n💎 Редкость: <b>{rk_key}</b>", 
         parse_mode="HTML"
     )
 
+# --- ОБРАБОТКА КНОПКИ ИНВЕНТАРЬ ---
 @dp.message(F.text == "Инвентарь")
 async def show_inv(m: types.Message):
     user = await get_user_data(m.from_user.id)
@@ -97,11 +100,20 @@ async def show_inv(m: types.Message):
     if not inv:
         await m.answer("📦 Твой инвентарь пока пуст.")
     else:
-        await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in inv]))
+        text = "📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in inv])
+        await m.answer(text)
 
+# --- ЗАПУСК БОТА ---
 async def main():
-    Thread(target=run_web_server, daemon=True).start()
+    # 1. Принудительно сбрасываем все старые сессии и вебхуки (УБИВАЕТ CONFLICT)
     await bot.delete_webhook(drop_pending_updates=True)
+    await asyncio.sleep(2) # Пауза для Telegram
+    
+    # 2. Запуск веб-сервера
+    Thread(target=run_web_server, daemon=True).start()
+    
+    # 3. Старт поллинга с пропуском старых сообщений
+    print("Бот успешно запущен без конфликтов!")
     await dp.start_polling(bot, skip_updates=True)
 
 if __name__ == "__main__":
