@@ -101,7 +101,7 @@ async def start(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка")
     kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен! Используй кнопки ниже.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен! Нажимай на кнопки ниже.", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text.casefold() == "пятка")
 async def give_heel(m: types.Message):
@@ -117,7 +117,7 @@ async def give_heel(m: types.Message):
     rk_list = random.choices(list(DATA.keys()), weights=CHANCES, k=1)
     rk = rk_list[0]
     
-    # Выбор пятки из этой редкости
+    # Выбор пятки
     name = random.choice(list(DATA[rk].keys()))
 
     await users_collection.update_one(
@@ -140,7 +140,7 @@ async def show_inv(m: types.Message):
 
 async def main():
     Thread(target=run_web_server, daemon=True).start()
-    # Удаляем вебхук при каждом запуске для обхода Conflict
+    # Эта строка убивает конфликт при запуске
     await bot.delete_webhook(drop_pending_updates=True)
     print("Бот запущен!")
     await dp.start_polling(bot)
