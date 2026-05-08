@@ -5,6 +5,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from flask import Flask
 from threading import Thread
 
+# --- СЕРВЕР ДЛЯ RENDER ---
 app = Flask('')
 @app.route('/')
 def home(): return "OK"
@@ -14,10 +15,12 @@ def keep_alive():
     t.daemon = True
     t.start()
 
+# --- НАСТРОЙКИ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
-CD = 18000 
+CD = 5 # Установлено 5 секунд для теста
 
+# --- БАЗА ПЯТОК ---
 DATA = {
     "Обычная": {"Сено": "https://ibb.co", "Земляная": "https://ibb.co", "Водяная": "https://ibb.co", "Небесная": "https://ibb.co", "Стекло": "https://ibb.co", "Банановая": "https://ibb.co", "Магия": "https://ibb.co", "Накаченная": "https://ibb.co"},
     "Необычная": {"Какашка": "https://ibb.co", "Вонючая": "https://ibb.co", "Клубника": "https://ibb.co", "Зек": "https://ibb.co", "Серебро": "https://ibb.co", "Миньон": "https://ibb.co"},
@@ -46,7 +49,18 @@ def save(d):
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Игра запущена! Повторок больше не будет.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот готов к тесту! Кулдаун 5 секунд.", reply_markup=kb.as_markup(resize_keyboard=True))
+
+@dp.message(Command("reset_me"))
+async def reset(m: types.Message):
+    d = load()
+    u = str(m.from_user.id)
+    if u in d:
+        del d[u]
+        save(d)
+        await m.answer("♻️ Инвентарь сброшен! Начинай собирать заново.")
+    else:
+        await m.answer("У тебя и так пусто.")
 
 @dp.message(F.text.lower() == "пятка")
 async def gt(m: types.Message):
@@ -56,43 +70,35 @@ async def gt(m: types.Message):
     
     if u in d and now - d[u].get('t', 0) < CD:
         rem = int(CD - (now - d[u]['t']))
-        return await m.answer(f"⏳ Жди {rem//3600}ч. {(rem%3600)//60}м.")
+        return await m.answer(f"⏳ Жди {rem} сек.")
 
     if u not in d: d[u] = {'inv': [], 't': 0}
     
-    # Собираем список всех пяток, которых еще нет у игрока
-    all_available = []
-    for r_name, r_items in DATA.items():
-        for i_name in r_items.keys():
-            if i_name not in d[u]['inv']:
-                all_available.append((r_name, i_name))
+    # Ищем доступные пятки (без повторок)
+    available = []
+    for r_n, r_i in DATA.items():
+        for i_n in r_i.keys():
+            if i_n not in d[u]['inv']:
+                available.append((r_n, i_n))
 
-    if not all_available:
-        return await m.answer("🏆 Поздравляем! Ты собрал ВСЕ пятки в игре!")
+    if not available:
+        return await m.answer("🏆 Ты собрал всю коллекцию!")
 
-    # Пытаемся выбрать пятку по редкости, но исключая повторки
-    found = False
-    attempts = 0
-    while not found and attempts < 100:
-        rar_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
-        # Берем пятки этой редкости, которых нет в инвентаре
-        possible_items = [name for name in DATA[rar_key].keys() if name not in d[u]['inv']]
-        
-        if possible_items:
-            name = random.choice(possible_items)
-            found = True
-        attempts += 1
-
-    # Если по шансам не повезло найти новую (редкий случай), берем любую доступную
-    if not found:
-        rar_key, name = random.choice(all_available)
+    # Выбираем редкость, где есть несобранные пятки
+    rar_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
+    poss_items = [n for n in DATA[rar_key].keys() if n not in d[u]['inv']]
+    
+    if not poss_items: # Если в этой редкости всё собрано, берем любую новую из других
+        rar_key, name = random.choice(available)
+    else:
+        name = random.choice(poss_items)
 
     pic = DATA[rar_key][name]
     d[u]['inv'].append(name)
     d[u]['t'] = now
     save(d)
     
-    cap = f"🦶 Выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rar_key}</b>"
+    cap = f"🦶 Выпала: <b>{name}</b>\n💎 Редкость: <b>{rar_key}</b>"
     try:
         await m.answer_photo(photo=pic, caption=cap, parse_mode="HTML")
     except:
@@ -102,8 +108,8 @@ async def gt(m: types.Message):
 async def iv(m: types.Message):
     d = load()
     items = d.get(str(m.from_user.id), {}).get('inv', [])
-    if not items: await m.answer("Пусто.")
-    else: await m.answer("📜 Коллекция:\n" + "\n".join([f"— {i}" for i in items]))
+    if not items: await m.answer("📦 Инвентарь пуст.")
+    else: await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in items]))
 
 async def main():
     keep_alive()
