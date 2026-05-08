@@ -9,39 +9,27 @@ from flask import Flask
 from threading import Thread
 from motor.motor_asyncio import AsyncIOMotorClient
 
-# --- СЕРВЕР ДЛЯ RENDER ---
 app = Flask('')
 @app.route('/')
-def home(): return "Бот работает!"
-
+def home(): return "OK"
 def run_web_server():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# --- БАЗА ДАННЫХ ---
 MONGO_URL = "mongodb+srv://vanuxaproff:fBUnXNSZJfPftMUj@cluster0.cijehiv.mongodb.net/?retryWrites=true&w=majority"
 client = AsyncIOMotorClient(MONGO_URL)
 db = client['heel_game_database']
 users_collection = db['players_data']
 
-# --- НАСТРОЙКИ БОТА ---
 API_TOKEN = '8539851697:AAFXDrjTpm58eognPpwC2SGCxBxc3VYCJY8'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
-COOLDOWN_TIME = 5 # Кулдаун 5 секунд
+COOLDOWN_TIME = 5
 
-# --- СПИСОК ПЯТОК ---
 DATA = {
-    "Обычная": {
-        "Сено пятка": "AgACAgIAAxkBAAPlaf2Pp7k7PXrNT0d9TgjIgwKFfDoAArwTaxv04fFLE9Pz-Di4gQsBAAMCAAN5AAM7BA",
-        "Земляная пятка": "AgACAgIAAxkBAAO_af2PJQUJtkxccatimHfZXuVHkx0AAqUTaxv04fFL0X9OPtULRNgBAAMCAAN5AAM7BA"
-    },
-    "Необычная": {
-        "Какашка пятка": "AgACAgIAAxkBAAPFaf2PPgoYWtmcoFpNxv0jaTKVJZMAAqoTaxv04fFL3v6kk9fTTEgBAAMCAAN5AAM7BA"
-    },
-    "Редкая": {
-        "Пикми пятка": "AgACAgIAAxkBAAPhaf2PnXKz5ieWdDUui3Ss2GLkYP4AAroTaxv04fFLuKGCU27-HowBAAMCAAN5AAM7BA"
-    }
+    "Обычная": {"Сено пятка": "AgACAgIAAxkBAAPlaf2Pp7k7PXrNT0d9TgjIgwKFfDoAArwTaxv04fFLE9Pz-Di4gQsBAAMCAAN5AAM7BA", "Земляная пятка": "AgACAgIAAxkBAAO_af2PJQUJtkxccatimHfZXuVHkx0AAqUTaxv04fFL0X9OPtULRNgBAAMCAAN5AAM7BA"},
+    "Необычная": {"Какашка пятка": "AgACAgIAAxkBAAPFaf2PPgoYWtmcoFpNxv0jaTKVJZMAAqoTaxv04fFL3v6kk9fTTEgBAAMCAAN5AAM7BA"},
+    "Редкая": {"Пикми пятка": "AgACAgIAAxkBAAPhaf2PnXKz5ieWdDUui3Ss2GLkYP4AAroTaxv04fFLuKGCU27-HowBAAMCAAN5AAM7BA"}
 }
 CHANCES = [60, 30, 10]
 
@@ -58,62 +46,33 @@ async def start(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка")
     kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен! \n\n📸 Пришли фото, чтобы узнать его ID.\n⏳ Кулдаун на кнопки: 5 сек.", 
-                   reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен! Скинь фото для ID.", reply_markup=kb.as_markup(resize_keyboard=True))
 
-# --- ПОЛУЧЕНИЕ ID ФОТО ---
 @dp.message(F.photo)
 async def get_photo_id(m: types.Message):
-    photo_id = m.photo[-1].file_id
-    await m.answer(f"🆔 <b>ID этого фото:</b>\n<code>{photo_id}</code>", parse_mode="HTML")
+    await m.answer(f"🆔 ID фото:\n<code>{m.photo[-1].file_id}</code>", parse_mode="HTML")
 
-# --- ОБРАБОТКА КНОПКИ ПЯТКА ---
 @dp.message(F.text == "Пятка")
 async def give_heel(m: types.Message):
     u_id = str(m.from_user.id)
     user = await get_user_data(u_id)
     now = time.time()
-    
     if now - user.get('last_t', 0) < COOLDOWN_TIME:
-        rem = int(COOLDOWN_TIME - (now - user['last_t']))
-        return await m.answer(f"⏳ Подожди {rem} сек.")
+        return await m.answer(f"⏳ Жди {int(COOLDOWN_TIME - (now - user['last_t']))} сек.")
+    rk = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
+    name = random.choice(list(DATA[rk].keys()))
+    await users_collection.update_one({"_id": u_id}, {"$push": {"inv": name}, "$set": {"last_t": now}})
+    await m.answer_photo(photo=DATA[rk][name], caption=f"🎉 Выпала: {name}\n💎 Редкость: {rk}")
 
-    rk_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
-    name = random.choice(list(DATA[rk_key].keys()))
-
-    await users_collection.update_one(
-        {"_id": u_id}, 
-        {"$push": {"inv": name}, "$set": {"last_t": now}}
-    )
-
-    await m.answer_photo(
-        photo=DATA[rk_key][name], 
-        caption=f"🎉 Вам выпала: <b>{name}</b>\n💎 Редкость: <b>{rk_key}</b>", 
-        parse_mode="HTML"
-    )
-
-# --- ОБРАБОТКА КНОПКИ ИНВЕНТАРЬ ---
 @dp.message(F.text == "Инвентарь")
 async def show_inv(m: types.Message):
     user = await get_user_data(m.from_user.id)
     inv = user.get('inv', [])
-    if not inv:
-        await m.answer("📦 Твой инвентарь пока пуст.")
-    else:
-        text = "📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in inv])
-        await m.answer(text)
+    await m.answer("📜 Коллекция:\n" + "\n".join([f"— {i}" for i in inv]) if inv else "📦 Пусто.")
 
-# --- ЗАПУСК БОТА ---
 async def main():
-    # 1. Принудительно сбрасываем все старые сессии и вебхуки (УБИВАЕТ CONFLICT)
-    await bot.delete_webhook(drop_pending_updates=True)
-    await asyncio.sleep(2) # Пауза для Telegram
-    
-    # 2. Запуск веб-сервера
     Thread(target=run_web_server, daemon=True).start()
-    
-    # 3. Старт поллинга с пропуском старых сообщений
-    print("Бот успешно запущен без конфликтов!")
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot, skip_updates=True)
 
 if __name__ == "__main__":
