@@ -14,10 +14,9 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "Бот работает 24/7"
+    return "Бот активен"
 
 def run_web_server():
-    # Порт для Render
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -32,8 +31,7 @@ API_TOKEN = '8539851697:AAEUZs0_fOaB5BVFz82O2CVzE1N9yR58rUs'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Время ожидания (5 часов)
-COOLDOWN_TIME = 18000 
+COOLDOWN_TIME = 18000 # 5 часов
 
 # --- СПИСОК ПЯТОК ---
 DATA = {
@@ -89,7 +87,6 @@ DATA = {
 
 CHANCES = [45, 25, 15, 8, 4, 2, 1]
 
-# --- ФУНКЦИИ БАЗЫ ДАННЫХ ---
 async def get_user_data(user_id):
     u_id = str(user_id)
     data = await users_collection.find_one({"_id": u_id})
@@ -98,15 +95,14 @@ async def get_user_data(user_id):
         await users_collection.insert_one(data)
     return data
 
-# --- ОБРАБОТЧИКИ ---
 @dp.message(Command("start"))
 async def start(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка")
     kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот успешно перезагружен и готов к работе!", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот готов! Нажми на кнопку ниже, чтобы начать игру.", reply_markup=kb.as_markup(resize_keyboard=True))
 
-@dp.message(F.text.lower() == "пятка")
+@dp.message(F.text.casefold() == "пятка")
 async def give_heel(m: types.Message):
     u_id = str(m.from_user.id)
     user = await get_user_data(u_id)
@@ -116,18 +112,10 @@ async def give_heel(m: types.Message):
         rem = int(COOLDOWN_TIME - (now - user['last_t']))
         return await m.answer(f"⏳ Рано! Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
 
-    avail = [(r, i) for r, items in DATA.items() for i in items if i not in user['inv']]
-    if not avail:
-        return await m.answer("🏆 Ты собрал ВСЕ пятки!")
-
     rk_list = random.choices(list(DATA.keys()), weights=CHANCES, k=1)
     rk = rk_list[0]
     
-    ps = [n for n in DATA[rk].keys() if n not in user['inv']]
-    if not ps:
-        rk, name = random.choice(avail)
-    else:
-        name = random.choice(ps)
+    name = random.choice(list(DATA[rk].keys()))
 
     await users_collection.update_one(
         {"_id": u_id}, 
@@ -135,10 +123,10 @@ async def give_heel(m: types.Message):
     )
 
     pic = DATA[rk][name]
-    cap = f"🎉 Поздравляю! Вам выпала: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>"
+    cap = f"🎉 Вам выпала: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>"
     await m.answer_photo(photo=pic, caption=cap, parse_mode="HTML")
 
-@dp.message(F.text.lower() == "инвентарь")
+@dp.message(F.text.casefold() == "инвентарь")
 async def show_inv(m: types.Message):
     user = await get_user_data(m.from_user.id)
     inv = user.get('inv', [])
@@ -147,19 +135,10 @@ async def show_inv(m: types.Message):
     else:
         await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in inv]))
 
-# --- ОСНОВНОЙ ЗАПУСК ---
 async def main():
-    # Запускаем веб-сервер для жизни на Render
     Thread(target=run_web_server, daemon=True).start()
-    
-    # ПРИНУДИТЕЛЬНЫЙ СБРОС КОНФЛИКТОВ
     await bot.delete_webhook(drop_pending_updates=True)
-    
-    print("Бот запущен и ошибки Conflict больше нет!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        pass
+    asyncio.run(main())
