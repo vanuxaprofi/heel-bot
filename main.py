@@ -117,7 +117,8 @@ async def gt(m: types.Message):
 async def iv(m: types.Message):
     user = await get_db_user(str(m.from_user.id))
     inv = user.get('inv', [])
-    await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in inv]) if inv else "Пусто.")
+    if not inv: await m.answer("📦 Пусто.")
+    else: await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in inv]))
 
 async def main():
     Thread(target=run_w).start()
