@@ -85,6 +85,7 @@ DATA = {
     }
 }
 
+# ШАНСЫ (Обычная, Необычная, Редкая, Эпическая, Мифическая, Легендарная, Идеальная)
 CHANCES = [45, 25, 15, 8, 4, 2, 1]
 
 async def get_user_data(user_id):
@@ -100,7 +101,7 @@ async def start(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка")
     kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот готов! Нажми на кнопку ниже, чтобы начать игру.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен! Используй кнопки ниже.", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text.casefold() == "пятка")
 async def give_heel(m: types.Message):
@@ -112,9 +113,11 @@ async def give_heel(m: types.Message):
         rem = int(COOLDOWN_TIME - (now - user['last_t']))
         return await m.answer(f"⏳ Рано! Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
 
+    # Выбор редкости
     rk_list = random.choices(list(DATA.keys()), weights=CHANCES, k=1)
     rk = rk_list[0]
     
+    # Выбор пятки из этой редкости
     name = random.choice(list(DATA[rk].keys()))
 
     await users_collection.update_one(
@@ -137,7 +140,9 @@ async def show_inv(m: types.Message):
 
 async def main():
     Thread(target=run_web_server, daemon=True).start()
+    # Удаляем вебхук при каждом запуске для обхода Conflict
     await bot.delete_webhook(drop_pending_updates=True)
+    print("Бот запущен!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
