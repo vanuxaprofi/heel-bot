@@ -19,7 +19,7 @@ def keep_alive():
 # --- НАСТРОЙКИ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
-CD = 5 
+CD = 5 # Кулдаун 5 секунд для тестов
 
 DATA = {
     "Обычная": {"Сено пятка": "https://ibb.co", "Земляная пятка": "https://ibb.co", "Водяная пятка": "https://ibb.co", "Небесная пятка": "https://ibb.co", "Стеклянная пятка": "https://ibb.co", "Банановая пятка": "https://ibb.co", "Магическая пятка": "https://ibb.co", "Накаченная пятка": "https://ibb.co"},
@@ -30,8 +30,7 @@ DATA = {
     "Легендарная": {"Алмазная пятка": "https://ibb.co", "Зевс пятка": "https://ibb.co", "Мертвая пятка": "https://ibb.co"},
     "Идеальная": {"Изумрудная пятка": "https://ibb.co", "Космическая пятка": "https://ibb.co"}
 }
-
-# ШАНСЫ ЗАПОЛНЕНЫ ВРУЧНУЮ, БОЛЬШЕ НЕ УПАДЕТ:
+# Шансы выпадения по категориям (прописаны вручную):
 CH = [45, 25, 15, 8, 4, 2, 1]
 
 bot = Bot(token=API_TOKEN)
@@ -47,7 +46,6 @@ def load():
 def save(d):
     with open(DB_FILE, 'w', encoding='utf-8') as f: json.dump(d, f, ensure_ascii=False, indent=4)
 
-# ЕСЛИ ПРИШЛЕШЬ ФОТО — БОТ СКАЖЕТ ЕГО ID
 @dp.message(F.photo)
 async def get_photo_id(m: types.Message):
     await m.answer(f"ID фото для вставки в код:\n<code>{m.photo[-1].file_id}</code>", parse_mode="HTML")
@@ -58,18 +56,24 @@ async def st(m: types.Message):
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
     await m.answer("🦶 Бот запущен! Жми кнопку.", reply_markup=kb.as_markup(resize_keyboard=True))
 
+@dp.message(Command("reset_me"))
+async def rs(m: types.Message):
+    d = load()
+    u = str(m.from_user.id)
+    if u in d:
+        del d[u]
+        save(d)
+        await m.answer("♻️ Прогресс сброшен!")
+
 @dp.message(F.text.lower() == "пятка")
 async def gt(m: types.Message):
     d = load()
     u = str(m.from_user.id)
     now = time.time()
-    
     if u in d and now - d[u].get('t', 0) < CD:
-        rem = int(CD - (now - d[u]['t']))
-        return await m.answer(f"⏳ Жди {rem} сек.")
+        return await m.answer(f"⏳ Жди {int(CD - (now - d[u]['t']))} сек.")
 
     if u not in d: d[u] = {'inv': [], 't': 0}
-    
     avail = []
     for r_n, r_i in DATA.items():
         for i_n in r_i.keys():
@@ -77,8 +81,8 @@ async def gt(m: types.Message):
 
     if not avail: return await m.answer("🏆 Коллекция собрана!")
 
-    # ВЫБОР РЕДКОСТИ
-    rk = random.choices(list(DATA.keys()), weights=CH, k=1)[0]
+    rk_list = random.choices(list(DATA.keys()), weights=CH, k=1)
+    rk = rk_list[0]
     ps = [n for n in DATA[rk].keys() if n not in d[u]['inv']]
     
     if not ps: rk, name = random.choice(avail)
@@ -90,22 +94,17 @@ async def gt(m: types.Message):
     save(d)
     
     cap = f"🦶 Тебе выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>"
-    
     try:
-        if pic.startswith("http"): 
-            photo = URLInputFile(pic)
-        else: 
-            photo = pic
-        await m.answer_photo(photo=photo, caption=cap, parse_mode="HTML")
-    except Exception as e:
-        await m.answer(cap + "\n\n⚠️ Ошибка фото! Пришли боту картинку этой пятки, чтобы получить её ID и вставить в код.", parse_mode="HTML")
+        await m.answer_photo(photo=URLInputFile(pic), caption=cap, parse_mode="HTML")
+    except:
+        await m.answer(cap, parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
 async def iv(m: types.Message):
     d = load()
     items = d.get(str(m.from_user.id), {}).get('inv', [])
     if not items: await m.answer("Пусто.")
-    else: await m.answer("📜 Коллекция:\n" + "\n".join([f"— {i}" for i in items]))
+    else: await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in items]))
 
 async def main():
     keep_alive()
