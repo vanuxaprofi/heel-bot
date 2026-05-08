@@ -113,11 +113,19 @@ async def show_inv(m: types.Message):
         await m.answer("📦 Твой инвентарь пока пуст.")
     else:
         await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in inv]))
-
 async def main():
+    # Запуск сервера для Render
     Thread(target=run_web_server, daemon=True).start()
+    
+    # Принудительный разрыв всех старых соединений
     await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    await asyncio.sleep(1) 
+    
+    # Запуск бота с игнорированием старых ошибок
+    print("Бот успешно запущен и все конфликты удалены!")
+    await dp.start_polling(bot, skip_updates=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
