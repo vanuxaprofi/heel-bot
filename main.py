@@ -6,6 +6,7 @@ from aiogram.types import URLInputFile
 from flask import Flask
 from threading import Thread
 
+# --- СЕРВЕР ДЛЯ RENDER ---
 app = Flask('')
 @app.route('/')
 def home(): return "OK"
@@ -15,6 +16,7 @@ def keep_alive():
     t.daemon = True
     t.start()
 
+# --- НАСТРОЙКИ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
 CD = 5 
@@ -28,6 +30,8 @@ DATA = {
     "Легендарная": {"Алмазная пятка": "https://ibb.co", "Зевс пятка": "https://ibb.co", "Мертвая пятка": "https://ibb.co"},
     "Идеальная": {"Изумрудная пятка": "https://ibb.co", "Космическая пятка": "https://ibb.co"}
 }
+
+# ШАНСЫ ЗАПОЛНЕНЫ ВРУЧНУЮ, БОЛЬШЕ НЕ УПАДЕТ:
 CH = [45, 25, 15, 8, 4, 2, 1]
 
 bot = Bot(token=API_TOKEN)
@@ -43,45 +47,58 @@ def load():
 def save(d):
     with open(DB_FILE, 'w', encoding='utf-8') as f: json.dump(d, f, ensure_ascii=False, indent=4)
 
-# УЗНАТЬ FILE_ID (просто отправь фото боту)
+# ЕСЛИ ПРИШЛЕШЬ ФОТО — БОТ СКАЖЕТ ЕГО ID
 @dp.message(F.photo)
-async def get_id(m: types.Message):
-    await m.answer(f"ID твоего фото:\n<code>{m.photo[-1].file_id}</code>", parse_mode="HTML")
+async def get_photo_id(m: types.Message):
+    await m.answer(f"ID фото для вставки в код:\n<code>{m.photo[-1].file_id}</code>", parse_mode="HTML")
 
 @dp.message(Command("start"))
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот онлайн!", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен! Жми кнопку.", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text.lower() == "пятка")
 async def gt(m: types.Message):
     d = load()
     u = str(m.from_user.id)
     now = time.time()
+    
     if u in d and now - d[u].get('t', 0) < CD:
-        return await m.answer(f"⏳ Жди {int(CD - (now - d[u]['t']))} сек.")
+        rem = int(CD - (now - d[u]['t']))
+        return await m.answer(f"⏳ Жди {rem} сек.")
+
     if u not in d: d[u] = {'inv': [], 't': 0}
+    
     avail = []
     for r_n, r_i in DATA.items():
         for i_n in r_i.keys():
             if i_n not in d[u]['inv']: avail.append((r_n, i_n))
-    if not avail: return await m.answer("🏆 Собрал всё!")
+
+    if not avail: return await m.answer("🏆 Коллекция собрана!")
+
+    # ВЫБОР РЕДКОСТИ
     rk = random.choices(list(DATA.keys()), weights=CH, k=1)[0]
     ps = [n for n in DATA[rk].keys() if n not in d[u]['inv']]
+    
     if not ps: rk, name = random.choice(avail)
     else: name = random.choice(ps)
+
     pic = DATA[rk][name]
     d[u]['inv'].append(name)
     d[u]['t'] = now
     save(d)
+    
     cap = f"🦶 Тебе выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>"
+    
     try:
-        if pic.startswith("http"): photo = URLInputFile(pic)
-        else: photo = pic # Если это уже file_id
+        if pic.startswith("http"): 
+            photo = URLInputFile(pic)
+        else: 
+            photo = pic
         await m.answer_photo(photo=photo, caption=cap, parse_mode="HTML")
-    except:
-        await m.answer(f"{cap}\n\n(Фото не загрузилось из-за блокировки ссылки!)", parse_mode="HTML")
+    except Exception as e:
+        await m.answer(cap + "\n\n⚠️ Ошибка фото! Пришли боту картинку этой пятки, чтобы получить её ID и вставить в код.", parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
 async def iv(m: types.Message):
