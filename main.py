@@ -2,9 +2,11 @@ import asyncio, json, random, time, os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.types import URLInputFile
 from flask import Flask
 from threading import Thread
 
+# --- СЕРВЕР ДЛЯ RENDER ---
 app = Flask('')
 @app.route('/')
 def home(): return "OK"
@@ -14,6 +16,7 @@ def keep_alive():
     t.daemon = True
     t.start()
 
+# --- НАСТРОЙКИ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
 CD = 5 
@@ -46,7 +49,7 @@ def save(d):
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот обновлен! Фото и полные названия работают.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен! Кулдаун 5 секунд.", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(Command("reset_me"))
 async def reset(m: types.Message):
@@ -55,55 +58,50 @@ async def reset(m: types.Message):
     if u in d:
         del d[u]
         save(d)
-        await m.answer("♻️ Твой прогресс сброшен!")
+        await m.answer("♻️ Прогресс сброшен!")
 
 @dp.message(F.text.lower() == "пятка")
 async def gt(m: types.Message):
     d = load()
     u = str(m.from_user.id)
     now = time.time()
-    
     if u in d and now - d[u].get('t', 0) < CD:
-        rem = int(CD - (now - d[u]['t']))
-        return await m.answer(f"⏳ Жди {rem} сек.")
+        return await m.answer(f"⏳ Жди {int(CD - (now - d[u]['t']))} сек.")
 
     if u not in d: d[u] = {'inv': [], 't': 0}
     
     available = []
     for r_n, r_i in DATA.items():
         for i_n in r_i.keys():
-            if i_n not in d[u]['inv']:
-                available.append((r_n, i_n))
+            if i_n not in d[u]['inv']: available.append((r_n, i_n))
 
-    if not available:
-        return await m.answer("🏆 Ты собрал все пятки!")
+    if not available: return await m.answer("🏆 Ты собрал все пятки!")
 
-    rar_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)
-    poss_items = [n for n in DATA[rar_key].keys() if n not in d[u]['inv']]
-    
-    if not poss_items:
-        rar_key, name = random.choice(available)
-    else:
-        name = random.choice(poss_items)
+    rar_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
+    poss = [n for n in DATA[rar_key].keys() if n not in d[u]['inv']]
+    if not poss: rar_key, name = random.choice(available)
+    else: name = random.choice(poss)
 
-    pic = DATA[rar_key][name]
+    pic_url = DATA[rar_key][name]
     d[u]['inv'].append(name)
     d[u]['t'] = now
     save(d)
     
-    cap = f"🦶 Выпала: <b>{name}</b>\n💎 Редкость: <b>{rar_key}</b>"
+    # Новый формат сообщения: Название сверху, Редкость снизу
+    cap = f"🦶 Тебе выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rar_key}</b>"
+    
     try:
-        await bot.send_photo(chat_id=m.chat.id, photo=pic, caption=cap, parse_mode="HTML")
-    except Exception as e:
-        print(f"Ошибка фото: {e}")
+        photo = URLInputFile(pic_url)
+        await m.answer_photo(photo=photo, caption=cap, parse_mode="HTML")
+    except:
         await m.answer(cap, parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
 async def iv(m: types.Message):
     d = load()
     items = d.get(str(m.from_user.id), {}).get('inv', [])
-    if not items: await m.answer("Пусто.")
-    else: await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in items]))
+    if not items: await m.answer("📦 Твой инвентарь пуст.")
+    else: await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in items]))
 
 async def main():
     keep_alive()
