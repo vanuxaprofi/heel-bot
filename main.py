@@ -2,7 +2,6 @@ import asyncio, json, random, time, os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
-from aiogram.types import URLInputFile
 from flask import Flask
 from threading import Thread
 
@@ -19,19 +18,61 @@ def keep_alive():
 # --- НАСТРОЙКИ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
-CD = 5 # Кулдаун 5 секунд для тестов
+CD = 18000 # Возвращаю 5 часов. Если нужно 5 секунд для теста — поменяй на 5.
 
+# --- БАЗА ПЯТОК С FILE_ID ---
 DATA = {
-    "Обычная": {"Сено пятка": "https://ibb.co", "Земляная пятка": "https://ibb.co", "Водяная пятка": "https://ibb.co", "Небесная пятка": "https://ibb.co", "Стеклянная пятка": "https://ibb.co", "Банановая пятка": "https://ibb.co", "Магическая пятка": "https://ibb.co", "Накаченная пятка": "https://ibb.co"},
-    "Необычная": {"Какашка пятка": "https://ibb.co", "Вонючая пятка": "https://ibb.co", "Клубничная пятка": "https://ibb.co", "Зек пятка": "https://ibb.co", "Серебряная пятка": "https://ibb.co", "Миньон пятка": "https://ibb.co"},
-    "Редкая": {"Пикми пятка": "https://ibb.co", "Фурри пятка": "https://ibb.co", "Аниме пятка": "https://ibb.co", "Нарисованная пятка": "https://ibb.co", "Шиповая пятка": "https://ibb.co", "Костянная пятка": "https://ibb.co"},
-    "Эпическая": {"Золотая пятка": "https://ibb.co", "Неоновая пятка": "https://ibb.co", "Теневая пятка": "https://ibb.co", "Лавовая пятка": "https://ibb.co", "Готическая пятка": "https://ibb.co"},
-    "Мифическая": {"Демоническая пятка": "https://ibb.co", "Ангельская пятка": "https://ibb.co", "Король пятка": "https://ibb.co", "Радужная пятка": "https://ibb.co"},
-    "Легендарная": {"Алмазная пятка": "https://ibb.co", "Зевс пятка": "https://ibb.co", "Мертвая пятка": "https://ibb.co"},
-    "Идеальная": {"Изумрудная пятка": "https://ibb.co", "Космическая пятка": "https://ibb.co"}
+    "Обычная": {
+        "Сено пятка": "AgACAgIAAxkBAAPlaf2Pp7k7PXrNT0d9TgjIgwKFfDoAArwTaxv04fFLE9Pz-Di4gQsBAAMCAAN5AAM7BA",
+        "Земляная пятка": "AgACAgIAAxkBAAO_af2PJQUJtkxccatimHfZXuVHkx0AAqUTaxv04fFL0X9OPtULRNgBAAMCAAN5AAM7BA",
+        "Водяная пятка": "AgACAgIAAxkBAAO3af2PDJ0Ud1YLISwNC3Q9J-oZw4gAAqETaxv04fFLn6SnJRUCkf0BAAMCAAN5AAM7BA",
+        "Небесная пятка": "AgACAgIAAxkBAAPdaf2PktnAaJdY6Dh6gQkCAAFbGuBEAAK4E2sb9OHxS81YKINb9aIAAQEAAwIAA3kAAzsE",
+        "Стеклянная пятка": "AgACAgIAAxkBAAPpaf2PsTPjIxZ2V-G741bpzEhbvewAAr4Taxv04fFLvHpUeY8-3sUBAAMCAAN5AAM7BA",
+        "Банановая пятка": "AgACAgIAAxkBAAO1af2PBk0xS29McOFH3fAtJSnADFEAAqATaxv04fFLdQAB7DysIts2AQADAgADeQADOwQ",
+        "Магическая пятка": "AgACAgIAAxkBAAPTaf2Pbi_T-NpbKLSa1m1bjQbZ5PAAArMTaxv04fFL1jnJZS0RalQBAAMCAAN5AAM7BA",
+        "Накачаная пятка": "AgACAgIAAxkBAAPZaf2Phkz7x9JbOe2kNNWQdz_wR5kAArYTaxv04fFLOopOnhweLHcBAAMCAAN5AAM7BA"
+    },
+    "Необычная": {
+        "Какашка пятка": "AgACAgIAAxkBAAPFaf2PPgoYWtmcoFpNxv0jaTKVJZMAAqoTaxv04fFL3v6kk9fTTEgBAAMCAAN5AAM7BA",
+        "Вонючая пятка": "AgACAgIAAxkBAAO5af2PEWh5IiBFzoMvoxRzlpm4MEAAAqITaxv04fFLKpbFXQZ1Ir4BAAMCAAN5AAM7BA",
+        "Клубничная пятка": "AgACAgIAAxkBAAPHaf2PRQIMUE8-bWkMg0J5YEbPpWIAAqwTaxv04fFLqwlQ5MU_kY4BAAMCAAN5AAM7BA",
+        "Зек пятка": "AgACAgIAAxkBAAO9af2PH1t0F0smUHB21lDoBs4rCSQAAqQTaxv04fFLba30gxBVjo0BAAMCAAN5AAM7BA",
+        "Серебрянная пятка": "AgACAgIAAxkBAAPnaf2PrXCMYRpNgNhNLNF7FnpGlUUAAr0Taxv04fFLGIrK63_mifgBAAMCAAN5AAM7BA",
+        "Миньон пятка": "AgACAgIAAxkBAAPXaf2PgTlB3HMIaZLY21X1WcuxHGUAArUTaxv04fFLtNyF4L2a2X0BAAMCAAN5AAM7BA"
+    },
+    "Редкая": {
+        "Пикми пятка": "AgACAgIAAxkBAAPhaf2PnXKz5ieWdDUui3Ss2GLkYP4AAroTaxv04fFLuKGCU27-HowBAAMCAAN5AAM7BA",
+        "Фурри пятка": "AgACAgIAAxkBAAPraf2Pt4eysWdXU5qpzwWhK08yYOYAAr8Taxv04fFL5D-3jabfDiMBAAMCAAN5AAM7BA",
+        "Аниме пятка": "AgACAgIAAxkBAAOzaf2PAUY1BbaWRiB-NDTSPaxT5i0AAp8Taxv04fFLRFBp4H059GUBAAMCAAN5AAM7BA",
+        "Нарисованная пятка": "AgACAgIAAxkBAAPbaf2PjZ_SSygWK5J8cIASeDD80TMAArcTaxv04fFLK-9iWY63af8BAAMCAAN5AAM7BA",
+        "Шиповая пятка": "AgACAgIAAxkBAAPJaf2PS6W9jEZSlwMflkel97Ke_rEAAq0Taxv04fFLz5T7u3QdZPgBAAMCAAN5AAM7BA",
+        "Костянная пятка": "AgACAgIAAxkBAAPPaf2PXytPkfpMTQ7XNQUV4FKWZlgAArETaxv04fFLYWz6lgy9DtMBAAMCAAN5AAM7BA"
+    },
+    "Эпическая": {
+        "Золотая пятка": "AgACAgIAAxkBAAPBaf2PMIM0-CdCO54JHVGfkPrUcvcAAqYTaxv04fFLND3LX-G6wC8BAAMCAAN5AAM7BA",
+        "Неоновая пятка": "AgACAgIAAxkBAAPfaf2Pl3arZOhe5bHtnK2ujOh-SrAAArkTaxv04fFLHITPRRLD-MIBAAMCAAN5AAM7BA",
+        "Теневая пятка": "AgACAgIAAxkBAAPfaf2Pl3arZOhe5bHtnK2ujOh-SrAAArkTaxv04fFLHITPRRLD-MIBAAMCAAN5AAM7BA",
+        "Лавовая пятка": "AgACAgIAAxkBAAPRaf2PZuCrLqZSAAF9fBNzEqz1RvGjAAKyE2sb9OHxS81YKINb9aIAAQEAAwIAA3kAAzsE",
+        "Готическая пятка": "AgACAgIAAxkBAAO7af2PF9vc85g_9rj44635pNQnLn0AAqMTaxv04fFLSYzfJvnHsUsBAAMCAAN5AAM7BA"
+    },
+    "Мифическая": {
+        "Демоническая пятка": "AgACAgIAAxkBAAOtaf2Nq19iTXrmG-kSb2tHNEa819wAApcTaxv04fFLWrou_FctNJcBAAMCAAN5AAM7BA",
+        "Ангельская пятка": "AgACAgIAAxkBAAOxaf2O_AvYJNii6fKij3-QdEfTLUAAAp4Taxv04fFLnc4Hl2h9saMBAAMCAAN5AAM7BA",
+        "Король пятка": "AgACAgIAAxkBAAPLaf2PUp3dqZabYq3OtKjyuKy1odAAAq8Taxv04fFLDtZf82PfayMBAAMCAAN5AAM7BA",
+        "Радужная пятка": "AgACAgIAAxkBAAPjaf2Pop47pI8nlt6_YFSmaRHKEWgAArsTaxv04fFLUyIpnQqLpmEBAAMCAAN5AAM7BA"
+    },
+    "Легендарная": {
+        "Алмазная пятка": "AgACAgIAAxkBAAOvaf2O9RkEOXCLb5eSn2ZRi8sWFPcAAp0Taxv04fFL1rxXHlPU78MBAAMCAAN5AAM7BA",
+        "Зевс": "AgACAgIAAxkBAAPXaf2PgTlB3HMIaZLY21X1WcuxHGUAArUTaxv04fFLtNyF4L2a2X0BAAMCAAN5AAM7BA",
+        "Мёртвая пятка": "AgACAgIAAxkBAAPVaf2Pe21Vy9dSRMFkzLMl5EjETvcAArQTaxv04fFLUJEtsh0bKVEBAAMCAAN5AAM7BA"
+    },
+    "Идеальная": {
+        "Изумрудная пятка": "AgACAgIAAxkBAAPFaf2PPgoYWtmcoFpNxv0jaTKVJZMAAqoTaxv04fFL3v6kk9fTTEgBAAMCAAN5AAM7BA",
+        "Космическая пятка": "AgACAgIAAxkBAAPNaf2PVxVN1R51bsl8LOY15z8IcxEAArATaxv04fFLGdwh2Cx_tWgBAAMCAAN5AAM7BA"
+    }
 }
-# Шансы выпадения по категориям (прописаны вручную):
-CH = [45, 25, 15, 8, 4, 2, 1]
+
+CH =
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -48,13 +89,13 @@ def save(d):
 
 @dp.message(F.photo)
 async def get_photo_id(m: types.Message):
-    await m.answer(f"ID фото для вставки в код:\n<code>{m.photo[-1].file_id}</code>", parse_mode="HTML")
+    await m.answer(f"ID фото:\n<code>{m.photo[-1].file_id}</code>", parse_mode="HTML")
 
 @dp.message(Command("start"))
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен! Жми кнопку.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот полностью настроен! Пятки с фото готовы.", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(Command("reset_me"))
 async def rs(m: types.Message):
@@ -71,20 +112,19 @@ async def gt(m: types.Message):
     u = str(m.from_user.id)
     now = time.time()
     if u in d and now - d[u].get('t', 0) < CD:
-        return await m.answer(f"⏳ Жди {int(CD - (now - d[u]['t']))} сек.")
+        rem = int(CD - (now - d[u]['t']))
+        return await m.answer(f"⏳ Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
 
     if u not in d: d[u] = {'inv': [], 't': 0}
     avail = []
     for r_n, r_i in DATA.items():
         for i_n in r_i.keys():
             if i_n not in d[u]['inv']: avail.append((r_n, i_n))
-
     if not avail: return await m.answer("🏆 Коллекция собрана!")
 
     rk_list = random.choices(list(DATA.keys()), weights=CH, k=1)
-    rk = rk_list[0]
+    rk = rk_list
     ps = [n for n in DATA[rk].keys() if n not in d[u]['inv']]
-    
     if not ps: rk, name = random.choice(avail)
     else: name = random.choice(ps)
 
@@ -94,17 +134,14 @@ async def gt(m: types.Message):
     save(d)
     
     cap = f"🦶 Тебе выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rk}</b>"
-    try:
-        await m.answer_photo(photo=URLInputFile(pic), caption=cap, parse_mode="HTML")
-    except:
-        await m.answer(cap, parse_mode="HTML")
+    await m.answer_photo(photo=pic, caption=cap, parse_mode="HTML")
 
 @dp.message(F.text.lower() == "инвентарь")
 async def iv(m: types.Message):
     d = load()
     items = d.get(str(m.from_user.id), {}).get('inv', [])
-    if not items: await m.answer("Пусто.")
-    else: await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in items]))
+    if not items: await m.answer("📦 Твой инвентарь пуст.")
+    else: await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in items]))
 
 async def main():
     keep_alive()
