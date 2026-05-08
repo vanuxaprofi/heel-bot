@@ -5,7 +5,6 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from flask import Flask
 from threading import Thread
 
-# --- СЕРВЕР ДЛЯ RENDER ---
 app = Flask('')
 @app.route('/')
 def home(): return "OK"
@@ -15,12 +14,10 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# --- НАСТРОЙКИ ---
 API_TOKEN = os.getenv('BOT_TOKEN', '8539851697:AAHUHFS35gMBCJ5ozf_ChQfLOhrvke68Fzs')
 DB_FILE = 'users_data.json'
-CD = 5 # Оставляю 5 секунд для теста, потом поменяешь на 18000
+CD = 5 
 
-# --- БАЗА ПЯТОК С FILE_ID ---
 DATA = {
     "Обычная": {
         "Сено пятка": "AgACAgIAAxkBAAPlaf2Pp7k7PXrNT0d9TgjIgwKFfDoAArwTaxv04fFLE9Pz-Di4gQsBAAMCAAN5AAM7BA",
@@ -72,7 +69,6 @@ DATA = {
     }
 }
 
-# Шансы: Обыч(45), Необыч(25), Редк(15), Эпик(8), Миф(4), Лег(2), Идеал(1)
 CH = [45, 25, 15, 8, 4, 2, 1]
 
 bot = Bot(token=API_TOKEN)
@@ -88,15 +84,11 @@ def load():
 def save(d):
     with open(DB_FILE, 'w', encoding='utf-8') as f: json.dump(d, f, ensure_ascii=False, indent=4)
 
-@dp.message(F.photo)
-async def get_photo_id(m: types.Message):
-    await m.answer(f"ID фото:\n<code>{m.photo[-1].file_id}</code>", parse_mode="HTML")
-
 @dp.message(Command("start"))
 async def st(m: types.Message):
     kb = ReplyKeyboardBuilder()
     kb.button(text="Пятка"), kb.button(text="Инвентарь")
-    await m.answer("🦶 Бот запущен! Жми кнопку.", reply_markup=kb.as_markup(resize_keyboard=True))
+    await m.answer("🦶 Бот запущен!", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(Command("reset_me"))
 async def rs(m: types.Message):
@@ -105,7 +97,7 @@ async def rs(m: types.Message):
     if u in d:
         del d[u]
         save(d)
-        await m.answer("♻️ Прогресс сброшен!")
+        await m.answer("♻️ Сброшено!")
 
 @dp.message(F.text.lower() == "пятка")
 async def gt(m: types.Message):
@@ -113,9 +105,7 @@ async def gt(m: types.Message):
     u = str(m.from_user.id)
     now = time.time()
     if u in d and now - d[u].get('t', 0) < CD:
-        rem = int(CD - (now - d[u]['t']))
-        return await m.answer(f"⏳ Жди {rem // 3600}ч. {(rem % 3600) // 60}м.")
-
+        return await m.answer(f"⏳ Жди {int(CD - (now - d[u]['t']))} сек.")
     if u not in d: d[u] = {'inv': [], 't': 0}
     avail = []
     for r_n, r_i in DATA.items():
@@ -141,8 +131,8 @@ async def gt(m: types.Message):
 async def iv(m: types.Message):
     d = load()
     items = d.get(str(m.from_user.id), {}).get('inv', [])
-    if not items: await m.answer("📦 Твой инвентарь пуст.")
-    else: await m.answer("📜 Твоя коллекция:\n" + "\n".join([f"— {i}" for i in items]))
+    if not items: await m.answer("Пусто.")
+    else: await m.answer("📜 Твои пятки:\n" + "\n".join([f"— {i}" for i in items]))
 
 async def main():
     keep_alive()
