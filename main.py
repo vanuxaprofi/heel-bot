@@ -30,7 +30,8 @@ DATA = {
     "Легендарная": {"Алмазная пятка": "https://ibb.co", "Зевс пятка": "https://ibb.co", "Мертвая пятка": "https://ibb.co"},
     "Идеальная": {"Изумрудная пятка": "https://ibb.co", "Космическая пятка": "https://ibb.co"}
 }
-CHANCES =
+# Шансы: Обыч(45), Необыч(25), Редк(15), Эпик(8), Миф(4), Лег(2), Идеал(1)
+CHANCES = [45, 25, 15, 8, 4, 2, 1]
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -77,17 +78,20 @@ async def gt(m: types.Message):
 
     if not available: return await m.answer("🏆 Ты собрал все пятки!")
 
-    rar_key = random.choices(list(DATA.keys()), weights=CHANCES, k=1)[0]
+    rar_list = list(DATA.keys())
+    rar_key = random.choices(rar_list, weights=CHANCES, k=1)[0]
     poss = [n for n in DATA[rar_key].keys() if n not in d[u]['inv']]
-    if not poss: rar_key, name = random.choice(available)
-    else: name = random.choice(poss)
+    
+    if not poss:
+        rar_key, name = random.choice(available)
+    else:
+        name = random.choice(poss)
 
     pic_url = DATA[rar_key][name]
     d[u]['inv'].append(name)
     d[u]['t'] = now
     save(d)
     
-    # Новый формат сообщения: Название сверху, Редкость снизу
     cap = f"🦶 Тебе выпала НОВАЯ пятка: <b>{name}</b>\n💎 Редкость: <b>{rar_key}</b>"
     
     try:
