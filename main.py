@@ -184,33 +184,34 @@ async def show_inventory(message: Message):
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
-    cursor.execute("SELECT name, username, items FROM users")
+    cursor.execute("SELECT name, items FROM users") # Убрали запрос username
     rows = cursor.fetchall()
     if not rows: return await message.answer("Топ пока пуст!")
     
     users_list = []
     for r in rows:
-        # Берем данные аккуратно по индексам 0, 1, 2
-        name_val = r[0] if r[0] else "Игрок"
-        user_val = r[1] if r[1] else ""
-        items_str = r[2] if r[2] else ""
+        name_val = str(r[0]) if r[0] else "Игрок"
+        items_str = str(r[1]) if r[1] else ""
         
-        # Считаем предметы, только если строка не пустая
-        count = len(items_str.split(",")) if items_str.strip() else 0
-        users_list.append({"n": name_val, "u": user_val, "c": count})
+        # Считаем количество только если есть хоть одна пятка
+        count = len(items_str.split(",")) if (items_str and items_str.strip()) else 0
+        users_list.append({"n": name_val, "c": count})
     
-    # Сортируем: у кого больше пяток — тот выше
+    # Сортируем лидеров
     sorted_u = sorted(users_list, key=lambda x: x["c"], reverse=True)
     
     txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
     for i, u in enumerate(sorted_u[:10], 1):
-        un = f" (@{u['u']})" if u['u'] else ""
-        # Очищаем имя от спецсимволов, чтобы Markdown не ругался
-        safe_name = u['n'].replace("[", "").replace("]", "").replace("*", "")
-        txt += f"{i}. {safe_name}{un} — {u['c']}/{TOTAL_CARDS}\n"
+        # Чистим имя от символов, которые ломают Markdown (звездочки, подчеркивания)
+        safe_name = u['n'].replace("*", "").replace("_", " ").replace("[", "").replace("`", "")
+        txt += f"{i}. {safe_name} — {u['c']}/{TOTAL_CARDS}\n"
     
-    await message.answer(txt, parse_mode="Markdown")
-
+    try:
+        await message.answer(txt, parse_mode="Markdown")
+    except:
+        # Если всё равно ошибка — шлем без жирного шрифта
+        await message.answer(txt.replace("**", ""))
+        
 async def main():
     await start_web()
     await dp.start_polling(bot)
