@@ -24,8 +24,7 @@ DATA = {
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Хранилища (в памяти)
-# user_inventory = {user_id: {"name": "Username", "items": set()}}
+# Хранилища в памяти (сбросятся при перезагрузке)
 user_data = {}  
 last_time = {}
 
@@ -54,7 +53,7 @@ async def open_card(message: Message):
         wait_time = int(5 - (current_time - last_time[user_id]))
         return await message.answer(f"⏳ Подожди еще {wait_time} сек.")
 
-    # Выбор редкости
+    # Выбор редкости (70% - обычная, 20% - необычная, 10% - редкая)
     rarity = random.choices(list(DATA.keys()), weights=[70, 20, 10])[0]
     item_name, photo_id = random.choice(list(DATA[rarity].items()))
 
@@ -62,20 +61,23 @@ async def open_card(message: Message):
     if user_id not in user_data:
         user_data[user_id] = {"name": message.from_user.full_name, "items": set()}
     
-    # Проверка на повторку для сообщения
+    # Проверка на новинку
     is_new = item_name not in user_data[user_id]["items"]
     user_data[user_id]["items"].add(item_name)
-    user_data[user_id]["name"] = message.from_user.full_name # Обновляем имя если сменил
+    user_data[user_id]["name"] = message.from_user.full_name
     
     last_time[user_id] = current_time
 
-    status = "✨ НОВАЯ!" if is_new else "♻️ Уже есть в коллекции"
+    status = "✨ НОВАЯ В КОЛЛЕКЦИИ!" if is_new else "♻️ Такая уже есть"
     
-    await message.answer_photo(
-        photo=photo_id,
-        caption=f"🎉 Тебе выпала: **{item_name}**\nРедкость: {rarity}\n\n*{status}*",
-        parse_mode="Markdown"
-    )
+    try:
+        await message.answer_photo(
+            photo=photo_id,
+            caption=f"🎉 Тебе выпала: **{item_name}**\nРедкость: {rarity}\n\n*{status}*",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        await message.answer(f"Ошибка при отправке фото: {e}\nВыпала: {item_name}")
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
@@ -86,7 +88,8 @@ async def show_inventory(message: Message):
         return await message.answer("Твой инвентарь пока пуст. Жми 'Пятка'!")
 
     text = f"🎒 **Твой инвентарь ({len(data['items'])} шт.):**\n\n"
-    for item in sorted(data["items"]):
+    # Сортируем список для красоты
+    for item in sorted(list(data["items"])):
         text += f"• {item}\n"
     
     await message.answer(text, parse_mode="Markdown")
@@ -94,9 +97,9 @@ async def show_inventory(message: Message):
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
     if not user_data:
-        return await message.answer("Топ пока пуст!")
+        return await message.answer("Топ пока пуст! Будь первым!")
 
-    # Сортируем игроков по количеству уникальных пяток
+    # Сортируем игроков по количеству уникальных предметов
     sorted_users = sorted(user_data.values(), key=lambda x: len(x["items"]), reverse=True)
     
     text = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
@@ -106,8 +109,11 @@ async def show_top(message: Message):
     await message.answer(text, parse_mode="Markdown")
 
 async def main():
-    print("Бот запущен! Напиши в Telegram /start")
+    print("Бот успешно запущен!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("Бот остановлен")
