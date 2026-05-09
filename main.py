@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 
-# Твой рабочий токен (ОБЯЗАТЕЛЬНО В КАВЫЧКАХ)
+# Твой токен
 API_TOKEN = "8539851697:AAHefsphF_9xArNF1wa2Qi6AT_B-0YTAn_E"
 
 DATA = {
@@ -25,7 +25,7 @@ DATA = {
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Хранилище (в памяти)
+# Хранилища
 user_data = {}  
 last_time = {}
 
@@ -38,23 +38,27 @@ def get_main_kb():
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    await message.answer("🦶 Добро пожаловать в игру! Собирай коллекцию пяток.", reply_markup=get_main_kb())
+    await message.answer("🦶 Игра запущена! Нажимай на кнопки ниже:", reply_markup=get_main_kb())
 
+# ПОЛУЧЕНИЕ ID ФОТО (без КД)
+@dp.message(F.photo)
+async def get_photo_id(message: Message):
+    photo_id = message.photo[-1].file_id
+    await message.answer(f"✅ **ID этой фотографии:**\n\n`{photo_id}`", parse_mode="Markdown")
+
+# КНОПКА "ПЯТКА" (с КД 5 секунд)
 @dp.message(F.text == "🦶 Пятка")
 async def open_card(message: Message):
     user_id = message.from_user.id
     current_time = time.time()
 
-    # Проверка кулдауна (5 секунд)
     if user_id in last_time and current_time - last_time[user_id] < 5:
         wait_time = int(5 - (current_time - last_time[user_id]))
         return await message.answer(f"⏳ Подожди еще {wait_time} сек.")
 
-    # Выбор редкости и пятки
     rarity = random.choices(list(DATA.keys()), weights=[70, 20, 10])[0]
     item_name, photo_id = random.choice(list(DATA[rarity].items()))
 
-    # Инициализация пользователя
     if user_id not in user_data:
         user_data[user_id] = {
             "name": message.from_user.full_name,
@@ -62,34 +66,30 @@ async def open_card(message: Message):
             "items": set()
         }
     
-    # Проверка на повторку
     is_new = item_name not in user_data[user_id]["items"]
+    
     if is_new:
         user_data[user_id]["items"].add(item_name)
-    
-    user_data[user_id]["name"] = message.from_user.full_name
-    user_data[user_id]["username"] = message.from_user.username
+        status_msg = "🎒 Пятка успешно добавлена в ваш инвентарь!"
+    else:
+        status_msg = "♻️ Такая пятка у вас уже есть!"
+
     last_time[user_id] = current_time
 
-    status = "✨ НОВАЯ!" if is_new else "♻️ Уже есть в коллекции"
-    
+    # Твой новый формат текста
     caption_text = (
-        f"Поздравляю! Вам выпало: **{item_name}**\n"
-        f"Редкость: {rarity}\n\n"
-        f"*{status}*\n"
-        f"---"
-        f"📎 ID фото: `{photo_id}`"
+        f"🎉**Поздравляю**🎉\n\n"
+        f"Вам выпала • **{item_name}**\n"
+        f"Редкость • **{rarity}**\n\n"
+        f"{status_msg}"
     )
 
     try:
-        await message.answer_photo(
-            photo=photo_id,
-            caption=caption_text,
-            parse_mode="Markdown"
-        )
+        await message.answer_photo(photo=photo_id, caption=caption_text, parse_mode="Markdown")
     except Exception:
-        await message.answer(f"🎉 Выпала: {item_name}\nРедкость: {rarity}\nID: `{photo_id}`", parse_mode="Markdown")
+        await message.answer(f"🎉 Вам выпала: {item_name}\nРедкость: {rarity}\n\n{status_msg}")
 
+# КНОПКА "ИНВЕНТАРЬ" (без КД)
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
     data = user_data.get(message.from_user.id)
@@ -97,25 +97,22 @@ async def show_inventory(message: Message):
         return await message.answer("Твой инвентарь пока пуст!")
 
     items_list = "\n".join([f"• {item}" for item in sorted(list(data["items"]))])
-    await message.answer(f"🎒 **Твоя коллекция ({len(data['items'])}/4):**\n\n{items_list}", parse_mode="Markdown")
+    await message.answer(f"🎒 **Твоя коллекция ({len(data['items'])}/{sum(len(v) for v in DATA.values())}):**\n\n{items_list}", parse_mode="Markdown")
 
+# КНОПКА "ТОП" (без КД)
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
     if not user_data:
         return await message.answer("Топ пока пуст!")
 
-    # Сортировка по количеству уникальных пяток
-    sorted_users = sorted(user_data.values(), key=lambda x: len(x["items"]), reverse=True)
-    
+    users = sorted(user_data.values(), key=lambda x: len(x["items"]), reverse=True)
     text = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
-    for i, user in enumerate(sorted_users[:10], 1):
+    for i, user in enumerate(users[:10], 1):
         un = f" (@{user['username']})" if user['username'] else ""
         text += f"{i}. {user['name']}{un} — {len(user['items'])} шт.\n"
-    
     await message.answer(text, parse_mode="Markdown")
 
 async def main():
-    print("Бот запущен!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
