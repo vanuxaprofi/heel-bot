@@ -382,30 +382,21 @@ async def play_bet(call: types.CallbackQuery):
     user_id = call.from_user.id
     choice = call.data.replace("bet_", "")
     inv, balance, total_opens, duplicates = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
-    
     if balance < 100: return await call.answer("❌ Мало монет!", show_alert=True)
-    
-           coeffs = {
-        "⚪ ОБЫЧНАЯ (45%)": 1.5, 
-        "🟢 НЕОБЫЧНАЯ (25%)": 2.5, 
-        "🔵 РЕДКАЯ (15%)": 5.0,
-        "🟣 ЭПИЧЕСКАЯ (8%)": 10.0, 
-        "🔴 МИФИЧЕСКАЯ (4%)": 20.0, 
-        "🟡 ЛЕГЕНДАРНАЯ (2%)": 40.0, 
-        "👑 ИДЕАЛЬНАЯ (1%)": 80.0
+    coeffs = {
+        "⚪ ОБЫЧНАЯ (45%)": 1.5, "🟢 НЕОБЫЧНАЯ (25%)": 2.5, "🔵 РЕДКАЯ (15%)": 5.0,
+        "🟣 ЭПИЧЕСКАЯ (8%)": 10.0, "🔴 МИФИЧЕСКАЯ (4%)": 20.0, "🟡 ЛЕГЕНДАРНАЯ (2%)": 40.0, "👑 ИДЕАЛЬНАЯ (1%)": 80.0
     }
-    
     balance -= 100
     last_bet_time[user_id] = time.time()
-    res = random.choices(RARITIES, weights=WEIGHTS)[0]
-    
+    res_list = random.choices(RARITIES, weights=WEIGHTS)
+    res = res_list[0]
     if res == choice:
         win = int(100 * coeffs[choice])
         balance += win
         m = f"✅ **ВЫИГРАЛ!**\nВыпала: {res}\nПриз: **{win}** 💰"
     else:
         m = f"❌ **ПРОИГРАЛ**\nВыпала: {res}\nСтавка сгорела."
-    
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
     await call.message.edit_text(f"{m}\n💰 Баланс: **{balance}**\n⏳ Ждем 9 часов.", parse_mode="Markdown")
     await call.answer()
