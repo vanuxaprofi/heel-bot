@@ -55,8 +55,7 @@ async def open_card(message: Message):
 
     # Выбор редкости (70% - обычная, 20% - необычная, 10% - редкая)
     rarity = random.choices(list(DATA.keys()), weights=[70, 20, 10])[0]
-    item_name, photo_id = random.choice(list(DATA[rarity].items()))
-
+item_name, photo_id = random.choice(list(DATA[rarity].items()))
     # Инициализация пользователя
     if user_id not in user_data:
         user_data[user_id] = {"name": message.from_user.full_name, "items": set()}
