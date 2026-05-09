@@ -146,9 +146,7 @@ def get_kb():
     kb = [
         [KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")],
         [KeyboardButton(text="🏆 Топ игроков"), KeyboardButton(text="👤 Профиль")],
-        [KeyboardButton(text="🛒 Магазин"), KeyboardButton(text="🎰 Ставки")] # Добавили кнопку
-    ]
-    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+        [KeyboardButton(text="🛒 Магазин"), KeyboardButton(text="🎰 Ставки")]
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
     
