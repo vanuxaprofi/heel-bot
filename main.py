@@ -146,7 +146,9 @@ def get_kb():
     kb = [
         [KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")],
         [KeyboardButton(text="🏆 Топ игроков"), KeyboardButton(text="👤 Профиль")],
-        [KeyboardButton(text="🛒 Магазин")] # Наша новая кнопка
+        [KeyboardButton(text="🛒 Магазин"), KeyboardButton(text="🎰 Ставки")] # Добавили кнопку
+    ]
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
     
@@ -356,6 +358,72 @@ async def buy_chest(call: types.CallbackQuery):
     
     await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
     await call.answer() # Убираем "часики" с кнопки
+@dp.message(F.text == "🎰 Ставки")
+async def bet_menu(message: Message):
+    user_id = message.from_user.id
+    current_time = time.time()
+    
+    # Проверка КД 9 часов (32400 секунд)
+    if user_id in last_bet_time and current_time - last_bet_time[user_id] < 32400:
+        rem = int(32400 - (current_time - last_bet_time[user_id]))
+        return await message.answer(f"⏳ Ставки будут доступны через {rem // 3600}ч. {(rem % 3600) // 60}мин.")
+
+    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    
+    txt = (
+        f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: **{balance}**\n\n"
+        f"Ставка: **100 💰**\n"
+        f"Выбери редкость (награда за риск):\n"
+        f"⚪ x1.5 | 🟢 x2.5 | 🔵 x5.0\n"
+        f"🟣 x10 | 🔴 x20 | 🟡 x40 | 👑 x80\n\n"
+        f"⚠️ Попытка раз в 9 часов!"
+    )
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    # Важно: callback_data должна СТРОГО совпадать с твоими редкостями в DATA
+       bkb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
+        [InlineKeyboardButton(text="🟢 Необычная", callback_data="bet_🟢 НЕОБЫЧНАЯ (25%)")],
+        [InlineKeyboardButton(text="🔵 Редкая", callback_data="bet_🔵 РЕДКАЯ (15%)")],
+        [InlineKeyboardButton(text="🟣 Эпик", callback_data="bet_🟣 ЭПИЧЕСКАЯ (8%)")],
+        [InlineKeyboardButton(text="🔴 Мифик", callback_data="bet_🔴 МИФИЧЕСКАЯ (4%)")],
+        [InlineKeyboardButton(text="🟡 Легенда", callback_data="bet_🟡 ЛЕГЕНДАРНАЯ (2%)")],
+        [InlineKeyboardButton(text="👑 ИДЕАЛ", callback_data="bet_👑 ИДЕАЛЬНАЯ (1%)")]
+    ])
+    await message.answer(txt, reply_markup=bkb, parse_mode="Markdown")
+
+@dp.callback_query(F.data.startswith("bet_"))
+async def play_bet(call: types.CallbackQuery):
+    user_id = call.from_user.id
+    choice = call.data.replace("bet_", "")
+    inv, balance, total_opens, duplicates = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
+    
+    if balance < 100: return await call.answer("❌ Мало монет!", show_alert=True)
+    
+           coeffs = {
+        "⚪ ОБЫЧНАЯ (45%)": 1.5, 
+        "🟢 НЕОБЫЧНАЯ (25%)": 2.5, 
+        "🔵 РЕДКАЯ (15%)": 5.0,
+        "🟣 ЭПИЧЕСКАЯ (8%)": 10.0, 
+        "🔴 МИФИЧЕСКАЯ (4%)": 20.0, 
+        "🟡 ЛЕГЕНДАРНАЯ (2%)": 40.0, 
+        "👑 ИДЕАЛЬНАЯ (1%)": 80.0
+    }
+    
+    balance -= 100
+    last_bet_time[user_id] = time.time()
+    res = random.choices(RARITIES, weights=WEIGHTS)[0]
+    
+    if res == choice:
+        win = int(100 * coeffs[choice])
+        balance += win
+        m = f"✅ **ВЫИГРАЛ!**\nВыпала: {res}\nПриз: **{win}** 💰"
+    else:
+        m = f"❌ **ПРОИГРАЛ**\nВыпала: {res}\nСтавка сгорела."
+    
+    update_user_stats(user_id, inv, balance, total_opens, duplicates)
+    await call.message.edit_text(f"{m}\n💰 Баланс: **{balance}**\n⏳ Ждем 9 часов.", parse_mode="Markdown")
+    await call.answer()
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
