@@ -377,7 +377,7 @@ async def bet_menu(message: Message):
         f"⚠️ Попытка раз в 9 часов!"
     )
     
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         # Важно: callback_data должна СТРОГО совпадать с твоими редкостями в DATA
             bkb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
