@@ -162,52 +162,44 @@ async def roll(m: Message):
         res = (name, rar, pid)
 
     name, rar, pid = res
-    is_new = name not in inv
-    if is_new:
-        inv.add(name)
-        save_items(uid, m.from_user.full_name, m.from_user.username, inv)
+        if is_new:
+        inv.add(item_name)
+        save_items(user_id, message.from_user.full_name, message.from_user.username, inv)
     
-            status = "🎒 Пятка успешно добавлена!" if is_new else "♻️ Уже есть!"
-    msg = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{name}**\nРедкость • **{rar}**\n\n{status}"
-
+    last_time[user_id] = current_time
+    status = "🎒 Пятка успешно добавлена!" if is_new else "♻️ Уже есть!"
+    caption = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{item_name}**\nРедкость • **{rarity}**\n\n{status}"
+    
     try:
-        await m.answer_photo(photo=pid, caption=msg, parse_mode="Markdown")
+        await message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
     except:
-        await m.answer(msg)
+        await message.answer(caption)
 
 @dp.message(F.text == "🎒 Инвентарь")
-async def inv_cmd(m: Message):
-    inv = get_items(m.from_user.id, m.from_user.full_name, m.from_user.username)
-    if not inv: 
-        return await m.answer("Твой инвентарь пуст!")
-    
-    count = len(inv)
-    items_list = "\n".join([f"• {i}" for i in sorted(list(inv))])
-    res_text = f"🎒 **Твоя коллекция ({count}/{TOTAL_CARDS}):**\n\n{items_list}"
-    await m.answer(res_text, parse_mode="Markdown")
+async def show_inventory(message: Message):
+    inv = get_user_items(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    if not inv: return await message.answer("Пусто!")
+    text = f"🎒 **Коллекция ({len(inv)}/{TOTAL_CARDS}):**\n\n" + "\n".join([f"• {i}" for i in sorted(list(inv))])
+    await message.answer(text)
 
 @dp.message(F.text == "🏆 Топ игроков")
-async def top_cmd(m: Message):
+async def show_top(message: Message):
     cursor.execute("SELECT name, username, items FROM users")
     rows = cursor.fetchall()
-    if not rows: 
-        return await m.answer("Топ пока пуст!")
-    
-    users_list = []
+    if not rows: return await message.answer("Топ пуст!")
+    processed = []
     for r in rows:
-        name_val, user_val, items_str = r, r, r
-        c_val = len(items_str.split(",")) if items_str else 0
-        users_list.append({"n": name_val, "u": user_val, "c": c_val})
-    
-    sorted_u = sorted(users_list, key=lambda x: x["c"], reverse=True)
-    txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
+        count = len(r[2].split(",")) if r[2] else 0
+        processed.append({"n": r[0], "u": r[1], "c": count})
+    sorted_u = sorted(processed, key=lambda x: x["c"], reverse=True)
+    text = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
     for i, u in enumerate(sorted_u[:10], 1):
         un = f" (@{u['u']})" if u['u'] else ""
-        txt += f"{i}. {u['n']}{un} — {u['c']}/{TOTAL_CARDS}\n"
-    await m.answer(txt, parse_mode="Markdown")
+        text += f"{i}. {u['n']}{un} — {u['c']}/{TOTAL_CARDS}\n"
+    await message.answer(text, parse_mode="Markdown")
 
 async def main():
-    await start_web()
+    await start_web_server()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
