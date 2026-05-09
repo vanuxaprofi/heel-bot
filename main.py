@@ -138,36 +138,27 @@ def get_kb():
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 @dp.message(F.photo)
-async def get_id(m: Message):
-    pid = m.photo[-1].file_id
-    await m.answer(f"✅ **ID цієї фотографії:**\n\n`{pid}`", parse_mode="Markdown")
-
 @dp.message(F.text == "🦶 Пятка")
-async def roll(m: Message):
-    uid = m.from_user.id
-    inv = get_items(uid, m.from_user.full_name, m.from_user.username)
+async def open_card(message: Message):
+    user_id = message.from_user.id
+    current_time = time.time()
+    if user_id in last_time and current_time - last_time[user_id] < 5:
+        return await message.answer(f"⏳ Подожди {int(5 - (current_time - last_time[user_id]))} сек.")
+
+    inv = get_items(user_id, message.from_user.full_name, message.from_user.username)
     if len(inv) >= TOTAL_CARDS:
-        return await m.answer("🏆 Вы собрали все пятки! 🎉")
+        return await message.answer("🏆 Вы собрали все пятки!")
 
-    res = None
-    for _ in range(15):
-        rar = random.choices(RARITIES, weights=WEIGHTS)[0]
-        name, pid = random.choice(list(DATA[rar].items()))
-        if name not in inv:
-            res = (name, rar, pid)
-            break
-    if not res:
-        rar = random.choices(RARITIES, weights=WEIGHTS)[0]
-        name, pid = random.choice(list(DATA[rar].items()))
-        res = (name, rar, pid)
-
-    name, rar, pid = res
-        if is_new:
+    rarity = random.choices(RARITIES, weights=WEIGHTS)[0]
+    item_name, photo_id = random.choice(list(DATA[rarity].items()))
+    
+    is_new = item_name not in inv
+    if is_new:
         inv.add(item_name)
         save_items(user_id, message.from_user.full_name, message.from_user.username, inv)
     
     last_time[user_id] = current_time
-    status = "🎒 Пятка успешно добавлена!" if is_new else "♻️ Уже есть!"
+    status = "🎒 Пятка добавлена!" if is_new else "♻️ Уже есть!"
     caption = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{item_name}**\nРедкость • **{rarity}**\n\n{status}"
     
     try:
@@ -177,7 +168,7 @@ async def roll(m: Message):
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
-    inv = get_user_items(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    inv = get_items(message.from_user.id, message.from_user.full_name, message.from_user.username)
     if not inv: return await message.answer("Пусто!")
     text = f"🎒 **Коллекция ({len(inv)}/{TOTAL_CARDS}):**\n\n" + "\n".join([f"• {i}" for i in sorted(list(inv))])
     await message.answer(text)
@@ -199,7 +190,7 @@ async def show_top(message: Message):
     await message.answer(text, parse_mode="Markdown")
 
 async def main():
-    await start_web_server()
+    await start_web()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
