@@ -167,44 +167,56 @@ MONMONEY_REWARDS = {
 
 @dp.message(F.text == "🦶 Пятка")
 async def open_card(message: Message):
-    user_id = message.from_user.id
-    current_time = time.time()
-    
-    # Пока КД 5 секунд для тестов
-    COOLDOWN = 5 
-    if user_id in last_time and current_time - last_time[user_id] < COOLDOWN:
-        return await message.answer(f"⏳ Подожди {int(COOLDOWN - (current_time - last_time[user_id]))} сек.")
-
-    # Получаем данные через новую функцию
-    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
-    
-    # ВЫБОР КАРТЫ (добавили [0])
-    rarity = random.choices(RARITIES, weights=WEIGHTS)[0]
-    item_name, photo_id = random.choice(list(DATA[rarity].items()))
-    
-    # Начисляем монеты и статистику
-    reward = MONEY_REWARDS.get(rarity, 0)
-    balance += reward
-    total_opens += 1
-    
-    is_new = item_name not in inv
-    if is_new:
-        inv.add(item_name)
-        status = f"🎒 Пятка добавлена! (+{reward} 💰)"
-    else:
-        duplicates += 1
-        status = f"♻️ Уже есть! Получено (+{reward} 💰)"
-    
-    # Сохраняем всё в базу
-    update_user_stats(user_id, inv, balance, total_opens, duplicates)
-    last_time[user_id] = current_time
-    
-    caption = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{item_name}**\nРедкость • **{rarity}**\n\n{status}\n💰 Твой баланс: **{balance}** монет"
-    
     try:
-        await message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
-    except:
-        await message.answer(caption)
+        user_id = message.from_user.id
+        current_time = time.time()
+        
+        # КД 5 секунд
+        if user_id in last_time and current_time - last_time[user_id] < 5:
+            return await message.answer(f"⏳ Подожди {int(5 - (current_time - last_time[user_id]))} сек.")
+
+        # Получаем данные
+        inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+        
+        # ВЫБОР РЕДКОСТИ (с проверкой индекса)
+        rarity_list = random.choices(RARITIES, weights=WEIGHTS)
+        if not rarity_list:
+            return await message.answer("Ошибка: не удалось выбрать редкость.")
+        rarity = rarity_list[0]
+
+        # ВЫБОР КАРТЫ
+        if rarity not in DATA:
+            return await message.answer(f"Ошибка: категория {rarity} не найдена в DATA.")
+        
+        items = list(DATA[rarity].items())
+        item_name, photo_id = random.choice(items)
+        
+        # ДЕНЬГИ И СТАТИСТИКА
+        reward = MONEY_REWARDS.get(rarity, 0)
+        balance += reward
+        total_opens += 1
+        
+        is_new = item_name not in inv
+        if is_new:
+            inv.add(item_name)
+            status = f"🎒 Пятка добавлена! (+{reward} 💰)"
+        else:
+            duplicates += 1
+            status = f"♻️ Уже есть! Получено (+{reward} 💰)"
+        
+        # СОХРАНЕНИЕ
+        update_user_stats(user_id, inv, balance, total_opens, duplicates)
+        last_time[user_id] = current_time
+        
+        caption = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{item_name}**\nРедкость • **{rarity}**\n\n{status}\n💰 Твой баланс: **{balance}** монет"
+        
+        try:
+            await message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
+        except Exception as e:
+            await message.answer(f"{caption}\n\n(Ошибка фото: {e})")
+
+    except Exception as e:
+        await message.answer(f"❌ Произошла ошибка: {e}")
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
