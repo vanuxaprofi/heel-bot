@@ -102,11 +102,16 @@ DATA = {
 }
 
 RARITIES = list(DATA.keys())
-WEIGHTS = [0.45, 0.25, 0.15, 0.08, 0.04, 0.02, 0.01]
+WEIGHTS = [45, 25, 15, 8, 4, 2, 1]
 TOTAL_CARDS = sum(len(v) for v in DATA.values())
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
+last_time = {}
+@dp.message(Command("start"))
+async def start_cmd(message: Message):
+    await message.answer("Жми на кнопки ниже!", reply_markup=get_kb())
+
 
 # БАЗА ДАННЫХ
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
