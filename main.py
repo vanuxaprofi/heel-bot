@@ -360,34 +360,21 @@ async def buy_chest(call: types.CallbackQuery):
 async def bet_menu(message: Message):
     user_id = message.from_user.id
     current_time = time.time()
-    
-    # Проверка КД 9 часов (32400 секунд)
     if user_id in last_bet_time and current_time - last_bet_time[user_id] < 32400:
         rem = int(32400 - (current_time - last_bet_time[user_id]))
         return await message.answer(f"⏳ Ставки будут доступны через {rem // 3600}ч. {(rem % 3600) // 60}мин.")
-
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
-    
-    txt = (
-        f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: **{balance}**\n\n"
-        f"Ставка: **100 💰**\n"
-        f"Выбери редкость (награда за риск):\n"
-        f"⚪ x1.5 | 🟢 x2.5 | 🔵 x5.0\n"
-        f"🟣 x10 | 🔴 x20 | 🟡 x40 | 👑 x80\n\n"
-        f"⚠️ Попытка раз в 9 часов!"
-    )
-    
+    txt = (f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: **{balance}**\n\nСтавка: **100 💰**\nВыбери редкость:\n⚪ x1.5 | 🟢 x2.5 | 🔵 x5.0\n🟣 x10 | 🔴 x20 | 🟡 x40 | 👑 x80\n\n⚠️ Попытка раз в 9 часов!")
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-        # Важно: callback_data должна СТРОГО совпадать с твоими редкостями в DATA
-        bkb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
-            [InlineKeyboardButton(text="🟢 Необычная", callback_data="bet_🟢 НЕОБЫЧНАЯ (25%)")],
-            [InlineKeyboardButton(text="🔵 Редкая", callback_data="bet_🔵 РЕДКАЯ (15%)")],
-            [InlineKeyboardButton(text="🟣 Эпик", callback_data="bet_🟣 ЭПИЧЕСКАЯ (8%)")],
-            [InlineKeyboardButton(text="🔴 Мифик", callback_data="bet_🔴 МИФИЧЕСКАЯ (4%)")],
-            [InlineKeyboardButton(text="🟡 Легенда", callback_data="bet_🟡 ЛЕГЕНДАРНАЯ (2%)")],
-            [InlineKeyboardButton(text="👑 ИДЕАЛ", callback_data="bet_👑 ИДЕАЛЬНАЯ (1%)")]
-        ])
+    bkb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
+        [InlineKeyboardButton(text="🟢 Необычная", callback_data="bet_🟢 НЕОБЫЧНАЯ (25%)")],
+        [InlineKeyboardButton(text="🔵 Редкая", callback_data="bet_🔵 РЕДКАЯ (15%)")],
+        [InlineKeyboardButton(text="🟣 Эпик", callback_data="bet_🟣 ЭПИЧЕСКАЯ (8%)")],
+        [InlineKeyboardButton(text="🔴 Мифик", callback_data="bet_🔴 МИФИЧЕСКАЯ (4%)")],
+        [InlineKeyboardButton(text="🟡 Легенда", callback_data="bet_🟡 ЛЕГЕНДАРНАЯ (2%)")],
+        [InlineKeyboardButton(text="👑 ИДЕАЛ", callback_data="bet_👑 ИДЕАЛЬНАЯ (1%)")]
+    ])
     await message.answer(txt, reply_markup=bkb, parse_mode="Markdown")
 
 @dp.callback_query(F.data.startswith("bet_"))
