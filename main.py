@@ -34,16 +34,16 @@ DATA = {
     
         "🟢 НЕОБЫЧНАЯ (25%)": {
         "💩 Какашка пятка": "AgACAgIAAxkBAAPFaf2PPgoYWtmcoFpNxv0jaTKVJZMAAqoTaxv04fFL3v6kk9fTTEgBAAMCAAN5AAM7BA",
-        "🤡 Клоунская пятка": "AgACAgIAAxkBAAID-Gn_E6OYGkahSIly7Upk6h6I2keXAAKGFWsb1ZD5SlHVO8XInLN-AQADAgADeQADOwQ",
-        "🇲🇽 Мексиканская пятка": "AgACAgIAAxkBAAID_mn_F9oimGNZFPiPeunZwvsjuHBDAAktFWsb1ZD5S_PQRif6df3IAQADAgADeQADOwQ",
-        "🇫🇷 Французская пятка": "AgACAgIAAxkBAAIEAmn_FCZz8u8MT60MA_kvTEaAAT77AAJ5FWsb1ZD5S_UuZDn jRFFEjgEAAwIAA3kAAzsE",
-        "📟 Голограмная пятка": "AgACAgIAAxkBAAIEBmn_FEEKvBduRVZ4-Ub10fNgscErvAAKyFWsb1ZD5SXQ_hu5an715AQADAgADeQADOwQ",
+        "🤡 Клоунская пятка": "AgACAgIAAxkBAAIFXmn_YhXNCagUKtMUs5hsWAYSluyIAAJwE2sb1ZABSBtXMa7EX2EnAQADAgADeQADOwQ",
+        "🇲🇽 Мексиканская пятка": "AgACAgIAAxkBAAIFYGn_YijdIKLflTfBinihZOJZptq2AAJxE2sb1ZABSGN06Ezh-Di7AQADAgADeQADOwQ",
+        "🇫🇷 Французская пятка": "AgACAgIAAxkBAAIFYmn_YjcC_G6jEKSxJmVLaDGdfc2uAAJzE2sb1ZABSHaFAf24-Y8qAQADAgADeQADOwQ",
+        "📟 Голограмная пятка": "AgACAgIAAxkBAAIFXGn_YfJP0rRk8ffzjGRX5foaBPLuAALWEWsbQEAAAUjM_jhLR0kIVgEAAwIAA3kAAzsE",
         "🤢 Вонючая пятка": "AgACAgIAAxkBAAID1Gn_EREAATE6n6-nLD6K2arJWCA4RgACkFWsb1ZD5S_UsLXIuYe5Zp3gEAAwIAA3kAAzsE",
-        "🍓 Клубничная пятка": "AgACAgIAAxkBAAIDmmn_EhRNxi8t882Z96BD3D-ZhwFpAAK1FWsb1ZD5S_7DlOkHFuw5AQADAgADeQADOwQ",
-        "⛓️ Зек пятка": "AgACAgIAAxkBAAID6Gn_EpkcaHjRrqh8q3mOIcOaiPRIAAKPFWsb1ZD5S2-1hzZcafgaAQADAgADeQADOwQ",
+        "🍓 Клубничная пятка": "AgACAgIAAxkBAAIFZGn_YlJNeXKkHSxJyN7ktT0rf53hAAJ1E2sb1ZABSPvDSdClMBR2AQADAgADeQADOwQ",
+        "⛓️ Зек пятка": "AgACAgIAAxkBAAIFZmn_YmpTFwUV5x1F90tkb1OXlX96AAJ3E2sb1ZABSCtDrjoogOnKAQADAgADeQADOwQ",
         "🥈 Серебряная пятка": "AgACAgIAAxkBAAIDkGn_D0GvsOp0rze9Ruv9-H92M9-JAAJeFWsb1ZD5Sz1Z9RQS6uoEAQADAgADeQADOwQ",
-        "🟡 Миньон пятка": "AgACAgIAAxkBAAIDnGn_Dtd1A6Rkv23l9eW1z3fqr7gnAATPFWsb1ZD5S3_ClOLpN5CAQADAgADeQADOwQ",
-        "📦 Коробка с пяткой": "AgACAgIAAxkBAAID8Gn_E2Wtbfnba_8Wu_Wtb_mfbi5YAAKjFWsb1ZD5S2mhBaMPb7TtAQADAgADeQADO",
+        "🟡 Миньон пятка": "AgACAgIAAxkBAAIFaGn_Yn0XsNrv5lyT1XFZcVxQgMiVAAJ4E2sb1ZABSFid7miwmtfPAQADAgADeQADOwQ",
+        "📦 Коробка с пяткой": "AgACAgIAAxkBAAIFamn_YouCT-QYnAgfTCFB207FbSw_AAJ5E2sb1ZABSIYltFqCN6MxAQADAgADeQADOwQ",
         "🧊 Ледяная пятка": "AgACAgIAAxkBAAIEMmn_ID6A2Es4E2MhErV_offnKs8fAAIeFmsb1ZD5S5VU-JhnyFMPAQADAgADeQADOwQ",
         "🌸 Цветочная пятка": "AgACAgIAAxkBAAIDhmn_CtswJ5giZuyE6wT4QvPPuR5_AAJUFWsb1ZD5S_OtiSyyNSJnAQADAgADeQADOwQ",
         "💍 Свадебная пятка": "AgACAgIAAxkBAAID5mn_EyO0HM8BN4eH0tE-VGgw3dQxAAKdFWsb1ZD5S9wUM1L44LZ4AQADAgADeQADOwQ"},
@@ -190,15 +190,25 @@ async def show_top(message: Message):
     
     users_list = []
     for r in rows:
-        name_val, user_val, items_str = r[0], r[1], r[2]
-        count = len(items_str.split(",")) if items_str else 0
+        # Берем данные аккуратно по индексам 0, 1, 2
+        name_val = r[0] if r[0] else "Игрок"
+        user_val = r[1] if r[1] else ""
+        items_str = r[2] if r[2] else ""
+        
+        # Считаем предметы, только если строка не пустая
+        count = len(items_str.split(",")) if items_str.strip() else 0
         users_list.append({"n": name_val, "u": user_val, "c": count})
     
+    # Сортируем: у кого больше пяток — тот выше
     sorted_u = sorted(users_list, key=lambda x: x["c"], reverse=True)
+    
     txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
     for i, u in enumerate(sorted_u[:10], 1):
         un = f" (@{u['u']})" if u['u'] else ""
-        txt += f"{i}. {u['n']}{un} — {u['c']}/{TOTAL_CARDS}\n"
+        # Очищаем имя от спецсимволов, чтобы Markdown не ругался
+        safe_name = u['n'].replace("[", "").replace("]", "").replace("*", "")
+        txt += f"{i}. {safe_name}{un} — {u['c']}/{TOTAL_CARDS}\n"
+    
     await message.answer(txt, parse_mode="Markdown")
 
 async def main():
