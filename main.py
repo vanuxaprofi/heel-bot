@@ -155,7 +155,7 @@ async def get_photo_id(message: Message):
     await message.answer(f"✅ **ID фото:**\n`{pid}`", parse_mode="Markdown")
 
 # Настройка монет за редкость
-MONMONEY_REWARDS = {
+MONEY_REWARDS = {
     "⚪ ОБЫЧНАЯ (45%)": 10,
     "🟢 НЕОБЫЧНАЯ (25%)": 20,
     "🔵 РЕДКАЯ (15%)": 50,
