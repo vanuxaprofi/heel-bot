@@ -377,17 +377,17 @@ async def bet_menu(message: Message):
         f"⚠️ Попытка раз в 9 часов!"
     )
     
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    # Важно: callback_data должна СТРОГО совпадать с твоими редкостями в DATA
-       bkb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
-        [InlineKeyboardButton(text="🟢 Необычная", callback_data="bet_🟢 НЕОБЫЧНАЯ (25%)")],
-        [InlineKeyboardButton(text="🔵 Редкая", callback_data="bet_🔵 РЕДКАЯ (15%)")],
-        [InlineKeyboardButton(text="🟣 Эпик", callback_data="bet_🟣 ЭПИЧЕСКАЯ (8%)")],
-        [InlineKeyboardButton(text="🔴 Мифик", callback_data="bet_🔴 МИФИЧЕСКАЯ (4%)")],
-        [InlineKeyboardButton(text="🟡 Легенда", callback_data="bet_🟡 ЛЕГЕНДАРНАЯ (2%)")],
-        [InlineKeyboardButton(text="👑 ИДЕАЛ", callback_data="bet_👑 ИДЕАЛЬНАЯ (1%)")]
-    ])
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        # Важно: callback_data должна СТРОГО совпадать с твоими редкостями в DATA
+            bkb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
+            [InlineKeyboardButton(text="🟢 Необычная", callback_data="bet_🟢 НЕОБЫЧНАЯ (25%)")],
+            [InlineKeyboardButton(text="🔵 Редкая", callback_data="bet_🔵 РЕДКАЯ (15%)")],
+            [InlineKeyboardButton(text="🟣 Эпик", callback_data="bet_🟣 ЭПИЧЕСКАЯ (8%)")],
+            [InlineKeyboardButton(text="🔴 Мифик", callback_data="bet_🔴 МИФИЧЕСКАЯ (4%)")],
+            [InlineKeyboardButton(text="🟡 Легенда", callback_data="bet_🟡 ЛЕГЕНДАРНАЯ (2%)")],
+            [InlineKeyboardButton(text="👑 ИДЕАЛ", callback_data="bet_👑 ИДЕАЛЬНАЯ (1%)")]
+        ])
     await message.answer(txt, reply_markup=bkb, parse_mode="Markdown")
 
 @dp.callback_query(F.data.startswith("bet_"))
