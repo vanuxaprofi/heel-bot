@@ -167,7 +167,7 @@ async def roll(m: Message):
         inv.add(name)
         save_items(uid, m.from_user.full_name, m.from_user.username, inv)
     
-            status = "🎒 Пятка успешно добавлена!" if is_new else "♻️ Уже есть!"
+    status = "🎒 Пятка успешно добавлена!" if is_new else "♻️ Уже есть!"
     msg = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{name}**\nРедкость • **{rar}**\n\n{status}"
 
     try:
