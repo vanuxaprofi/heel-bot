@@ -190,7 +190,7 @@ async def show_top(message: Message):
     
     users_list = []
     for r in rows:
-        name_val, user_val, items_str = r[1], r[2], r[3]
+        name_val, user_val, items_str = r[0], r[1], r[2]
         count = len(items_str.split(",")) if items_str else 0
         users_list.append({"n": name_val, "u": user_val, "c": count})
     
