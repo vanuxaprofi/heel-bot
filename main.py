@@ -117,7 +117,7 @@ conn.commit()
 def get_items(uid, n, un):
         cursor.execute("SELECT items FROM users WHERE user_id = ?", (uid,))
         r = cursor.fetchone()
-    if r and r[0]: return set(r[0].split(","))
+        if r and r[0]: return set(r[0].split(","))
         
     
         cursor.execute("INSERT OR IGNORE INTO users VALUES (?, ?, ?, ?)", (uid, n, un, ""))
