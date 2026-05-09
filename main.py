@@ -379,7 +379,7 @@ async def bet_menu(message: Message):
     
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         # Важно: callback_data должна СТРОГО совпадать с твоими редкостями в DATA
-            bkb = InlineKeyboardMarkup(inline_keyboard=[
+        bkb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
             [InlineKeyboardButton(text="🟢 Необычная", callback_data="bet_🟢 НЕОБЫЧНАЯ (25%)")],
             [InlineKeyboardButton(text="🔵 Редкая", callback_data="bet_🔵 РЕДКАЯ (15%)")],
