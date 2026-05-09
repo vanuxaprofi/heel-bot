@@ -119,16 +119,21 @@ cursor = conn.cursor()
 cursor.execute('CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, name TEXT, username TEXT, items TEXT)')
 conn.commit()
 
-def get_items(uid, n, un):
-    cursor.execute("SELECT items FROM users WHERE user_id = ?", (uid,))
+def get_user_data(uid, n, un):
+    cursor.execute("SELECT items, balance, total_opens, duplicates FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
-    if r and r[0]: return set(r[0].split(","))
-    cursor.execute("INSERT OR IGNORE INTO users VALUES (?, ?, ?, ?)", (uid, n, un, ""))
+    if r:
+        items = set(r[0].split(",")) if r[0] else set()
+        return items, r[1], r[2], r[3]
+    
+    cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                   (uid, n, un, "", 0, 0, 0))
     conn.commit()
-    return set()
+    return set(), 0, 0, 0
 
-def save_items(uid, n, un, items):
-    cursor.execute("REPLACE INTO users VALUES (?, ?, ?, ?)", (uid, n, un, ",".join(list(items))))
+def update_user_stats(uid, items, balance, total_opens, duplicates):
+    cursor.execute("UPDATE users SET items = ?, balance = ?, total_opens = ?, duplicates = ? WHERE user_id = ?", 
+                   (",".join(list(items)), balance, total_opens, duplicates, uid))
     conn.commit()
 
 # ОЖИВИТЕЛЬ
@@ -138,37 +143,63 @@ async def start_web():
     runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
 def get_kb():
-    kb = [[KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")], [KeyboardButton(text="🏆 Топ игроков")]]
+    kb = [
+        [KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")],
+        [KeyboardButton(text="🏆 Топ игроков"), KeyboardButton(text="👤 Профиль")] # Добавили кнопку
+    ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-
+    
 @dp.message(F.photo)
 async def get_photo_id(message: Message):
     pid = message.photo[-1].file_id
     await message.answer(f"✅ **ID фото:**\n`{pid}`", parse_mode="Markdown")
+
+# Настройка монет за редкость
+MONMONEY_REWARDS = {
+    "⚪ ОБЫЧНАЯ (45%)": 10,
+    "🟢 НЕОБЫЧНАЯ (25%)": 20,
+    "🔵 РЕДКАЯ (15%)": 50,
+    "🟣 ЭПИЧЕСКАЯ (8%)": 150,
+    "🔴 МИФИЧЕСКАЯ (4%)": 400,
+    "🟡 ЛЕГЕНДАРНАЯ (2%)": 1000,
+    "👑 ИДЕАЛЬНАЯ (1%)": 5000
+}
 
 @dp.message(F.text == "🦶 Пятка")
 async def open_card(message: Message):
     user_id = message.from_user.id
     current_time = time.time()
     
-    if user_id in last_time and current_time - last_time[user_id] < 5:
-        return await message.answer(f"⏳ Подожди {int(5 - (current_time - last_time[user_id]))} сек.")
+    # Пока оставляем КД 5 секунд для теста (потом поменяем на 10800)
+    COOLDOWN = 5 
+    if user_id in last_time and current_time - last_time[user_id] < COOLDOWN:
+        return await message.answer(f"⏳ Подожди {int(COOLDOWN - (current_time - last_time[user_id]))} сек.")
 
-    inv = get_items(user_id, message.from_user.full_name, message.from_user.username)
-    if len(inv) >= TOTAL_CARDS:
-        return await message.answer("🏆 Вы собрали все пятки!")
-
+    # Получаем все данные юзера
+    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    
+    # Выбираем карту
     rarity = random.choices(RARITIES, weights=WEIGHTS)[0]
     item_name, photo_id = random.choice(list(DATA[rarity].items()))
+    
+    # Считаем деньги и статистику
+    reward = MONEY_REWARDS.get(rarity, 0)
+    balance += reward
+    total_opens += 1
     
     is_new = item_name not in inv
     if is_new:
         inv.add(item_name)
-        save_items(user_id, message.from_user.full_name, message.from_user.username, inv)
+        status = f"🎒 Пятка добавлена! (+{reward} 💰)"
+    else:
+        duplicates += 1
+        status = f"♻️ Уже есть! Получено (+{reward} 💰)"
     
+    # Сохраняем всё в базу
+    update_user_stats(user_id, inv, balance, total_opens, duplicates)
     last_time[user_id] = current_time
-    status = "🎒 Пятка добавлена!" if is_new else "♻️ Уже есть!"
-    caption = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{item_name}**\nРедкость • **{rarity}**\n\n{status}"
+    
+    caption = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{item_name}**\nРедкость • **{rarity}**\n\n{status}\n💰 Твой баланс: **{balance}** монет"
     
     try:
         await message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
@@ -211,8 +242,49 @@ async def show_top(message: Message):
     except:
         # Если всё равно ошибка — шлем без жирного шрифта
         await message.answer(txt.replace("**", ""))
+    # ... тут заканчивается код Топ игроков ...
+    await message.answer(txt, parse_mode="Markdown")
+
+# ВСТАВЛЯЙ СЮДА:
+@dp.message(F.text == "👤 Профиль")
+async def show_profile(message: Message):
+    user_id = message.from_user.id
+    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    
+    progress = round((len(inv) / TOTAL_CARDS) * 100, 1) if TOTAL_CARDS > 0 else 0
+    
+    text = (
+        f"👤 **ПРОФИЛЬ ИГРОКА**\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"📝 **Имя:** {message.from_user.full_name}\n"
+        f"💰 **Баланс:** {balance} монет\n"
+        f"📊 **Прогресс:** {len(inv)}/{TOTAL_CARDS} ({progress}%)\n"
+        f"🔄 **Всего открытий:** {total_opens}\n"
+        f"♻️ **Повторок выпало:** {duplicates}\n"
+        f"━━━━━━━━━━━━━━━"
+    )
+
+    try:
+        photos = await message.from_user.get_profile_photos(limit=1)
+        if photos.total_count > 0:
+            await message.answer_photo(photo=photos.photos[0][-1].file_id, caption=text, parse_mode="Markdown")
+        else:
+            await message.answer(text, parse_mode="Markdown")
+    except:
+        await message.answer(text, parse_mode="Markdown")
+
+# ДАЛЬШЕ ИДЕТ ТВОЙ async def main():
         
 async def main():
+    # Добавляем новые колонки в базу, если их еще нет
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE users ADD COLUMN total_opens INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE users ADD COLUMN duplicates INTEGER DEFAULT 0")
+        conn.commit()
+    except:
+        pass # Если колонки уже созданы, просто идем дальше
+    
     await start_web()
     await dp.start_polling(bot)
 
