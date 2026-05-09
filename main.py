@@ -115,12 +115,10 @@ cursor.execute('CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, n
 conn.commit()
 
 def get_items(uid, n, un):
-        cursor.execute("SELECT items FROM users WHERE user_id = ?", (uid,))
-        r = cursor.fetchone()
-        if r and r[0]: return set(r[0].split(","))
-        
-    
-        cursor.execute("INSERT OR IGNORE INTO users VALUES (?, ?, ?, ?)", (uid, n, un, ""))
+    cursor.execute("SELECT items FROM users WHERE user_id = ?", (uid,))
+    r = cursor.fetchone()
+    if r and r[0]: return set(r[0].split(","))
+    cursor.execute("INSERT OR IGNORE INTO users VALUES (?, ?, ?, ?)", (uid, n, un, ""))
     conn.commit()
     return set()
 
@@ -136,16 +134,13 @@ async def start_web():
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
 
 def get_kb():
-       kb = [[KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")], [KeyboardButton(text="🏆 Топ игроков")]]
+    kb = [[KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")], [KeyboardButton(text="🏆 Топ игроков")]]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-
-@dp.message(Command("start"))
-async def start(m: Message):
-    await m.answer(f"🦶 Игра запущена! Всего в коллекции {TOTAL_CARDS} пяток.", reply_markup=get_kb())
 
 @dp.message(F.photo)
 async def get_id(m: Message):
-    await m.answer(f"✅ **ID этой фотографии:**\n\n`{m.photo[-1].file_id}`", parse_mode="Markdown")
+    pid = m.photo[-1].file_id
+    await m.answer(f"✅ **ID цієї фотографії:**\n\n`{pid}`", parse_mode="Markdown")
 
 @dp.message(F.text == "🦶 Пятка")
 async def roll(m: Message):
