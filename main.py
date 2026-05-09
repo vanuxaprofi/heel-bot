@@ -149,8 +149,7 @@ async def open_card(message: Message):
     if len(inv) >= TOTAL_CARDS:
         return await message.answer("🏆 Вы собрали все пятки!")
 
-    rarity = random.choices(RARITIES, weights=WEIGHTS)[0]
-    item_name, photo_id = random.choice(list(DATA[rarity].items()))
+        item_name, photo_id = random.choice(list(DATA[rarity].items()))
     
     is_new = item_name not in inv
     if is_new:
@@ -169,7 +168,7 @@ async def open_card(message: Message):
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
     inv = get_items(message.from_user.id, message.from_user.full_name, message.from_user.username)
-    if not inv: return await message.answer("Пусто!")
+    if not inv: return await message.answer("Твой инвентарь пуст!")
     text = f"🎒 **Коллекция ({len(inv)}/{TOTAL_CARDS}):**\n\n" + "\n".join([f"• {i}" for i in sorted(list(inv))])
     await message.answer(text)
 
@@ -177,11 +176,12 @@ async def show_inventory(message: Message):
 async def show_top(message: Message):
     cursor.execute("SELECT name, username, items FROM users")
     rows = cursor.fetchall()
-    if not rows: return await message.answer("Топ пуст!")
+    if not rows: return await message.answer("Топ пока пуст!")
     processed = []
     for r in rows:
-        count = len(r[2].split(",")) if r[2] else 0
-        processed.append({"n": r[0], "u": r[1], "c": count})
+        n_val, u_val, i_str = r, r, r
+        c_val = len(i_str.split(",")) if i_str else 0
+        processed.append({"n": n_val, "u": u_val, "c": c_val})
     sorted_u = sorted(processed, key=lambda x: x["c"], reverse=True)
     text = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
     for i, u in enumerate(sorted_u[:10], 1):
