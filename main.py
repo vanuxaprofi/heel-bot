@@ -101,8 +101,8 @@ DATA = {
         "❓ Пропавшая пятка": "AgACAgIAAxkBAAIECGn_FE09s8tp4ww0wV6N-SkRNh4QAAKzFWsb1ZD5S8x5gqxhxEe9AQADAgADeQADOwQ"}
 }
 
-WEIGHTS = [0.45, 0.25, 0.15, 0.08, 0.04, 0.02, 0.01]
 RARITIES = list(DATA.keys())
+WEIGHTS = [0.45, 0.25, 0.15, 0.08, 0.04, 0.02, 0.01]
 TOTAL_CARDS = sum(len(v) for v in DATA.values())
 
 bot = Bot(token=API_TOKEN)
@@ -132,16 +132,20 @@ async def start_web():
     app = web.Application(); app.router.add_get("/", handle)
     runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
-
 def get_kb():
     kb = [[KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")], [KeyboardButton(text="🏆 Топ игроков")]]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 @dp.message(F.photo)
+async def get_photo_id(message: Message):
+    pid = message.photo[-1].file_id
+    await message.answer(f"✅ **ID фото:**\n`{pid}`", parse_mode="Markdown")
+
 @dp.message(F.text == "🦶 Пятка")
 async def open_card(message: Message):
     user_id = message.from_user.id
     current_time = time.time()
+    
     if user_id in last_time and current_time - last_time[user_id] < 5:
         return await message.answer(f"⏳ Подожди {int(5 - (current_time - last_time[user_id]))} сек.")
 
@@ -149,7 +153,8 @@ async def open_card(message: Message):
     if len(inv) >= TOTAL_CARDS:
         return await message.answer("🏆 Вы собрали все пятки!")
 
-        item_name, photo_id = random.choice(list(DATA[rarity].items()))
+    rarity = random.choices(RARITIES, weights=WEIGHTS)[0]
+    item_name, photo_id = random.choice(list(DATA[rarity].items()))
     
     is_new = item_name not in inv
     if is_new:
@@ -170,24 +175,26 @@ async def show_inventory(message: Message):
     inv = get_items(message.from_user.id, message.from_user.full_name, message.from_user.username)
     if not inv: return await message.answer("Твой инвентарь пуст!")
     text = f"🎒 **Коллекция ({len(inv)}/{TOTAL_CARDS}):**\n\n" + "\n".join([f"• {i}" for i in sorted(list(inv))])
-    await message.answer(text)
+    await message.answer(text, parse_mode="Markdown")
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
     cursor.execute("SELECT name, username, items FROM users")
     rows = cursor.fetchall()
     if not rows: return await message.answer("Топ пока пуст!")
-    processed = []
+    
+    users_list = []
     for r in rows:
-        n_val, u_val, i_str = r, r, r
-        c_val = len(i_str.split(",")) if i_str else 0
-        processed.append({"n": n_val, "u": u_val, "c": c_val})
-    sorted_u = sorted(processed, key=lambda x: x["c"], reverse=True)
-    text = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
+        name_val, user_val, items_str = r[1], r[2], r[3]
+        count = len(items_str.split(",")) if items_str else 0
+        users_list.append({"n": name_val, "u": user_val, "c": count})
+    
+    sorted_u = sorted(users_list, key=lambda x: x["c"], reverse=True)
+    txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
     for i, u in enumerate(sorted_u[:10], 1):
         un = f" (@{u['u']})" if u['u'] else ""
-        text += f"{i}. {u['n']}{un} — {u['c']}/{TOTAL_CARDS}\n"
-    await message.answer(text, parse_mode="Markdown")
+        txt += f"{i}. {u['n']}{un} — {u['c']}/{TOTAL_CARDS}\n"
+    await message.answer(txt, parse_mode="Markdown")
 
 async def main():
     await start_web()
