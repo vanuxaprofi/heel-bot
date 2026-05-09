@@ -289,7 +289,7 @@ async def show_profile(message: Message):
     except:
         await message.answer(text, parse_mode="Markdown")
 
-        @dp.message(F.text == "🛒 Магазин")
+@dp.message(F.text == "🛒 Магазин")
 async def show_shop(message: Message):
     # Получаем баланс игрока
     inv, balance, total_opens, duplicates = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
