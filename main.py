@@ -170,19 +170,19 @@ async def open_card(message: Message):
     user_id = message.from_user.id
     current_time = time.time()
     
-    # Пока оставляем КД 5 секунд для теста (потом поменяем на 10800)
+    # Пока КД 5 секунд для тестов
     COOLDOWN = 5 
     if user_id in last_time and current_time - last_time[user_id] < COOLDOWN:
         return await message.answer(f"⏳ Подожди {int(COOLDOWN - (current_time - last_time[user_id]))} сек.")
 
-    # Получаем все данные юзера
+    # Получаем данные через новую функцию
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
-    # Выбираем карту
+    # ВЫБОР КАРТЫ (добавили [0])
     rarity = random.choices(RARITIES, weights=WEIGHTS)[0]
     item_name, photo_id = random.choice(list(DATA[rarity].items()))
     
-    # Считаем деньги и статистику
+    # Начисляем монеты и статистику
     reward = MONEY_REWARDS.get(rarity, 0)
     balance += reward
     total_opens += 1
@@ -208,8 +208,13 @@ async def open_card(message: Message):
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
-    inv = get_items(message.from_user.id, message.from_user.full_name, message.from_user.username)
-    if not inv: return await message.answer("Твой инвентарь пуст!")
+    # Исправляем вызов функции (теперь get_user_data)
+    inv, balance, total_opens, duplicates = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    
+    if not inv: 
+        return await message.answer("Твой инвентарь пуст!")
+    
+    # Собираем список предметов
     text = f"🎒 **Коллекция ({len(inv)}/{TOTAL_CARDS}):**\n\n" + "\n".join([f"• {i}" for i in sorted(list(inv))])
     await message.answer(text, parse_mode="Markdown")
 
@@ -242,8 +247,6 @@ async def show_top(message: Message):
     except:
         # Если всё равно ошибка — шлем без жирного шрифта
         await message.answer(txt.replace("**", ""))
-    # ... тут заканчивается код Топ игроков ...
-    await message.answer(txt, parse_mode="Markdown")
 
 # ВСТАВЛЯЙ СЮДА:
 @dp.message(F.text == "👤 Профиль")
