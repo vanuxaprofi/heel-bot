@@ -30,24 +30,24 @@ DATA = {
         "☢️ Радиоактивная пятка": "AgACAgIAAxkBAAIEFGn_F3a-quY8EHRJvgKrZFbVhQABMQACyBVrG9WQ-UtOVEPEprm7ygEAAwIAA3kAAzsE",
         "🪵 Деревянная пятка": "AgACAgIAAxkBAAID9mn_E5n2qzGBAAE9LED2URMWj-QEpwACpxVrG9WQ-Uvx3fvfeUnwHgEAAwIAA3kAAzsE",
         "🌫️ Пятка в тумане": "AgACAgIAAxkBAAIEIGn_F8Uh4fN9xFNabDa6SZ-x8BrfAALPFWsb1ZD5S7t-XIWi8EH4AQADAgADeQADOwQ",
-        "❄️ Снежная пятка": "AgACAgIAAxkBAAID6Gn_Ey5HXjmTxgwGf_9U2Urqgi6KAAKeFWsb1ZD5S-XTgpndBk9cAQADAgADeQADOwQ"
-    },
-    "🟢 НЕОБЫЧНАЯ (25%)": {
+        "❄️ Снежная пятка": "AgACAgIAAxkBAAID6Gn_Ey5HXjmTxgwGf_9U2Urqgi6KAAKeFWsb1ZD5S-XTgpndBk9cAQADAgADeQADOwQ"},
+    
+        "🟢 НЕОБЫЧНАЯ (25%)": {
         "💩 Какашка пятка": "AgACAgIAAxkBAAPFaf2PPgoYWtmcoFpNxv0jaTKVJZMAAqoTaxv04fFL3v6kk9fTTEgBAAMCAAN5AAM7BA",
-        "🤡 Клоунская пятка": "AgACAgIAAxkBAAID-Gn_E6OYGkahsILy7UpKBh6I2ekRAAKoFWsb1ZD5S1MVO09XaLh-AQADAgADeQADOwQ",
-        "🇲🇽 Мексиканская пятка": "AgACAgIAAxkBAAID_mn_FBoiwGN2fPiPeunZWvsjWHBQAAKtFWsb1ZD5S_PQ8LF6dFJIAQADAgADeQADOwQ",
-        "🇫🇷 Французская пятка": "AgACAgIAAxkBAAIEAmn_FC2z0w80TeaMkLKvJEsAATZ7IgACsBVrG9WQ-UuZDejNBFBjggEAAwIAA3kAAzsE",
-        "📟 Голограмная пятка": "AgACAgIAAxkBAAIEBmn_FEK0vKdwRVZ4-Ubl0fNgEcvlAAKyFWsb1ZD5SxQ_hv5ae7i5AQADAgADeQADOwQ",
-        "🤢 Вонючая пятка": "AgACAgIAAxkBAAID1Gn_ErEAAT68h6-mLD8K2arJWCA4RgACkhVrG9WQ-UsiX3uYe6Zp3gEAAwIAA3kAAzsE",
-        "🍓 Клубничная пятка": "AgACAgIAAxkBAAIDxmn_EhRNxlBtB82Z968OJD-ZhmfpAAKJFWsb1ZD5S_7D1Okhfuw5AQADAgADeQADOwQ",
-        "⛓️ Зек пятка": "AgACAgIAAxkBAAID0Gn_EpkcaHjRrqH8q2nCIeOaiPRUAAKPFWsb1ZD5S2-ihZzcaFgaAQADAgADeQADOwQ",
-        "🥈 Серебряная пятка": "AgACAgIAAxkBAAIDkWn_DOGvpOsOrze9Ruv9-W92M9-JAAJeFWsb1ZD5SzlZ9RQSeuoEAQADAgADeQADOwQ",
-        "🟡 Миньон пятка": "AgACAgIAAxkBAAIDb2n_BtDlA6Rkv23l9eWlz3fqr7gnAAIPFWsb1ZD5S3_CiOLpN5CRAQADAgADeQADOwQ",
+        "🤡 Клоунская пятка": "AgACAgIAAxkBAAID-Gn_E6OYGkahSIly7Upk6h6I2keXAAKG FWsb1ZD5SlHVO8XInLN-AQADAgADeQADOwQ",
+        "🇲🇽 Мексиканская пятка": "AgACAgIAAxkBAAID_mn_F9oimGNZFPiPeunZwvsjuHBD AAktFWsb1ZD5S_PQRif6df3IAQADAgADeQADOwQ",
+        "🇫🇷 Французская пятка": "AgACAgIAAxkBAAIEAmn_FCZz8u8MT60MA_kvTEaAAT77 AAJ5FWsb1ZD5S_UuZDn jRFFEjgEAAwIAA3kAAzsE",
+        "📟 Голограмная пятка": "AgACAgIAAxkBAAIEBmn_FEEKvBduRVZ4-Ub10fNgscEr vAAKyFWsb1ZD5SXQ_hu5an715AQADAgADeQADOwQ",
+        "🤢 Вонючая пятка": "AgACAgIAAxkBAAID1Gn_EREAATE6n6-nLD6K2arJWCA4 RgACkFWsb1ZD5S_UsLXIuYe5Zp3gEAAwIAA3kAAzsE",
+        "🍓 Клубничная пятка": "AgACAgIAAxkBAAIDmmn_EhRNxi8t882Z96BD3D-ZhwFp AAK1FWsb1ZD5S_7DlOkHFuw5AQADAgADeQADOwQ",
+        "⛓️ Зек пятка": "AgACAgIAAxkBAAID6Gn_EpkcaHjRrqh8q3mOIcOaiPRIAAKP FWsb1ZD5S2-1hzZcafgaAQADAgADeQADOwQ",
+        "🥈 Серебряная пятка": "AgACAgIAAxkBAAIDkGn_D0GvsOp0rze9Ruv9-H92M9-J AAJeFWsb1ZD5Sz1Z9RQS6uoEAQADAgADeQADOwQ",
+        "🟡 Миньон пятка": "AgACAgIAAxkBAAIDnGn_Dtd1A6Rkv23l9eW1z3fqr7gn AATPFWsb1ZD5S3_ClOLpN5CAQADAgADeQADOwQ",
         "📦 Коробка с пяткой": "AgACAgIAAxkBAAID8Gn_E2Wtbfnba_8Wu_Wtb_mfbi5YAAKjFWsb1ZD5S2mhBaMPb7TtAQADAgADeQADO",
         "🧊 Ледяная пятка": "AgACAgIAAxkBAAIEMmn_ID6A2Es4E2MhErV_offnKs8fAAIeFmsb1ZD5S5VU-JhnyFMPAQADAgADeQADOwQ",
         "🌸 Цветочная пятка": "AgACAgIAAxkBAAIDhmn_CtswJ5giZuyE6wT4QvPPuR5_AAJUFWsb1ZD5S_OtiSyyNSJnAQADAgADeQADOwQ",
-        "💍 Свадебная пятка": "AgACAgIAAxkBAAID5mn_EyO0HM8BN4eH0tE-VGgw3dQxAAKdFWsb1ZD5S9wUM1L44LZ4AQADAgADeQADOwQ"
-    },
+        "💍 Свадебная пятка": "AgACAgIAAxkBAAID5mn_EyO0HM8BN4eH0tE-VGgw3dQxAAKdFWsb1ZD5S9wUM1L44LZ4AQADAgADeQADOwQ"},
+    
     "🔵 РЕДКАЯ (15%)": {
         "🎀 Пикми пятка": "AgACAgIAAxkBAAPhaf2PnXKz5ieWdDUui3Ss2GLkYP4AAroTaxv04fFLuKGCU27-HowBAAMCAAN5AAM7BA",
         "🐾 Фурри пятка": "AgACAgIAAxkBAAIDj2n_DJvAZI1yYmTi7ETMNuPloWoIAAJdFWsb1ZD5S7qH4pa_N81uAQADAgADeQADOwQ",
@@ -59,8 +59,8 @@ DATA = {
         "🍔 Жирная пятка": "AgACAgIAAxkBAAID7mn_E1k9sSVYlSc8fIJwfZkC08z2AAKiFWsb1ZD5SxzCGexoej_GAQADAgADeQADOwQ",
         "🧱 Кирпичная пятка": "AgACAgIAAxkBAAIEEGn_FIer9aQdFCfUiCOx3GdyuVR3AAK3FWsb1ZD5S9frhYxtdwABZgEAAwIAA3kAAzsE",
         "🦇 Готическая пятка": "AgACAgIAAxkBAAID0mn_EqVauVNeXcYCpSKt3ms7MxTWAAKRFWsb1ZD5S19I1tL7w6glAQADAgADeQADOwQ",
-        "🏺 Египетская пятка": "ЗАМЕНИ_МЕНЯ"
-    },
+        "🏺 Египетская пятка": "AgACAgIAAxkBAAIER2n_OAdCiNJ1fDO2hayplX7wEV69AALdFmsb1ZD5S0WgBZ51p6NNAQADAgADeQADOwQ"},
+    
     "🟣 ЭПИЧЕСКАЯ (8%)": {
         "🦕 Доисторическая пятка": "AgACAgIAAxkBAAIEDmn_FHIDuHJ8g9yLUs4oqYtuWan6AAK1FWsb1ZD5S6THTIczYFOcAQADAgADeQADOwQ",
         "💥 Антиматерия пятка": "AgACAgIAAxkBAAID-mn_E8geNo0lnW05fq9B-vZtsJ3EAAKrFWsb1ZD5S_ihQgvAG9yJAQADAgADeQADOwQ",
@@ -75,31 +75,30 @@ DATA = {
         "🔥 Лавовая пятка": "AgACAgIAAxkBAAIDvGn_EcvvHKIqgeeeY1VxyQf7panyAAKCFWsb1ZD5S6Nlv1VtAdXFAQADAgADeQADOwQ",
         "🌌 Гравити фолз пятка": "AgACAgIAAxkBAAID4mn_EwtwCf_6dTwAAdszn7WaUH-7PwACmxVrG9WQ-UtpmdUHcfnbmAEAAwIAA3kAAzsE",
         "🌊 Подводная пятка": "AgACAgIAAxkBAAID8mn_E28DXmAeisv9AyjTY4svxGqWAAKkFWsb1ZD5S6v3dYj_UdtbAQADAgADeQADOwQ",
-        "🍕 Пицца пятка": "AgACAgIAAxkBAAID9Gn_E427KoTE1WKBQhGiiMFJKTT6AAKlFWsb1ZD5S9jLZsS2gyuJAQADAgADeQADOwQ"
-    },
+        "🍕 Пицца пятка": "AgACAgIAAxkBAAID9Gn_E427KoTE1WKBQhGiiMFJKTT6AAKlFWsb1ZD5S9jLZsS2gyuJAQADAgADeQADOwQ"},
+    
     "🔴 МИФИЧЕСКАЯ (4%)": {
         "👹 Демоническая пятка": "AgACAgIAAxkBAAID4Gn_Ev0bSON3TUcSQ6EHpC3SseeRAAKaFWsb1ZD5SyPWO53iJqvZAQADAgADeQADOwQ",
         "😇 Ангельская пятка": "AgACAgIAAxkBAAID3Gn_EuUcieIvGWulfO1wSRJIU1wFAAKYFWsb1ZD5SzqKAAGkMIfIewEAAwIAA3kAAzsE",
         "👑 Король пятка": "AgACAgIAAxkBAAIDwmn_EfrCpPVh4kGwvkzJSoYnwgAB1AAChxVrG9WQ-Uv47f3uLJgsLwEAAwIAA3kAAzsE",
         "🏳️‍🌈 Радужная пятка": "AgACAgIAAxkBAAIDqGn_DQ4FuWv7qkFjbzjn_OUNb0HiAAJjFWsb1ZD5S9yYkliLFV_UAQADAgADeQADOwQ",
         "👽 Инопланетная пятка": "AgACAgIAAxkBAAIEDGn_FGOlrhNtDREpmrQ70Q-8Ln3hAAK0FWsb1ZD5S9Ys73tzWqnsAQADAgADeQADOwQ",
-        "🧪 SCP пятка": "ЗАМЕНИ_МЕНЯ",
+        "🧪 SCP пятка": "AgACAgIAAxkBAAIERWn_N929xS7ixp-IZYW67VmsGiE_AALaFmsb1ZD5S15tvDeldngAAQEAAwIAA3kAAzsE",
         "🎰 Казино пятка": "AgACAgIAAxkBAAIDjWn_DIQM1hllF2usp74800QVmVxhAAJcFWsb1ZD5Sx80PirvUzEUAQADAgADeQADOwQ",
-        "💰 Магнат пятка": "AgACAgIAAxkBAAID7Gn_E0wdVHJyBsvIoO7tMTtoucqTAAKhFWsb1ZD5S3-vIun8qbYQAQADAgADeQADOwQ"
-    },
+        "💰 Магнат пятка": "AgACAgIAAxkBAAID7Gn_E0wdVHJyBsvIoO7tMTtoucqTAAKhFWsb1ZD5S3-vIun8qbYQAQADAgADeQADOwQ"},
+    
     "🟡 ЛЕГЕНДАРНАЯ (2%)": {
         "💎 Алмазная пятка": "AgACAgIAAxkBAAID3mn_EvLdDY1r-ZvW77novm5DuhXVAAKZFWsb1ZD5S18ODlfYhh8NAQADAgADeQADOwQ",
         "⚡ Зевс пятка": "AgACAgIAAxkBAAIDtmn_EaLijTggPq-ojfCradBc21yRAAJ9FWsb1ZD5SxfNkQw-ybnuAQADAgADeQADOwQ",
         "💀 Мертвая пятка": "AgACAgIAAxkBAAIDuGn_Ea7HrThA8-StQoFK9CyPDPPgAAJ-FWsb1ZD5S9KLDcrp1tAhAQADAgADeQADOwQ",
         "🤖 Киборг пятка": "AgACAgIAAxkBAAIEGmn_F5-Rafm_lQwas5MdBusevsDjAALLFWsb1ZD5S0IbouPTTI7pAQADAgADeQADOwQ",
-        "💸 Мажор пятка": "AgACAgIAAxkBAAID7Gn_E0wdVHJyBsvIoO7tMTtoucqTAAKhFWsb1ZD5S3-vIun8qbYQAQADAgADeQADOwQ"
-    },
+        "💸 Мажор пятка": "AgACAgIAAxkBAAID7Gn_E0wdVHJyBsvIoO7tMTtoucqTAAKhFWsb1ZD5S3-vIun8qbYQAQADAgADeQADOwQ"},
+    
     "👑 ИДЕАЛЬНАЯ (1%)": {
         "✳️ Изумрудная пятка": "AgACAgIAAxkBAAIDymn_EjVUFFcrFDQPEQz41_4qvr9RAAKLFWsb1ZD5S7UC99SYLJ7mAQADAgADeQADOwQ",
         "🌠 Космическая пятка": "AgACAgIAAxkBAAIDwGn_EemoJ7b518KihB1fs9FBSN_UAAKFFWsb1ZD5S8yQqj3J3BwSAQADAgADeQADOwQ",
         "🌗 Полудемон-полуангел": "AgACAgIAAxkBAAIELGn_GCw9x1M6KTHO-5DA0k7R4GV2AALUFWsb1ZD5S-aa_6j-GELaAQADAgADeQADOwQ ",
-        "❓ Пропавшая пятка": "AgACAgIAAxkBAAIECGn_FE09s8tp4ww0wV6N-SkRNh4QAAKzFWsb1ZD5S8x5gqxhxEe9AQADAgADeQADOwQ"
-    }
+        "❓ Пропавшая пятка": "AgACAgIAAxkBAAIECGn_FE09s8tp4ww0wV6N-SkRNh4QAAKzFWsb1ZD5S8x5gqxhxEe9AQADAgADeQADOwQ"}
 }
 
 WEIGHTS = [0.45, 0.25, 0.15, 0.08, 0.04, 0.02, 0.01]
@@ -116,10 +115,12 @@ cursor.execute('CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, n
 conn.commit()
 
 def get_items(uid, n, un):
-    cursor.execute("SELECT items FROM users WHERE user_id = ?", (uid,))
+        cursor.execute("SELECT items FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
-    if r: return set(r[0].split(",")) if r[0] else set()
-    cursor.execute("INSERT OR IGNORE INTO users VALUES (?, ?, ?, ?)", (uid, n, un, ""))
+    if r and r[0]: return set(r[0].split(","))
+        
+    
+        cursor.execute("INSERT OR IGNORE INTO users VALUES (?, ?, ?, ?)", (uid, n, un, ""))
     conn.commit()
     return set()
 
@@ -135,7 +136,7 @@ async def start_web():
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
 
 def get_kb():
-    kb = [[KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")], [KeyboardButton(text="🏆 Топ игроков")]]
+       kb = [[KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")], [KeyboardButton(text="🏆 Топ игроков")]]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 @dp.message(Command("start"))
@@ -171,30 +172,46 @@ async def roll(m: Message):
         inv.add(name)
         save_items(uid, m.from_user.full_name, m.from_user.username, inv)
     
-    cap = (f"🎉 **Поздравляю** 🎉\n\n"
-           f"Вам выпала • **{name}**\n"
-           f"Редкость • **{rar}**\n\n"
-           f"{'🎒 Пятка успешно добавлена в ваш инвентарь!' if is_new else '♻️ Такая пятка у вас уже есть!'}")
-    
+            status = "🎒 Пятка успешно добавлена!" if is_new else "♻️ Уже есть!"
+    msg = f"🎉 **Поздравляю** 🎉\n\nВам выпала • **{name}**\nРедкость • **{rar}**\n\n{status}"
+
     try:
-        await m.answer_photo(photo=pid, caption=cap, parse_mode="Markdown")
+        await m.answer_photo(photo=pid, caption=msg, parse_mode="Markdown")
     except:
-        await m.answer(f"🎉 Вам выпала: {name}\nРедкость: {rar}\n\n(Фото еще не добавлено)")
+        await m.answer(msg)
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def inv_cmd(m: Message):
     inv = get_items(m.from_user.id, m.from_user.full_name, m.from_user.username)
-    if not inv: return await m.answer("Твой инвентарь пуст!")
-    await m.answer(f"🎒 **Коллекция ({len(inv)}/{TOTAL_CARDS}):**\n\n" + "\n".join([f"• {i}" for i in sorted(list(inv))]))
+    if not inv: 
+        return await m.answer("Твой инвентарь пуст!")
+    
+    count = len(inv)
+        items_list = "\n".join([f"• {i}" for i in sorted(list(inv))])
+    text = f"🎒 **Твоя коллекция ({count}/{TOTAL_CARDS}):**\n\n{items_list}"
+    await m.answer(text, parse_mode="Markdown")
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def top_cmd(m: Message):
     cursor.execute("SELECT name, username, items FROM users")
     rows = cursor.fetchall()
-    if not rows: return await m.answer("Топ пока пуст!")
-    users = sorted([{"n": r[0], "u": r[1], "c": len(r[2].split(",")) if r[2] else 0} for r in rows], key=lambda x: x["c"], reverse=True)
-    txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n" + "\n".join([f"{i+1}. {u['n']}{f' (@{u['u']})' if u['u'] else ''} — {u['c']}/{TOTAL_CARDS}" for i, u in enumerate(users[:10])])
-    await m.answer(txt)
+    if not rows: 
+        return await m.answer("Топ пока пуст!")
+    
+    users_list = []
+    for r in rows:
+        name_val, user_val, items_str = r[0], r[1], r[2]
+        c_val = len(items_str.split(",")) if items_str else 0
+        users_list.append({"n": name_val, "u": user_val, "c": c_val})
+    
+    sorted_u = sorted(users_list, key=lambda x: x["c"], reverse=True)
+    
+    txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
+    for i, u in enumerate(sorted_u[:10], 1):
+               un = f" (@{u['u']})" if u['u'] else ""
+                txt += f"{i}. {u['n']}{un} — {u['c']}/{TOTAL_CARDS}\n"
+    
+    await m.answer(txt, parse_mode="Markdown")
 
 async def main():
     await start_web()
