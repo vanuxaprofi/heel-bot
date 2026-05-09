@@ -145,7 +145,8 @@ async def start_web():
 def get_kb():
     kb = [
         [KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")],
-        [KeyboardButton(text="🏆 Топ игроков"), KeyboardButton(text="👤 Профиль")] # Добавили кнопку
+        [KeyboardButton(text="🏆 Топ игроков"), KeyboardButton(text="👤 Профиль")],
+        [KeyboardButton(text="🛒 Магазин")] # Наша новая кнопка
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
     
@@ -288,8 +289,74 @@ async def show_profile(message: Message):
     except:
         await message.answer(text, parse_mode="Markdown")
 
-# ДАЛЬШЕ ИДЕТ ТВОЙ async def main():
-        
+        @dp.message(F.text == "🛒 Магазин")
+async def show_shop(message: Message):
+    # Получаем баланс игрока
+    inv, balance, total_opens, duplicates = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    
+    text = (
+        f"🛒 **МАГАЗИН СУНДУКОВ**\n"
+        f"💰 Твой баланс: **{balance}** монет\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"📦 **Эпический сундук** — 1000 💰\n"
+        f"└ *Шанс на Идеал: 1%*\n\n"
+        f"💎 **Мифический сундук** — 4500 💰\n"
+        f"└ *Шанс на Идеал: 5%*\n\n"
+        f"👑 **Легендарный сундук** — 15000 💰\n"
+        f"└ *Шанс на Идеал: 20%*\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"Чтобы купить, нажми на кнопку ниже 👇"
+    )
+    
+    # Сделаем красивые кнопки под сообщением
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Купить Эпический (1000)", callback_data="buy_epic")],
+        [InlineKeyboardButton(text="Купить Мифический (4500)", callback_data="buy_mythic")],
+        [InlineKeyboardButton(text="Купить Легендарный (15000)", callback_data="buy_legend")]
+    ])
+    
+    await message.answer(text, reply_markup=ikb, parse_mode="Markdown")
+@dp.callback_query(F.data.startswith("buy_"))
+async def buy_chest(call: types.CallbackQuery):
+    user_id = call.from_user.id
+    # Получаем данные
+    inv, balance, total_opens, duplicates = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
+    
+    # Настройки сундуков: (Цена, Шансы, Название)
+       chests = {
+        "buy_epic": (1000, [75, 19, 5, 1], ["🟣 ЭПИЧЕСКАЯ (8%)", "🔴 МИФИЧЕСКАЯ (4%)", "🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"], "📦 Эпический"),
+        "buy_mythic": (4500, [70, 25, 5], ["🔴 МИФИЧЕСКАЯ (4%)", "🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"], "💎 Мифический"),
+        "buy_legend": (15000, [80, 20], ["🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"], "👑 Легендарный")
+    }
+    
+    price, weights, rarities, chest_name = chests[call.data]
+    
+    if balance < price:
+        return await call.answer("❌ Недостаточно монет!", show_alert=True)
+    
+    # Списываем деньги
+    balance -= price
+    
+    # Крутим сундук
+    rarity = random.choices(rarities, weights=weights)[0]
+    item_name, photo_id = random.choice(list(DATA[rarity].items()))
+    
+    is_new = item_name not in inv
+    if is_new:
+        inv.add(item_name)
+    else:
+        duplicates += 1
+    
+    # Сохраняем и отвечаем
+    update_user_stats(user_id, inv, balance, total_opens, duplicates)
+    
+    status = "🎒 Пятка добавлена!" if is_new else "♻️ Уже была (ушла в повторки)"
+    caption = f"🎁 **ОТКРЫТИЕ СУНДУКА: {chest_name}**\n\nВы выбили: **{item_name}**\nРедкость: **{rarity}**\n\n{status}\n💰 Остаток: **{balance}** монет"
+    
+    await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
+    await call.answer() # Убираем "часики" с кнопки
+
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
     try:
