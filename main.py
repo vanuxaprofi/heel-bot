@@ -107,6 +107,7 @@ TOTAL_CARDS = sum(len(v) for v in DATA.values())
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
+last_bet_time = {}
 last_time = {}
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
