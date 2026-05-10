@@ -368,8 +368,8 @@ buttons = [
     [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
     [KeyboardButton(text="◀️ Назад")] # <-- Новая кнопка
 ]
-    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
+kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
 
 @dp.message(lambda message: message.text in [
     "⚪ ОБЫЧНАЯ (x1.5)", "🟢 НЕОБЫЧНАЯ (x2.5)", "🔵 РЕДКАЯ (x5)", 
