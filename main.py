@@ -392,7 +392,7 @@ async def play_bet(message: types.Message):
     }
     
     user_choice = mapping.get(message.text)
-    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
     if balance < 100: 
         return await message.answer("❌ Мало монет!")
