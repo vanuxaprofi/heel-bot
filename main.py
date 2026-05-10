@@ -6,7 +6,7 @@ import sqlite3
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 # ТВОЙ ТОКЕН
 API_TOKEN = "8539851697:AAHefsphF_9xArNF1wa2Qi6AT_B-0YTAn_E"
@@ -145,16 +145,14 @@ async def start_web():
     runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
 def get_kb():
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton(text="🦶 Выбить пятку", callback_data="open_case"),
-        InlineKeyboardButton(text="💰 Профиль", callback_data="profile"),
-        InlineKeyboardButton(text="🏪 Магазин", callback_data="shop"),
-        InlineKeyboardButton(text="🎰 Ставки", callback_data="bet_menu"),
-        # ВОТ ЭТУ СТРОКУ ДОБАВЬ:
-        InlineKeyboardButton(text="🍀 Рандомайзер", callback_data="start_randomizer")
-    )
-    return kb
+    buttons = [
+        [InlineKeyboardButton(text="🦶 Выбить пятку", callback_data="open_case")],
+        [InlineKeyboardButton(text="💰 Профиль", callback_data="profile"), 
+         InlineKeyboardButton(text="🏪 Магазин", callback_data="shop")],
+        [InlineKeyboardButton(text="🎰 Ставки", callback_data="bet_menu"),
+         InlineKeyboardButton(text="🍀 Рандомайзер", callback_data="start_randomizer")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
     
 @dp.message(F.photo)
 async def get_photo_id(message: Message):
