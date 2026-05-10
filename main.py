@@ -373,32 +373,32 @@ async def buy_chest(call: types.CallbackQuery):
     await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
     await call.answer() # Убираем "часики" с кнопки
     async def bet_menu(message: Message):
-    user_id = message.from_user.id
-    current_time = time.time()
-    # Получаем данные (теперь их 5)
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
-
-    # Проверка на 3 попытки и КД 9 часов
-    if bet_count >= 3:
-        if user_id in last_bet_time and current_time - last_bet_time[user_id] < BET_COOLDOWN:
-            rem = int(BET_COOLDOWN - (current_time - last_bet_time[user_id]))
-            h, m = rem // 3600, (rem % 3600) // 60
-            return await message.answer(f"⏳ Попытки кончились! Новые будут через {h} ч. {m} мин.")
-        else:
-            bet_count = 0 
-            update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
-
-    txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\n🔔 Попыток: {3 - bet_count} из 3\n\nВыбери редкость:"
+        user_id = message.from_user.id
+        current_time = time.time()
+        # Получаем данные (теперь их 5)
+        inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
-    buttons = [
-        [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
-        [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
-        [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
-        [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
-        [KeyboardButton(text="◀️ Назад")]
-    ]
-    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
+        # Проверка на 3 попытки и КД 9 часов
+        if bet_count >= 3:
+            if user_id in last_bet_time and current_time - last_bet_time[user_id] < BET_COOLDOWN:
+                rem = int(BET_COOLDOWN - (current_time - last_bet_time[user_id]))
+                h, m = rem // 3600, (rem % 3600) // 60
+                return await message.answer(f"⏳ Попытки кончились! Новые будут через {h} ч. {m} мин.")
+            else:
+                bet_count = 0 
+                update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
+    
+        txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\n🔔 Попыток: {3 - bet_count} из 3\n\nВыбери редкость:"
+        
+        buttons = [
+            [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
+            [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
+            [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
+            [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
+            [KeyboardButton(text="◀️ Назад")]
+        ]
+        kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+        await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
 
 @dp.message(F.text == "🎰 Ставки")
 @dp.message(lambda message: message.text in [
