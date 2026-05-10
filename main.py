@@ -170,10 +170,11 @@ MONEY_REWARDS = {
     "👑 ИДЕАЛЬНАЯ (1%)": 5000
 }
 
-@dp.message(F.text == "🦶 Пятка")
-async def open_card(message: Message):
-    try:
-        user_id = message.from_user.id
+@dp.message(F.text == "🦶 Выбить пятку")
+async def open_case(message: types.Message):
+    user_id = message.from_user.id
+    # ... дальше весь твой старый код без изменений, 
+    # только замени callback_query.message.answer на message.answer ...
         current_time = time.time()
         
         # КД 5 секунд
@@ -266,9 +267,10 @@ async def show_top(message: Message):
         await message.answer(txt.replace("**", ""))
 
 # ВСТАВЛЯЙ СЮДА:
-@dp.message(F.text == "👤 Профиль")
-async def show_profile(message: Message):
+@dp.message(F.text == "💰 Профиль")
+async def show_profile(message: types.Message):
     user_id = message.from_user.id
+    # ... остальной код профиля ...
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
     progress = round((len(inv) / TOTAL_CARDS) * 100, 1) if TOTAL_CARDS > 0 else 0
@@ -364,22 +366,26 @@ async def buy_chest(call: types.CallbackQuery):
 async def bet_menu(message: Message):
     user_id = message.from_user.id
     current_time = time.time()
-    if user_id in last_bet_time and current_time - last_bet_time[user_id] < 32400:
-        rem = int(32400 - (current_time - last_bet_time[user_id]))
-        return await message.answer(f"⏳ Ставки будут доступны через {rem // 3600}ч. {(rem % 3600) // 60}мин.")
+    
+    if user_id in last_bet_time and current_time - last_bet_time[user_id] < 120:
+        rem = int(120 - (current_time - last_bet_time[user_id]))
+        return await message.answer(f"⏳ Ставки будут доступны через {rem} сек.")
+
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
-    txt = (f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: **{balance}**\n\nСтавка: **100 💰**\nВыбери редкость:\n⚪ x1.5 | 🟢 x2.5 | 🔵 x5.0\n🟣 x10 | 🔴 x20 | 🟡 x40 | 👑 x80\n\n⚠️ Попытка раз в 9 часов!")
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    bkb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
-        [InlineKeyboardButton(text="🟢 Необычная", callback_data="bet_🟢 НЕОБЫЧНАЯ (25%)")],
-        [InlineKeyboardButton(text="🔵 Редкая", callback_data="bet_🔵 РЕДКАЯ (15%)")],
-        [InlineKeyboardButton(text="🟣 Эпик", callback_data="bet_🟣 ЭПИЧЕСКАЯ (8%)")],
-        [InlineKeyboardButton(text="🔴 Мифик", callback_data="bet_🔴 МИФИЧЕСКАЯ (4%)")],
-        [InlineKeyboardButton(text="🟡 Легенда", callback_data="bet_🟡 ЛЕГЕНДАРНАЯ (2%)")],
-        [InlineKeyboardButton(text="👑 ИДЕАЛ", callback_data="bet_👑 ИДЕАЛЬНАЯ (1%)")]
-    ])
-    await message.answer(txt, reply_markup=bkb, parse_mode="Markdown")
+    txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\nСтавка: 100 монет\n\nВыбери редкость:"
+    
+    # Исправленная клавиатура для aiogram 3.x
+    buttons = [
+        [InlineKeyboardButton(text="⚪ Обычная (x1.5)", callback_data="bet_ОБЫЧНАЯ")],
+        [InlineKeyboardButton(text="🟢 Необычная (x2.5)", callback_data="bet_НЕОБЫЧНАЯ")],
+        [InlineKeyboardButton(text="🔵 Редкая (x5)", callback_data="bet_РЕДКАЯ")],
+        [InlineKeyboardButton(text="🟣 Эпическая (x10)", callback_data="bet_ЭПИЧЕСКАЯ")],
+        [InlineKeyboardButton(text="🟡 Мифическая (x20)", callback_data="bet_МИФИЧЕСКАЯ")],
+        [InlineKeyboardButton(text="🔴 Легендарная (x50)", callback_data="bet_ЛЕГЕНДАРНАЯ")],
+        [InlineKeyboardButton(text="🌈 UNIQUE (x100)", callback_data="bet_UNIQUE")]
+    ]
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
 
 @dp.callback_query(F.data.startswith("bet_"))
 async def play_bet(call: types.CallbackQuery):
