@@ -427,16 +427,24 @@ async def back_to_main(message: types.Message):
 
 @dp.message(F.text == "🍀 Рандомайзер")
 async def start_randomizer_cmd(message: types.Message):
-    buttons = [[
-        InlineKeyboardButton(text="100 💰", callback_data="run_rand_100"),
-        InlineKeyboardButton(text="500 💰", callback_data="run_rand_500"),
-        InlineKeyboardButton(text="1000 💰", callback_data="run_rand_1000")
-    ]]
-    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await message.answer("🎰 Выбери ставку для Рандомайзера (КД 9 часов):", reply_markup=kb)
+    buttons = [
+        [KeyboardButton(text="💎 Испытать удачу")],
+        [KeyboardButton(text="◀️ Назад")]
+    ]
+    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    await message.answer("Добро пожаловать в Рандомайзер! Нажми на кнопку ниже, чтобы попытать счастья.", reply_markup=kb)
 
+@dp.message(F.text == "💎 Испытать удачу")
+async def play_randomizer(message: types.Message):
+    user_id = message.from_user.id
+    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    
+    # Твоя логика: выигрыш от 100 до 1000 монет
+    win = random.randint(100, 1000)
+    balance += win
+    
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
-    await message.answer(f"Результат: {res}")
+    await message.answer(f"🍀 Удача на твоей стороне! Ты выиграл **{win}** монет! 💰\nТвой баланс: **{balance}**", parse_mode="Markdown")
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
