@@ -195,15 +195,15 @@ async def open_case(message: types.Message):
         reward = MONEY_REWARDS.get(rarity, 0)
         total_opens += 1
         is_new = item_name not in inv
-        if is_new:
+    if is_new:
         if isinstance(inv, list):
             inv.append(item_name)
+            else:
+                inv.add(item_name)
+            status = f"✨ Пятка добавлена! (+{reward} 💰)"
         else:
-            inv.add(item_name)
-        status = f"✨ Пятка добавлена! (+{reward} 💰)"
-    else:
-        duplicates += 1
-        status = f"♻️ Уже есть! Получено (+{reward} 💰)"
+            duplicates += 1
+            status = f"♻️ Уже есть! Получено (+{reward} 💰)"
     
         # Сохранение
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
