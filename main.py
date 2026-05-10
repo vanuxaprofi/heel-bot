@@ -173,9 +173,7 @@ MONEY_REWARDS = {
 @dp.message(F.text == "🦶 Выбить пятку")
 async def open_case(message: types.Message):
     user_id = message.from_user.id
-    # ... дальше весь твой старый код без изменений, 
-    # только замени callback_query.message.answer на message.answer ...
-        current_time = time.time()
+    current_time = time.time()
         
         # КД 5 секунд
         if user_id in last_time and current_time - last_time[user_id] < 5:
@@ -199,7 +197,7 @@ async def open_case(message: types.Message):
         
         # ДЕНЬГИ И СТАТИСТИКА
         reward = MONEY_REWARDS.get(rarity, 0)
-        balance += reward
+        balance -= 100
         total_opens += 1
         
         is_new = item_name not in inv
