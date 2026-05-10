@@ -407,8 +407,8 @@ async def back_to_main(message: types.Message):
     [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
     [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
 ]
-kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-await message.answer("Вы вернулись в главное меню", reply_markup=kb)
+    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    await message.answer("Вы вернулись в главное меню", reply_markup=kb)
 
 @dp.message(F.text == "🍀 Рандомайзер")
 async def start_randomizer_cmd(message: types.Message):
