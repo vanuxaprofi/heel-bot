@@ -109,6 +109,7 @@ bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 last_bet_time = {}
 last_time = {}
+last_random_time = {}
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
     await message.answer("Жми на кнопки ниже!", reply_markup=get_kb())
@@ -144,12 +145,16 @@ async def start_web():
     runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
 def get_kb():
-    kb = [
-        [KeyboardButton(text="🦶 Пятка"), KeyboardButton(text="🎒 Инвентарь")],
-        [KeyboardButton(text="🏆 Топ игроков"), KeyboardButton(text="👤 Профиль")],
-        [KeyboardButton(text="🛒 Магазин"), KeyboardButton(text="🎰 Ставки")]
-    ]
-    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+    kb = InlineKeyboardMarkup(row_width=2)
+    kb.add(
+        InlineKeyboardButton(text="🦶 Выбить пятку", callback_data="open_case"),
+        InlineKeyboardButton(text="💰 Профиль", callback_data="profile"),
+        InlineKeyboardButton(text="🏪 Магазин", callback_data="shop"),
+        InlineKeyboardButton(text="🎰 Ставки", callback_data="bet_menu"),
+        # ВОТ ЭТУ СТРОКУ ДОБАВЬ:
+        InlineKeyboardButton(text="🍀 Рандомайзер", callback_data="start_randomizer")
+    )
+    return kb
     
 @dp.message(F.photo)
 async def get_photo_id(message: Message):
@@ -401,6 +406,58 @@ async def play_bet(call: types.CallbackQuery):
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
     await call.message.edit_text(f"{m}\n💰 Баланс: **{balance}**\n⏳ Ждем 9 часов.", parse_mode="Markdown")
     await call.answer()
+@dp.callback_query_handler(lambda c: c.data == 'start_randomizer')
+async def randomizer_menu(callback_query: types.CallbackQuery):
+    # Меню выбора ставки
+    kb = InlineKeyboardMarkup(row_width=3)
+    kb.add(
+        InlineKeyboardButton("100 💰", callback_data="run_rand_100"),
+        InlineKeyboardButton("500 💰", callback_data="run_rand_500"),
+        InlineKeyboardButton("1000 💰", callback_data="run_rand_1000")
+    )
+    await callback_query.message.edit_text("Выбери ставку для Рандомайзера (КД 9 часов):", reply_markup=kb)
+
+@dp.callback_query_handler(lambda c: c.data.startswith('run_rand_'))
+async def run_randomizer(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    bet = int(callback_query.data.replace("run_rand_", ""))
+    current_time = time.time()
+    
+    # Проверка КД (9 часов)
+    if user_id in last_random_time and current_time - last_random_time[user_id] < 32400:
+        remaining = int((32400 - (current_time - last_random_time[user_id])) // 3600)
+        await callback_query.answer(f"⏳ Жди еще {remaining} ч.", show_alert=True)
+        return
+
+    inv, balance, total_opens, duplicates = get_user_data(user_id, callback_query.from_user.full_name, callback_query.from_user.username)
+    
+    if balance < bet:
+        await callback_query.answer("❌ Недостаточно монет!", show_alert=True)
+        return
+
+    # Логика иксов
+    number = random.randint(1, 10)
+    multipliers = {1:0, 2:0, 3:0, 4:0, 5:0, 6:1, 7:1, 8:2, 9:5, 10:10}
+    coef = multipliers[number]
+    
+    last_random_time[user_id] = current_time
+    
+    if coef == 0:
+        new_balance = balance - bet
+        res = f"❌ Выпало {number}. Ты проиграл {bet} монет."
+    elif coef == 1:
+        new_balance = balance
+        res = f"🔄 Выпало {number}. Ставка возвращена."
+    else:
+        win = bet * coef
+        new_balance = balance + (win - bet)
+        res = f"🔥 ВЫПАЛО {number}! Ты выиграл {win} монет! (x{coef})"
+
+    update_user_stats(user_id, inv, new_balance, total_opens, duplicates)
+    
+    # Кнопка возврата в меню
+    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Назад", callback_data="main_menu"))
+    await callback_query.message.edit_text(res, reply_markup=kb)
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
