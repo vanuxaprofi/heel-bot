@@ -425,26 +425,49 @@ async def back_to_main(message: types.Message):
     kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     await message.answer("Вы вернулись в главное меню", reply_markup=kb)
 
+# КД для рандомайзера: 9 часов = 32400 секунд
+RAND_COOLDOWN = 32400 
+last_rand_time = {}
+
 @dp.message(F.text == "🍀 Рандомайзер")
 async def start_randomizer_cmd(message: types.Message):
     buttons = [
-        [KeyboardButton(text="💎 Испытать удачу")],
+        [KeyboardButton(text="💎 Ставка 100"), KeyboardButton(text="💎 Ставка 500")],
+        [KeyboardButton(text="💎 Ставка 1000")],
         [KeyboardButton(text="◀️ Назад")]
     ]
     kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer("Добро пожаловать в Рандомайзер! Нажми на кнопку ниже, чтобы попытать счастья.", reply_markup=kb)
+    await message.answer("🎰 **Рандомайзер**\n\nВыбери ставку. Можно утроить её или потерять всё.\n(КД: 9 часов)", reply_markup=kb, parse_mode="Markdown")
 
-@dp.message(F.text == "💎 Испытать удачу")
+@dp.message(F.text.startswith("💎 Ставка"))
 async def play_randomizer(message: types.Message):
     user_id = message.from_user.id
+    current_time = time.time()
+
+    if user_id in last_rand_time and current_time - last_rand_time[user_id] < RAND_COOLDOWN:
+        rem = int(RAND_COOLDOWN - (current_time - last_rand_time[user_id]))
+        h, m = rem // 3600, (rem % 3600) // 60
+        return await message.answer(f"⏳ Жди еще {h} ч. {m} мин.")
+
+    try:
+        bet = int(message.text.split()[-1])
+    except: return
+
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
-    
-    # Твоя логика: выигрыш от 100 до 1000 монет
-    win = random.randint(100, 1000)
-    balance += win
-    
+    if balance < bet:
+        return await message.answer(f"❌ Не хватает монет! Нужно {bet} 💰")
+
+    if random.random() < 0.4:
+        win = bet * 3
+        balance += win
+        res = f"✅ **Удача!** Ты выиграл **{win}** 💰"
+    else:
+        balance -= bet
+        res = f"❌ **Проигрыш.** Ты потерял **{bet}** 💰"
+
+    last_rand_time[user_id] = current_time
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
-    await message.answer(f"🍀 Удача на твоей стороне! Ты выиграл **{win}** монет! 💰\nТвой баланс: **{balance}**", parse_mode="Markdown")
+    await message.answer(f"{res}\n💰 Баланс: **{balance}**", parse_mode="Markdown")
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
