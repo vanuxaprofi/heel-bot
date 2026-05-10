@@ -421,7 +421,7 @@ async def start_randomizer_cmd(message: types.Message):
     await message.answer("🎰 Выбери ставку для Рандомайзера (КД 9 часов):", reply_markup=kb)
 
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
-   await message.answer(f"Результат: {res}")
+    await message.answer(f"Результат: {res}")
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
