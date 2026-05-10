@@ -170,35 +170,38 @@ MONEY_REWARDS = {
     "👑 ИДЕАЛЬНАЯ (1%)": 5000
 }
 
-@dp.message(F.text == "💡 Выбить пятку")
+@dp.message(F.text == "🦶 Выбить пятку")
 async def open_case(message: types.Message):
     user_id = message.from_user.id
     current_time = time.time()
-
-    if user_id in last_time and current_time - last_time[user_id] < 1:
-        rem = int(1 - (current_time - last_time[user_id]))
-        return await message.answer(f"⏳ Подожди {rem} сек.")
     
+    # Кулдаун 1 секунда
+    if user_id in last_time and current_time - last_time[user_id] < 1:
+        return await message.answer("⏳ Подожди 1 сек.")
+    
+    # Получаем данные пользователя
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
+    # Выбираем редкость
     res_list = random.choices(RARITIES, weights=WEIGHTS)
     rarity = res_list[0]
     
+    # Выбираем предмет
     items = list(DATA[rarity].items())
     item_name, photo_id = random.choice(items)
     reward = MONEY_REWARDS.get(rarity, 0)
     total_opens += 1
     
+    # Логика инвентаря
     if item_name not in inv:
-        if isinstance(inv, list):
-            inv.append(item_name)
-        else:
-            inv.add(item_name)
+        if isinstance(inv, list): inv.append(item_name)
+        else: inv.add(item_name)
         status = f"✨ Пятка добавлена! (+{reward} 💰)"
     else:
         duplicates += 1
         status = f"♻️ Уже есть! Получено (+{reward} 💰)"
     
+    # Сохраняем статистику (теперь бесплатно)
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
     last_time[user_id] = current_time
     
