@@ -237,7 +237,7 @@ async def open_case(message: types.Message):
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
     # Исправляем вызов функции (теперь get_user_data)
-    inv, balance, total_opens, duplicates = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
     
     if not inv: 
         return await message.answer("Твой инвентарь пуст!")
@@ -281,7 +281,7 @@ async def show_top(message: Message):
 async def show_profile(message: types.Message):
     user_id = message.from_user.id
     # ... остальной код профиля ...
-    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    inv, balance, total_opens, duplicates, bet_coun = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
     progress = round((len(inv) / TOTAL_CARDS) * 100, 1) if TOTAL_CARDS > 0 else 0
     
@@ -308,7 +308,7 @@ async def show_profile(message: types.Message):
 @dp.message(F.text == "🏪 Магазин")
 async def show_shop(message: Message):
     # Получаем баланс игрока
-    inv, balance, total_opens, duplicates = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
     
     text = (
         f"🛒 **МАГАЗИН СУНДУКОВ**\n"
@@ -337,7 +337,7 @@ async def show_shop(message: Message):
 async def buy_chest(call: types.CallbackQuery):
     user_id = call.from_user.id
     # Получаем данные
-    inv, balance, total_opens, duplicates = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
     
     # Настройки сундуков: (Цена, Шансы, Название)
     chests = {
@@ -365,7 +365,7 @@ async def buy_chest(call: types.CallbackQuery):
         duplicates += 1
     
     # Сохраняем и отвечаем
-    update_user_stats(user_id, inv, balance, total_opens, duplicates)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     
     status = "🎒 Пятка добавлена!" if is_new else "♻️ Уже была (ушла в повторки)"
     caption = f"🎁 **ОТКРЫТИЕ СУНДУКА: {chest_name}**\n\nВы выбили: **{item_name}**\nРедкость: **{rarity}**\n\n{status}\n💰 Остаток: **{balance}** монет"
