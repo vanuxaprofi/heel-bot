@@ -211,7 +211,7 @@ async def open_case(message: types.Message):
         status = f"♻️ Уже есть! Получено (+{reward} 💰)"
     
     # Сохраняем статистику (теперь бесплатно)
-    update_user_stats(user_id, inv, balance, total_opens, duplicates bet_count)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     last_time[user_id] = current_time
     
         # Шансы и иконки для оформления
