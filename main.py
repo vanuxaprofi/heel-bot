@@ -191,7 +191,8 @@ async def open_case(message: types.Message):
     item_name, photo_id = random.choice(items)
     reward = MONEY_REWARDS.get(rarity, 0)
     total_opens += 1
-    
+    balance += reward
+
     # Логика инвентаря
     if item_name not in inv:
         if isinstance(inv, list): inv.append(item_name)
