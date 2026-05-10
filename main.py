@@ -372,46 +372,45 @@ async def bet_menu(message: Message):
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\nСтавка: 100 монет\n\nВыбери редкость:"
     
-    # Исправленная клавиатура для aiogram 3.x
     buttons = [
-        [InlineKeyboardButton(text="⚪ Обычная (x1.5)", callback_data="bet_ОБЫЧНАЯ")],
-        [InlineKeyboardButton(text="🟢 Необычная (x2.5)", callback_data="bet_НЕОБЫЧНАЯ")],
-        [InlineKeyboardButton(text="🔵 Редкая (x5)", callback_data="bet_РЕДКАЯ")],
-        [InlineKeyboardButton(text="🟣 Эпическая (x10)", callback_data="bet_ЭПИЧЕСКАЯ")],
-        [InlineKeyboardButton(text="🟡 Мифическая (x20)", callback_data="bet_МИФИЧЕСКАЯ")],
-        [InlineKeyboardButton(text="🔴 Легендарная (x50)", callback_data="bet_ЛЕГЕНДАРНАЯ")],
-        [InlineKeyboardButton(text="🌈 UNIQUE (x100)", callback_data="bet_UNIQUE")]
+        [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
+        [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
+        [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
+        [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")]
     ]
-    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
 
-@dp.callback_query(F.data.startswith("bet_"))
-async def play_bet(call: types.CallbackQuery):
-    user_id = call.from_user.id
-    choice = call.data.replace("bet_", "")
-    inv, balance, total_opens, duplicates = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
-    if balance < 100: return await call.answer("❌ Мало монет!", show_alert=True)
-    coeffs = {
-        "⚪ ОБЫЧНАЯ (45%)": 1.5, "🟢 НЕОБЫЧНАЯ (25%)": 2.5, "🔵 РЕДКАЯ (15%)": 5.0,
-        "🟣 ЭПИЧЕСКАЯ (8%)": 10.0, "🔴 МИФИЧЕСКАЯ (4%)": 20.0, "🟡 ЛЕГЕНДАРНАЯ (2%)": 40.0, "👑 ИДЕАЛЬНАЯ (1%)": 80.0
+@dp.message(lambda message: message.text in [
+    "⚪ ОБЫЧНАЯ (x1.5)", "🟢 НЕОБЫЧНАЯ (x2.5)", "🔵 РЕДКАЯ (x5)", 
+    "🟣 ЭПИЧЕСКАЯ (x10)", "🔴 МИФИЧЕСКАЯ (x20)", "🟡 ЛЕГЕНДАРНАЯ (x40)", "👑 ИДЕАЛЬНАЯ (x80)"
+])
+async def play_bet(message: types.Message):
+    user_id = message.from_user.id
+    mapping = {
+        "⚪ ОБЫЧНАЯ (x1.5)": "ОБЫЧНАЯ", "🟢 НЕОБЫЧНАЯ (x2.5)": "НЕОБЫЧНАЯ",
+        "🔵 РЕДКАЯ (x5)": "РЕДКАЯ", "🟣 ЭПИЧЕСКАЯ (x10)": "ЭПИЧЕСКАЯ",
+        "🔴 МИФИЧЕСКАЯ (x20)": "МИФИЧЕСКАЯ", "🟡 ЛЕГЕНДАРНАЯ (x40)": "ЛЕГЕНДАРНАЯ",
+        "👑 ИДЕАЛЬНАЯ (x80)": "ИДЕАЛЬНАЯ"
     }
+    choice = mapping[message.text]
+    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    if balance < 100: return await message.answer("❌ Мало монет!")
+    coeffs = {"ОБЫЧНАЯ": 1.5, "НЕОБЫЧНАЯ": 2.5, "РЕДКАЯ": 5.0, "ЭПИЧЕСКАЯ": 10.0, "МИФИЧЕСКАЯ": 20.0, "ЛЕГЕНДАРНАЯ": 40.0, "ИДЕАЛЬНАЯ": 80.0}
     balance -= 100
     last_bet_time[user_id] = time.time()
-    res_list = random.choices(RARITIES, weights=WEIGHTS)
-    res = res_list[0]
+    res = random.choices(RARITIES, weights=WEIGHTS)[0]
     if res == choice:
         win = int(100 * coeffs[choice])
         balance += win
-        m = f"✅ **ВЫИГРАЛ!**\nВыпала: {res}\nПриз: **{win}** 💰"
+        res_txt = f"🎉 **ВЫИГРАЛ!**\nВыпало: {res}\nПриз: **{win}** 💰"
     else:
-        m = f"❌ **ПРОИГРАЛ**\nВыпала: {res}\nСтавка сгорела."
+        res_txt = f"❌ **ПРОИГРАЛ**\nВыпало: {res}\nСтавка сгорела."
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
-    await call.message.edit_text(f"{m}\n💰 Баланс: **{balance}**\n⏳ Ждем 9 часов.", parse_mode="Markdown")
-    await call.answer()
-# Замени начало первой функции на это:
-@dp.message(F.text == "🍀 Рандомайзер")
+    await message.answer(f"{res_txt}\n\n💰 Баланс: **{balance}**", parse_mode="Markdown")
+
+@dp.message(F.text == "🎰 Рандомайзер")
 async def start_randomizer_cmd(message: types.Message):
-    # Создаем инлайн-кнопки для выбора ставки
     buttons = [[
         InlineKeyboardButton(text="100 💰", callback_data="run_rand_100"),
         InlineKeyboardButton(text="500 💰", callback_data="run_rand_500"),
@@ -419,41 +418,6 @@ async def start_randomizer_cmd(message: types.Message):
     ]]
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
     await message.answer("🎰 Выбери ставку для Рандомайзера (КД 9 часов):", reply_markup=kb)
-
-@dp.callback_query(F.data.startswith("run_rand_"))
-async def run_randomizer(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    bet = int(callback_query.data.split("_")[-1])
-    current_time = time.time()
-    
-    # Проверка КД
-    if user_id in last_random_time and current_time - last_random_time[user_id] < 32400:
-        remaining = int((32400 - (current_time - last_random_time[user_id])) // 3600)
-        await callback_query.answer(f"⏳ Жди еще {remaining} ч.!", show_alert=True)
-        return
-
-    inv, balance, total_opens, duplicates = get_user_data(user_id, callback_query.from_user.full_name, callback_query.from_user.username)
-    
-    if balance < bet:
-        await callback_query.answer("❌ Недостаточно монет!", show_alert=True)
-        return
-
-    # Твои адекватные иксы
-    number = random.randint(1, 10)
-    mults = {1:0, 2:0, 3:0, 4:0, 5:0, 6:1, 7:1, 8:2, 9:5, 10:10}
-    coef = mults[number]
-    last_random_time[user_id] = current_time
-    
-    if coef == 0:
-        new_balance = balance - bet
-        res = f"🎰 Выпало {number}\n❌ Проигрыш! Ты потерял {bet} монет."
-    elif coef == 1:
-        new_balance = balance
-        res = f"🎰 Выпало {number}\n🔄 Возврат! Ставка вернулась на баланс."
-    else:
-        win = bet * coef
-        new_balance = balance + (win - bet)
-        res = f"🎰 ЧИСЛО {number}!\n🔥 ВЫИГРЫШ: {win} монет! (x{coef})"
 
     update_user_stats(user_id, inv, new_balance, total_opens, duplicates)
     await callback_query.message.edit_text(res)
