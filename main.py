@@ -6,7 +6,7 @@ import sqlite3
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 
 # ТВОЙ ТОКЕН
 API_TOKEN = "8539851697:AAHefsphF_9xArNF1wa2Qi6AT_B-0YTAn_E"
@@ -146,15 +146,13 @@ async def start_web():
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
 def get_kb():
     buttons = [
-        [InlineKeyboardButton(text="🦶 Выбить пятку", callback_data="open_case")],
-        [InlineKeyboardButton(text="💰 Профиль", callback_data="profile"), 
-         InlineKeyboardButton(text="🏪 Магазин", callback_data="shop")],
-        [InlineKeyboardButton(text="🎰 Ставки", callback_data="bet_menu"),
-         InlineKeyboardButton(text="🍀 Рандомайзер", callback_data="start_randomizer")],
-        [InlineKeyboardButton(text="🎒 Инвентарь", callback_data="inventory"),
-         InlineKeyboardButton(text="🏆 Топ игроков", callback_data="top_players")]
+        [KeyboardButton(text="🦶 Выбить пятку")],
+        [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
+        [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
+        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
     ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    # resize_keyboard=True делает кнопки маленькими и аккуратными
+    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     
 @dp.message(F.photo)
 async def get_photo_id(message: Message):
@@ -407,15 +405,16 @@ async def play_bet(call: types.CallbackQuery):
     await call.message.edit_text(f"{m}\n💰 Баланс: **{balance}**\n⏳ Ждем 9 часов.", parse_mode="Markdown")
     await call.answer()
 # Замени начало первой функции на это:
-@dp.callback_query(F.data == "start_randomizer")
-async def randomizer_menu(callback_query: types.CallbackQuery):
+@dp.message(F.text == "🍀 Рандомайзер")
+async def start_randomizer_cmd(message: types.Message):
+    # Создаем инлайн-кнопки для выбора ставки
     buttons = [[
         InlineKeyboardButton(text="100 💰", callback_data="run_rand_100"),
         InlineKeyboardButton(text="500 💰", callback_data="run_rand_500"),
         InlineKeyboardButton(text="1000 💰", callback_data="run_rand_1000")
     ]]
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await callback_query.message.edit_text("Выбери ставку для Рандомайзера (КД 9 часов):", reply_markup=kb)
+    await message.answer("🎰 Выбери ставку для Рандомайзера (КД 9 часов):", reply_markup=kb)
 
 @dp.callback_query(F.data.startswith("run_rand_"))
 async def run_randomizer(callback_query: types.CallbackQuery):
@@ -423,17 +422,19 @@ async def run_randomizer(callback_query: types.CallbackQuery):
     bet = int(callback_query.data.split("_")[-1])
     current_time = time.time()
     
+    # Проверка КД
     if user_id in last_random_time and current_time - last_random_time[user_id] < 32400:
         remaining = int((32400 - (current_time - last_random_time[user_id])) // 3600)
-        await callback_query.answer(f"⏳ Жди еще {remaining} ч.", show_alert=True)
+        await callback_query.answer(f"⏳ Жди еще {remaining} ч.!", show_alert=True)
         return
 
     inv, balance, total_opens, duplicates = get_user_data(user_id, callback_query.from_user.full_name, callback_query.from_user.username)
     
     if balance < bet:
-        await callback_query.answer("❌ Мало монет!", show_alert=True)
+        await callback_query.answer("❌ Недостаточно монет!", show_alert=True)
         return
 
+    # Твои адекватные иксы
     number = random.randint(1, 10)
     mults = {1:0, 2:0, 3:0, 4:0, 5:0, 6:1, 7:1, 8:2, 9:5, 10:10}
     coef = mults[number]
@@ -441,19 +442,17 @@ async def run_randomizer(callback_query: types.CallbackQuery):
     
     if coef == 0:
         new_balance = balance - bet
-        res = f"❌ Число {number}. Ты проиграл {bet} монет."
+        res = f"🎰 Выпало {number}\n❌ Проигрыш! Ты потерял {bet} монет."
     elif coef == 1:
         new_balance = balance
-        res = f"🔄 Число {number}. Ставка вернулась."
+        res = f"🎰 Выпало {number}\n🔄 Возврат! Ставка вернулась на баланс."
     else:
         win = bet * coef
         new_balance = balance + (win - bet)
-        res = f"🔥 Число {number}! ВЫИГРЫШ: {win} монет! (x{coef})"
+        res = f"🎰 ЧИСЛО {number}!\n🔥 ВЫИГРЫШ: {win} монет! (x{coef})"
 
     update_user_stats(user_id, inv, new_balance, total_opens, duplicates)
-    
-    back_kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Назад", callback_data="main_menu")]])
-    await callback_query.message.edit_text(res, reply_markup=back_kb)
+    await callback_query.message.edit_text(res)
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
