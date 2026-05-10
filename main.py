@@ -401,7 +401,7 @@ async def play_bet(message: types.Message):
 
 @dp.message(F.text == "◀️ Назад")
 async def back_to_main(message: types.Message):
-buttons = [
+    buttons = [
     [KeyboardButton(text="🦶 Выбить пятку")],
     [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
     [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
