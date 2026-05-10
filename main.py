@@ -361,15 +361,15 @@ async def bet_menu(message: Message):
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\nСтавка: 100 монет\n\nВыбери редкость:"
     
-buttons = [
-    [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
-    [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
-    [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
-    [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
-    [KeyboardButton(text="◀️ Назад")] # <-- Новая кнопка
-]
-kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
+    buttons = [
+        [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
+        [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
+        [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
+        [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
+        [KeyboardButton(text="◀️ Назад")]
+    ]
+    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
 
 @dp.message(lambda message: message.text in [
     "⚪ ОБЫЧНАЯ (x1.5)", "🟢 НЕОБЫЧНАЯ (x2.5)", "🔵 РЕДКАЯ (x5)", 
