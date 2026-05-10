@@ -195,16 +195,19 @@ async def open_case(message: types.Message):
         reward = MONEY_REWARDS.get(rarity, 0)
         total_opens += 1
     
-        is_new = item_name not in inv
-        if is_new:
+            is_new = item_name not in inv
+    if is_new:
+        if isinstance(inv, list):
             inv.append(item_name)
-            status = f"✨ Пятка добавлена! (+{reward} 💰)"
         else:
-            duplicates += 1
-            status = f"♻️ Уже есть! Получено (+{reward} 💰)"
+            inv.add(item_name)
+        status = f"✨ Пятка добавлена! (+{reward} 💰)"
+    else:
+        duplicates += 1
+        status = f"♻️ Уже есть! Получено (+{reward} 💰)"
     
         # Сохранение
-        update_user_stats(user_id, inv, balance, total_opens, duplicates)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates)
         last_time[user_id] = current_time
     
         caption = f"🎊 **Поздравляем!**\n\n🦶 Вам выпала: **{item_name}**\n💎 Редкость: **{rarity}**\n\n{status}\n💰 Твой баланс: **{balance}** монет"
@@ -367,13 +370,13 @@ async def bet_menu(message: Message):
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\nСтавка: 100 монет\n\nВыбери редкость:"
     
-    buttons = [
-        [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
-        [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
-        [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
-        [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
-        [KeyboardButton(text="◀️ Назад")] # <-- Новая кнопка
-    ]
+buttons = [
+    [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
+    [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
+    [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
+    [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
+    [KeyboardButton(text="◀️ Назад")] # <-- Новая кнопка
+]
     kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
 
@@ -405,6 +408,17 @@ async def play_bet(message: types.Message):
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
     await message.answer(f"{res_txt}\n\n💰 Баланс: **{balance}**", parse_mode="Markdown")
 
+@dp.message(F.text == "◀️ Назад")
+async def back_to_main(message: types.Message):
+buttons = [
+    [KeyboardButton(text="🦶 Выбить пятку")],
+    [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
+    [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
+    [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
+]
+kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+await message.answer("Вы вернулись в главное меню", reply_markup=kb)
+
 @dp.message(F.text == "🍀 Рандомайзер")
 async def start_randomizer_cmd(message: types.Message):
     buttons = [[
@@ -415,8 +429,8 @@ async def start_randomizer_cmd(message: types.Message):
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
     await message.answer("🎰 Выбери ставку для Рандомайзера (КД 9 часов):", reply_markup=kb)
 
-    update_user_stats(user_id, inv, new_balance, total_opens, duplicates)
-    await callback_query.message.edit_text(res)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates)
+   await message.answer(f"Результат: {res}")
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
