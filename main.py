@@ -369,9 +369,11 @@ async def bet_menu(message: Message):
     user_id = message.from_user.id
     current_time = time.time()
     
-    if user_id in last_bet_time and current_time - last_bet_time[user_id] < 120:
-        rem = int(120 - (current_time - last_bet_time[user_id]))
-        return await message.answer(f"⏳ Ставки будут доступны через {rem} сек.")
+       BET_COOLDOWN = 32400  # 9 часов
+    if user_id in last_bet_time and current_time - last_bet_time[user_id] < BET_COOLDOWN:
+        rem = int(BET_COOLDOWN - (current_time - last_bet_time[user_id]))
+        h, m = rem // 3600, (rem % 3600) // 60
+        return await message.answer(f"⏳ Ставки будут доступны через {h} ч. {m} мин.")
 
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\nСтавка: 100 монет\n\nВыбери редкость:"
