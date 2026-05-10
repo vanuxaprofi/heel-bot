@@ -205,9 +205,21 @@ async def open_case(message: types.Message):
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
     last_time[user_id] = current_time
     
-    caption = f"🦶 **Поздравляем!**\n\nВыпала: **{item_name}**\nРедкость: **{rarity}**\n\n{status}"
-    try:
-        await message.answer_photo(photo_id, caption=caption, parse_mode="Markdown")
+        # Шансы и иконки для оформления
+    chances = {"ОБЫЧНАЯ": "45%", "НЕОБЫЧНАЯ": "25%", "РЕДКАЯ": "15%", "ЭПИЧЕСКАЯ": "10%", "МИФИЧЕСКАЯ": "3%", "ЛЕГЕНДАРНАЯ": "1.5%", "ИДЕАЛЬНАЯ": "1%"}
+    icons = {"ОБЫЧНАЯ": "⚪️", "НЕОБЫЧНАЯ": "🟢", "РЕДКАЯ": "🔵", "ЭПИЧЕСКАЯ": "🟣", "МИФИЧЕСКАЯ": "🔴", "ЛЕГЕНДАРНАЯ": "🟡", "ИДЕАЛЬНАЯ": "👑"}
+    
+    chance = chances.get(rarity, "0%")
+    icon = icons.get(rarity, "⚪️")
+    
+    # Формируем красивый текст
+    caption = (
+        f"🎉 **Поздравляю** 🎉\n\n"
+        f"Вам выпала • **{item_name}**\n"
+        f"Редкость • {icon} **{rarity} ({chance})**\n\n"
+        f"🎒 Пятка добавлена! (+{reward} 💰)\n"
+        f"💰 Твой баланс: **{balance}** монет"
+    )
     except Exception as e:
         await message.answer(f"{caption}\n\n(Ошибка фото: {e})")
 
