@@ -419,7 +419,7 @@ async def play_bet(message: types.Message):
     else:
         res_txt = f"❌ **ПРОИГРАЛ**\nВыпало: {res}\nСтавка сгорела."
     
-    update_user_stats(user_id, inv, balance, total_opens, duplicates)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     
     # 3. Добавляем кнопку "Назад" в ответ, чтобы она не пропадала
     kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="◀️ Назад")]], resize_keyboard=True)
@@ -464,7 +464,7 @@ async def play_randomizer(message: types.Message):
         bet = int(message.text.split()[-1])
     except: return
 
-    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     if balance < bet:
         return await message.answer(f"❌ Не хватает монет! Нужно {bet} 💰")
 
@@ -477,7 +477,7 @@ async def play_randomizer(message: types.Message):
         res = f"❌ **Проигрыш.** Ты потерял **{bet}** 💰"
 
     last_rand_time[user_id] = current_time
-    update_user_stats(user_id, inv, balance, total_opens, duplicates)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     await message.answer(f"{res}\n💰 Баланс: **{balance}**", parse_mode="Markdown")
 
 async def main():
