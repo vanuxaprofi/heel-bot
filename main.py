@@ -356,38 +356,50 @@ async def buy_chest(call: types.CallbackQuery):
     
     await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
     await call.answer() # Убираем "часики" с кнопки
-# 1. Сделай короткие ключи
-COEFFS = {
-    "common": {"label": "⚪ Обычная", "coeff": 1.5},
-    "uncommon": {"label": "🟢 Необычная", "coeff": 2.5},
-    "rare": {"label": "🔵 Редкая", "coeff": 5.0},
-    "epic": {"label": "🟣 Эпик", "coeff": 10.0},
-    "mythic": {"label": "🔴 Мифик", "coeff": 20.0},
-    "legend": {"label": "🟡 Легенда", "coeff": 40.0},
-    "ideal": {"label": "👑 ИДЕАЛ", "coeff": 80.0}
-}
+@dp.message(F.text == "🎰 Ставки")
+async def bet_menu(message: Message):
+    user_id = message.from_user.id
+    current_time = time.time()
+    if user_id in last_bet_time and current_time - last_bet_time[user_id] < 32400:
+        rem = int(32400 - (current_time - last_bet_time[user_id]))
+        return await message.answer(f"⏳ Ставки будут доступны через {rem // 3600}ч. {(rem % 3600) // 60}мин.")
+    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    txt = (f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: **{balance}**\n\nСтавка: **100 💰**\nВыбери редкость:\n⚪ x1.5 | 🟢 x2.5 | 🔵 x5.0\n🟣 x10 | 🔴 x20 | 🟡 x40 | 👑 x80\n\n⚠️ Попытка раз в 9 часов!")
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    bkb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚪ Обычная", callback_data="bet_⚪ ОБЫЧНАЯ (45%)")],
+        [InlineKeyboardButton(text="🟢 Необычная", callback_data="bet_🟢 НЕОБЫЧНАЯ (25%)")],
+        [InlineKeyboardButton(text="🔵 Редкая", callback_data="bet_🔵 РЕДКАЯ (15%)")],
+        [InlineKeyboardButton(text="🟣 Эпик", callback_data="bet_🟣 ЭПИЧЕСКАЯ (8%)")],
+        [InlineKeyboardButton(text="🔴 Мифик", callback_data="bet_🔴 МИФИЧЕСКАЯ (4%)")],
+        [InlineKeyboardButton(text="🟡 Легенда", callback_data="bet_🟡 ЛЕГЕНДАРНАЯ (2%)")],
+        [InlineKeyboardButton(text="👑 ИДЕАЛ", callback_data="bet_👑 ИДЕАЛЬНАЯ (1%)")]
+    ])
+    await message.answer(txt, reply_markup=bkb, parse_mode="Markdown")
 
-# 2. В кнопках передавай только ID (например, bet_common)
-bkb = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text=v["label"], callback_data=f"bet_{k}")] 
-    for k, v in COEFFS.items()
-])
-
-# 3. В обработчике доставай данные по ключу
 @dp.callback_query(F.data.startswith("bet_"))
 async def play_bet(call: types.CallbackQuery):
     user_id = call.from_user.id
-    choice_id = call.data.replace("bet_", "") # Получим "common", "rare" и т.д.
-    
-    if choice_id not in COEFFS:
-        return await call.answer("Ошибка данных")
-
-    # Твоя логика...
-    choice_label = COEFFS[choice_id]["label"] # Если нужно красивое имя для текста
-    coeff = COEFFS[choice_id]["coeff"]
-    
-    # ... тут проверка баланса и рандом ...
-    # Важно: res (то что выпало) должно совпадать по формату с choice_id (напр. "common")
+    choice = call.data.replace("bet_", "")
+    inv, balance, total_opens, duplicates = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
+    if balance < 100: return await call.answer("❌ Мало монет!", show_alert=True)
+    coeffs = {
+        "⚪ ОБЫЧНАЯ (45%)": 1.5, "🟢 НЕОБЫЧНАЯ (25%)": 2.5, "🔵 РЕДКАЯ (15%)": 5.0,
+        "🟣 ЭПИЧЕСКАЯ (8%)": 10.0, "🔴 МИФИЧЕСКАЯ (4%)": 20.0, "🟡 ЛЕГЕНДАРНАЯ (2%)": 40.0, "👑 ИДЕАЛЬНАЯ (1%)": 80.0
+    }
+    balance -= 100
+    last_bet_time[user_id] = time.time()
+    res_list = random.choices(RARITIES, weights=WEIGHTS)
+    res = res_list[0]
+    if res == choice:
+        win = int(100 * coeffs[choice])
+        balance += win
+        m = f"✅ **ВЫИГРАЛ!**\nВыпала: {res}\nПриз: **{win}** 💰"
+    else:
+        m = f"❌ **ПРОИГРАЛ**\nВыпала: {res}\nСтавка сгорела."
+    update_user_stats(user_id, inv, balance, total_opens, duplicates)
+    await call.message.edit_text(f"{m}\n💰 Баланс: **{balance}**\n⏳ Ждем 9 часов.", parse_mode="Markdown")
+    await call.answer()
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
