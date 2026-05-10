@@ -195,7 +195,7 @@ async def open_case(message: types.Message):
         reward = MONEY_REWARDS.get(rarity, 0)
         total_opens += 1
         is_new = item_name not in inv
-    if is_new:
+        if is_new:
         if isinstance(inv, list):
             inv.append(item_name)
             else:
@@ -206,8 +206,8 @@ async def open_case(message: types.Message):
             status = f"♻️ Уже есть! Получено (+{reward} 💰)"
     
         # Сохранение
-    update_user_stats(user_id, inv, balance, total_opens, duplicates)
-    last_time[user_id] = current_time
+        update_user_stats(user_id, inv, balance, total_opens, duplicates)
+        last_time[user_id] = current_time
     
         caption = f"🎊 **Поздравляем!**\n\n🦶 Вам выпала: **{item_name}**\n💎 Редкость: **{rarity}**\n\n{status}\n💰 Твой баланс: **{balance}** монет"
     
