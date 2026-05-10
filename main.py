@@ -181,9 +181,6 @@ async def open_case(message: types.Message):
     
         inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
-        if balance < 100:
-            return await message.answer("❌ Недостаточно монет! Нужно 100.")
-    
         rarity_list = random.choices(RARITIES, weights=WEIGHTS)
         if not rarity_list:
             return await message.answer("Ошибка: не удалось выбрать редкость.")
@@ -196,7 +193,6 @@ async def open_case(message: types.Message):
         item_name, photo_id = random.choice(items)
     
         reward = MONEY_REWARDS.get(rarity, 0)
-        balance -= 100
         total_opens += 1
     
         is_new = item_name not in inv
@@ -371,11 +367,12 @@ async def bet_menu(message: Message):
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\nСтавка: 100 монет\n\nВыбери редкость:"
     
-    buttons = [
+       buttons = [
         [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
         [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
         [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
-        [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")]
+        [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
+        [KeyboardButton(text="◀️ Назад")] # <-- Новая кнопка
     ]
     kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
