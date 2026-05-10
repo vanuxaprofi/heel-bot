@@ -369,7 +369,7 @@ async def bet_menu(message: Message):
     user_id = message.from_user.id
     current_time = time.time()
     
-       BET_COOLDOWN = 32400  # 9 часов
+    BET_COOLDOWN = 32400  # 9 часов
     if user_id in last_bet_time and current_time - last_bet_time[user_id] < BET_COOLDOWN:
         rem = int(BET_COOLDOWN - (current_time - last_bet_time[user_id]))
         h, m = rem // 3600, (rem % 3600) // 60
