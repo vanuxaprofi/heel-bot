@@ -220,6 +220,8 @@ async def open_case(message: types.Message):
         f"🎒 Пятка добавлена! (+{reward} 💰)\n"
         f"💰 Твой баланс: **{balance}** монет"
     )
+       try:
+        await message.answer_photo(photo_id, caption=caption, parse_mode="Markdown")
     except Exception as e:
         await message.answer(f"{caption}\n\n(Ошибка фото: {e})")
 
