@@ -176,7 +176,7 @@ async def open_case(message: types.Message):
     current_time = time.time()
         
         # КД 5 секунд
-        if user_id in last_time and current_time - last_time[user_id] < 5:
+    if user_id in last_time and current_time - last_time[user_id] < 5:
             return await message.answer(f"⏳ Подожди {int(5 - (current_time - last_time[user_id]))} сек.")
 
         # Получаем данные
