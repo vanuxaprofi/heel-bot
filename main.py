@@ -172,7 +172,6 @@ MONEY_REWARDS = {
 
 @dp.message(F.text == "🦶 Выбить пятку")
 async def open_case(message: types.Message):
-    async def open_case(message: types.Message):
         user_id = message.from_user.id
         current_time = time.time()
     
@@ -293,7 +292,7 @@ async def show_profile(message: types.Message):
     except:
         await message.answer(text, parse_mode="Markdown")
 
-@dp.message(F.text == "🛒 Магазин")
+@dp.message(F.text == "🏪 Магазин")
 async def show_shop(message: Message):
     # Получаем баланс игрока
     inv, balance, total_opens, duplicates = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
@@ -409,7 +408,7 @@ async def play_bet(message: types.Message):
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
     await message.answer(f"{res_txt}\n\n💰 Баланс: **{balance}**", parse_mode="Markdown")
 
-@dp.message(F.text == "🎰 Рандомайзер")
+@dp.message(F.text == "🍀 Рандомайзер")
 async def start_randomizer_cmd(message: types.Message):
     buttons = [[
         InlineKeyboardButton(text="100 💰", callback_data="run_rand_100"),
