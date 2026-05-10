@@ -118,24 +118,32 @@ async def start_cmd(message: Message):
 # БАЗА ДАННЫХ
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
-cursor.execute('CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, name TEXT, username TEXT, items TEXT)')
+cursor.execute('''CREATE TABLE IF NOT EXISTS users 
+               (user_id INTEGER PRIMARY KEY, 
+                name TEXT, 
+                username TEXT, 
+                items TEXT, 
+                balance INTEGER DEFAULT 0, 
+                total_opens INTEGER DEFAULT 0, 
+                duplicates INTEGER DEFAULT 0, 
+                bet_count INTEGER DEFAULT 0)''')
 conn.commit()
 
 def get_user_data(uid, n, un):
-    cursor.execute("SELECT items, balance, total_opens, duplicates FROM users WHERE user_id = ?", (uid,))
+    cursor.execute("SELECT items, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
     if r:
         items = set(r[0].split(",")) if r[0] else set()
-        return items, r[1], r[2], r[3]
+        return items, r[1], r[2], r[3], r[4]
     
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-                   (uid, n, un, "", 0, 0, 0))
+    cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates, bet_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+                   (uid, n, un, "", 0, 0, 0, 0))
     conn.commit()
-    return set(), 0, 0, 0
+    return set(), 0, 0, 0, 0
 
-def update_user_stats(uid, items, balance, total_opens, duplicates):
-    cursor.execute("UPDATE users SET items = ?, balance = ?, total_opens = ?, duplicates = ? WHERE user_id = ?", 
-                   (",".join(list(items)), balance, total_opens, duplicates, uid))
+def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count):
+    cursor.execute("UPDATE users SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ? WHERE user_id = ?", 
+                   (",".join(list(items)), balance, total_opens, duplicates, bet_count, uid))
     conn.commit()
 
 # ОЖИВИТЕЛЬ
@@ -180,7 +188,7 @@ async def open_case(message: types.Message):
         return await message.answer("⏳ Подожди 1 сек.")
     
     # Получаем данные пользователя
-    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
     # Выбираем редкость
     res_list = random.choices(RARITIES, weights=WEIGHTS)
@@ -203,7 +211,7 @@ async def open_case(message: types.Message):
         status = f"♻️ Уже есть! Получено (+{reward} 💰)"
     
     # Сохраняем статистику (теперь бесплатно)
-    update_user_stats(user_id, inv, balance, total_opens, duplicates)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates bet_count)
     last_time[user_id] = current_time
     
         # Шансы и иконки для оформления
@@ -365,56 +373,57 @@ async def buy_chest(call: types.CallbackQuery):
     await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
     await call.answer() # Убираем "часики" с кнопки
 @dp.message(F.text == "🎰 Ставки")
-async def bet_menu(message: Message):
-    user_id = message.from_user.id
-    current_time = time.time()
-    
-    BET_COOLDOWN = 32400  # 9 часов
-    if user_id in last_bet_time and current_time - last_bet_time[user_id] < BET_COOLDOWN:
-        rem = int(BET_COOLDOWN - (current_time - last_bet_time[user_id]))
-        h, m = rem // 3600, (rem % 3600) // 60
-        return await message.answer(f"⏳ Ставки будут доступны через {h} ч. {m} мин.")
-
-    inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
-    txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\nСтавка: 100 монет\n\nВыбери редкость:"
-    
-    buttons = [
-        [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
-        [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
-        [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
-        [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
-        [KeyboardButton(text="◀️ Назад")]
-    ]
-    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
-
 @dp.message(lambda message: message.text in [
     "⚪ ОБЫЧНАЯ (x1.5)", "🟢 НЕОБЫЧНАЯ (x2.5)", "🔵 РЕДКАЯ (x5)", 
     "🟣 ЭПИЧЕСКАЯ (x10)", "🔴 МИФИЧЕСКАЯ (x20)", "🟡 ЛЕГЕНДАРНАЯ (x40)", "👑 ИДЕАЛЬНАЯ (x80)"
 ])
 async def play_bet(message: types.Message):
     user_id = message.from_user.id
+    
+    # 1. Приводим текст кнопки к ключу из словаря DATA
     mapping = {
-        "⚪ ОБЫЧНАЯ (x1.5)": "ОБЫЧНАЯ", "🟢 НЕОБЫЧНАЯ (x2.5)": "НЕОБЫЧНАЯ",
-        "🔵 РЕДКАЯ (x5)": "РЕДКАЯ", "🟣 ЭПИЧЕСКАЯ (x10)": "ЭПИЧЕСКАЯ",
-        "🔴 МИФИЧЕСКАЯ (x20)": "МИФИЧЕСКАЯ", "🟡 ЛЕГЕНДАРНАЯ (x40)": "ЛЕГЕНДАРНАЯ",
-        "👑 ИДЕАЛЬНАЯ (x80)": "ИДЕАЛЬНАЯ"
+        "⚪ ОБЫЧНАЯ (x1.5)": "⚪ ОБЫЧНАЯ (45%)", 
+        "🟢 НЕОБЫЧНАЯ (x2.5)": "🟢 НЕОБЫЧНАЯ (25%)",
+        "🔵 РЕДКАЯ (x15)": "🔵 РЕДКАЯ (15%)", 
+        "🟣 ЭПИЧЕСКАЯ (x10)": "🟣 ЭПИЧЕСКАЯ (8%)",
+        "🔴 МИФИЧЕСКАЯ (x20)": "🔴 МИФИЧЕСКАЯ (4%)", 
+        "🟡 ЛЕГЕНДАРНАЯ (x40)": "🟡 ЛЕГЕНДАРНАЯ (2%)",
+        "👑 ИДЕАЛЬНАЯ (x80)": "👑 ИДЕАЛЬНАЯ (1%)"
     }
-    choice = mapping[message.text]
+    
+    user_choice = mapping.get(message.text)
     inv, balance, total_opens, duplicates = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
-    if balance < 100: return await message.answer("❌ Мало монет!")
-    coeffs = {"ОБЫЧНАЯ": 1.5, "НЕОБЫЧНАЯ": 2.5, "РЕДКАЯ": 5.0, "ЭПИЧЕСКАЯ": 10.0, "МИФИЧЕСКАЯ": 20.0, "ЛЕГЕНДАРНАЯ": 40.0, "ИДЕАЛЬНАЯ": 80.0}
+    
+    if balance < 100: 
+        return await message.answer("❌ Мало монет!")
+    
+    # Коэффициенты для расчета выплаты
+    coeffs = {
+        "⚪ ОБЫЧНАЯ (45%)": 1.5, "🟢 НЕОБЫЧНАЯ (25%)": 2.5, 
+        "🔵 РЕДКАЯ (15%)": 5.0, "🟣 ЭПИЧЕСКАЯ (8%)": 10.0, 
+        "🔴 МИФИЧЕСКАЯ (4%)": 20.0, "🟡 ЛЕГЕНДАРНАЯ (2%)": 40.0, 
+        "👑 ИДЕАЛЬНАЯ (1%)": 80.0
+    }
+    
     balance -= 100
     last_bet_time[user_id] = time.time()
+    
+    # Генерируем выпавшую редкость
     res = random.choices(RARITIES, weights=WEIGHTS)[0]
-    if res == choice:
-        win = int(100 * coeffs[choice])
+    
+    # 2. Теперь сравнение будет работать правильно
+    if res == user_choice:
+        win = int(100 * coeffs[user_choice])
         balance += win
         res_txt = f"🎉 **ВЫИГРАЛ!**\nВыпало: {res}\nПриз: **{win}** 💰"
     else:
         res_txt = f"❌ **ПРОИГРАЛ**\nВыпало: {res}\nСтавка сгорела."
+    
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
-    await message.answer(f"{res_txt}\n\n💰 Баланс: **{balance}**", parse_mode="Markdown")
+    
+    # 3. Добавляем кнопку "Назад" в ответ, чтобы она не пропадала
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="◀️ Назад")]], resize_keyboard=True)
+    await message.answer(f"{res_txt}\n\n💰 Баланс: **{balance}**", reply_markup=kb, parse_mode="Markdown")
 
 @dp.message(F.text == "◀️ Назад")
 async def back_to_main(message: types.Message):
