@@ -406,19 +406,22 @@ async def play_bet(call: types.CallbackQuery):
     update_user_stats(user_id, inv, balance, total_opens, duplicates)
     await call.message.edit_text(f"{m}\n💰 Баланс: **{balance}**\n⏳ Ждем 9 часов.", parse_mode="Markdown")
     await call.answer()
-@dp.callback_query_handler(lambda c: c.data == 'start_randomizer')
+# Замени начало первой функции на это:
+@dp.callback_query(lambda c: c.data == 'start_randomizer')
 async def randomizer_menu(callback_query: types.CallbackQuery):
-    # Меню выбора ставки
-    kb = InlineKeyboardMarkup(row_width=3)
-    kb.add(
-        InlineKeyboardButton("100 💰", callback_data="run_rand_100"),
-        InlineKeyboardButton("500 💰", callback_data="run_rand_500"),
-        InlineKeyboardButton("1000 💰", callback_data="run_rand_1000")
-    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="100 💰", callback_data="run_rand_100"),
+            InlineKeyboardButton(text="500 💰", callback_data="run_rand_500"),
+            InlineKeyboardButton(text="1000 💰", callback_data="run_rand_1000")
+        ]
+    ])
     await callback_query.message.edit_text("Выбери ставку для Рандомайзера (КД 9 часов):", reply_markup=kb)
 
-@dp.callback_query_handler(lambda c: c.data.startswith('run_rand_'))
+# Замени начало второй функции на это:
+@dp.callback_query(lambda c: c.data.startswith('run_rand_'))
 async def run_randomizer(callback_query: types.CallbackQuery):
+    # ... весь остальной код функции остается таким же ...
     user_id = callback_query.from_user.id
     bet = int(callback_query.data.replace("run_rand_", ""))
     current_time = time.time()
