@@ -160,14 +160,19 @@ async def start_web():
     runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
 def get_kb():
-    buttons = [
-        [KeyboardButton(text="🕹 Выбить пятку")],
-        [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🛍 Магазин")],
-        [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🎲 Рандомайзер")],
-        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="⏳ Топ игроков")],
-        [KeyboardButton(text="🎁 Промокод")] # Убедитесь, что текст 1 в 1 как тут
-    ]
-    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    # Создаем список кнопок заново
+    row1 = [KeyboardButton(text="🕹 Выбить пятку")]
+    row2 = [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🛍 Магазин")]
+    row3 = [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🎲 Рандомайзер")]
+    row4 = [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
+    row5 = [KeyboardButton(text="🎁 Промокод")]
+    
+    # Собираем их в одну клавиатуру
+    kb = ReplyKeyboardMarkup(
+        keyboard=[row1, row2, row3, row4, row5],
+        resize_keyboard=True
+    )
+    return kb
     
 @dp.message(F.photo)
 async def get_photo_id(message: Message):
