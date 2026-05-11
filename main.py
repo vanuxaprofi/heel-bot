@@ -171,7 +171,10 @@ def get_user_data(uid, n, un):
     cursor.execute("SELECT items, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
     if r:
-        items = set(r[0].split(",")) if r[0] else set()
+        # Получаем список всех названий из базы
+        raw_list = r[0].split(",") if r[0] else []
+        # Считаем, сколько раз встречается каждая пятка
+        items = {name: raw_list.count(name) for name in set(raw_list) if name}
         return items, r[1], r[2], r[3], r[4]
     
     cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates, bet_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
@@ -180,8 +183,14 @@ def get_user_data(uid, n, un):
     return set(), 0, 0, 0, 0
 
 def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count):
-    cursor.execute("UPDATE users SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ? WHERE user_id = ?", 
-                   (",".join(list(items)), balance, total_opens, duplicates, bet_count, uid))
+    # Превращаем словарь инвентаря обратно в строку через запятую для базы данных
+    if isinstance(items, dict):
+        items_str = ",".join([name for name, count in items.items() for _ in range(count)])
+    else:
+        items_str = ",".join(list(items))
+
+    cursor.execute("UPDATE users SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ? WHERE user_id = ?",
+                   (items_str, balance, total_opens, duplicates, bet_count, uid))
     conn.commit()
 
 # ОЖИВИТЕЛЬ
