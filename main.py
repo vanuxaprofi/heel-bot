@@ -250,40 +250,50 @@ async def open_case(message: types.Message):
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
-    user_id = message.from_user.id
-    # Достаем данные (убедись, что твоя функция get_user_data возвращает inv первым)
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    user_id = message.from_user.id
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
 
-    if not inv:
-        return await message.answer("🎒 Твой инвентарь пуст!")
+    if not inv:
+        return await message.answer("🎒 Твой инвентарь пока пуст!")
 
-    # Создаем пустые списки для каждой категории
-    categories = {
-        "⚪️ ОБЫЧНЫЕ": [],
-        "🟢 НЕОБЫЧНЫЕ": [],
-        "🔵 РЕДКИЕ": [],
-        "🟣 ЭПИЧЕСКИЕ": [],
-        "🔴 МИФИЧЕСКИЕ": [],
-        "🟡 ЛЕГЕНДАРНЫЕ": [],
-        "👑 ИДЕАЛЬНЫЕ": []
-    }
+    prices = {
+        "⚪️ ОБЫЧНЫЕ": 50,
+        "🟢 НЕОБЫЧНЫЕ": 150,
+        "🔵 РЕДКИЕ": 450,
+        "🟣 ЭПИЧЕСКИЕ": 1200,
+        "🔴 МИФИЧЕСКИЕ": 3500,
+        "🟡 ЛЕГЕНДАРНЫЕ": 10000,
+        "👑 ИДЕАЛЬНЫЕ": 50000
+    }
 
-    # Раскладываем пятки из твоего инвентаря по спискам
-    for name, count in inv.items():
-        rarity = ALL_FEETS.get(name, "⚪️ ОБЫЧНЫЕ") # Ищем редкость в твоем справочнике
-        if rarity in categories:
-            categories[rarity].append(f"• {name} — {count} шт.")
+    categories = {
+        "⚪️ ОБЫЧНЫЕ": [],
+        "🟢 НЕОБЫЧНЫЕ": [],
+        "🔵 РЕДКИЕ": [],
+        "🟣 ЭПИЧЕСКИЕ": [],
+        "🔴 МИФИЧЕСКИЕ": [],
+        "🟡 ЛЕГЕНДАРНЫЕ": [],
+        "👑 ИДЕАЛЬНЫЕ": []
+    }
+    
+    total_value = 0
 
-    # Собираем финальное сообщение (Шаг 3 будет ниже)
-    response = "🎒 **ТВОЙ ИНВЕНТАРЬ**\n\n"
-    for rar_name, items in categories.items():
-        response += f"**{rar_name}:**\n"
-        if items:
-            response += "\n".join(items) + "\n\n"
-        else:
-            response += "*(У тебя пока нет карт этой редкости)*\n\n"
+    for name, count in inv.items():
+        rarity = ALL_FEETS.get(name, "⚪️ ОБЫЧНЫЕ")
+        if rarity in categories:
+            categories[rarity].append(f"• {name} — {count} шт.")
+            total_value += prices.get(rarity, 0) * count
 
-    await message.answer(response, parse_mode="Markdown")
+    response = "🎒 **ТВОЙ ИНВЕНТАРЬ**\n\n"
+    for rar_name, items in categories.items():
+        response += f"**{rar_name}:**\n"
+        if items:
+            response += "\n".join(items) + "\n\n"
+        else:
+            response += "*(У тебя пока нет карт этой редкости)*\n\n"
+
+    response += f"💰 **Общая стоимость:** {total_value} монет"
+    await message.answer(response, parse_mode="Markdown")
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
