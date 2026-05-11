@@ -161,9 +161,9 @@ async def start_web():
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
 def get_kb():
     # Создаем список кнопок заново
-    row1 = [KeyboardButton(text="🕹 Выбить пятку")]
-    row2 = [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🛍 Магазин")]
-    row3 = [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🎲 Рандомайзер")]
+    row1 = [KeyboardButton(text="🦶 Выбить пятку")]
+    row2 = [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🏪 Магазин")]
+    row3 = [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")]
     row4 = [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
     row5 = [KeyboardButton(text="🎁 Промокод")]
     
@@ -298,7 +298,7 @@ async def show_top(message: Message):
         await message.answer(txt.replace("**", ""))
 
 # ВСТАВЛЯЙ СЮДА:
-@dp.message(F.text == "💰 Профиль")
+@dp.message(F.text == "👤 Профиль")
 async def show_profile(message: types.Message):
     user_id = message.from_user.id
     # ... остальной код профиля ...
