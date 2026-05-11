@@ -476,7 +476,7 @@ async def play_bet(message: types.Message, state: FSMContext):
         if not user_choice:
             return await message.answer("Пожалуйста, выбери редкость кнопками ниже!")
 
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+        inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
     if balance < 100: 
         await state.clear() # Сбрасываем режим ставки, если нет денег
