@@ -264,7 +264,7 @@ text = (
     f"{items_list}"
 )
 
-await message.answer(text, parse_mode="Markdown")
+    await message.answer(text, parse_mode="Markdown")
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
