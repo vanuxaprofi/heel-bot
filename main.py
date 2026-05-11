@@ -165,7 +165,8 @@ def get_kb():
         [KeyboardButton(text="🦶 Выбить пятку")],
         [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
         [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
-        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
+        # Проверь вот эту строку:
+        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")],
         [KeyboardButton(text="🎁 Промокод")]
     ]
     # resize_keyboard=True делает кнопки маленькими и аккуратными
