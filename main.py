@@ -444,11 +444,12 @@ async def buy_chest(call: types.CallbackQuery):
     rarity = random.choices(rarities, weights=weights)[0]
     item_name, photo_id = random.choice(list(DATA[rarity].items()))
     
-    is_new = item_name not in inv
-    if is_new:
-        inv.add(item_name)
-    else:
+       # Проверяем, есть ли уже такая карта (для статистики дублей)
+    if item_name in inv:
         duplicates += 1
+    
+    # Добавляем карту в инвентарь или увеличиваем счетчик
+    inv[item_name] = inv.get(item_name, 0) + 1
     
     # Сохраняем и отвечаем
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
