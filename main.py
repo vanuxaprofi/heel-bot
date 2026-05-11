@@ -495,25 +495,25 @@ async def play_bet(message: types.Message, state: FSMContext):
         bet_count += 1 
 
     # 2. Если это была 3-я попытка — запускаем таймер на 9 часов
-    if bet_count >= 3:
-        last_bet_time[user_id] = time.time()
+        if bet_count >= 3:
+            last_bet_time[user_id] = time.time()
 
     # 3. Генерируем результат (твой старый код)
     res = random.choices(RARITIES, weights=WEIGHTS)[0]
     
-    if res == user_choice:
-        win = int(100 * coeffs[user_choice])
-        balance += win
-        res_txt = f"🎉 **ВЫИГРАЛ!**\nВыпало: {res}\nПриз: **{win}** 💰"
-    else:
-        res_txt = f"❌ **ПРОИГРАЛ**\nВыпало: {res}\nСтавка сгорела."
+        if res == user_choice:
+            win = int(100 * coeffs[user_choice])
+            balance += win
+            res_txt = f"🎉 **ВЫИГРАЛ!**\nВыпало: {res}\nПриз: **{win}** 💰"
+        else:
+            res_txt = f"❌ **ПРОИГРАЛ**\nВыпало: {res}\nСтавка сгорела."
     
     # 4. Сохраняем всё в базу, включая новый bet_count
-    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
+        update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     
     # 3. Добавляем кнопку "Назад" в ответ, чтобы она не пропадала
-    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="◀️ Назад")]], resize_keyboard=True)
-    await message.answer(f"{res_txt}\n\n💰 Баланс: **{balance}**", reply_markup=kb, parse_mode="Markdown")
+        kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="◀️ Назад")]], resize_keyboard=True)
+        await message.answer(f"{res_txt}\n\n💰 Баланс: **{balance}**", reply_markup=kb, parse_mode="Markdown")
 
 @dp.message(F.text == "◀️ Назад")
 async def back_to_main(message: types.Message, state: FSMContext):
