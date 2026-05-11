@@ -499,7 +499,7 @@ async def play_bet(message: types.Message, state: FSMContext):
             last_bet_time[user_id] = time.time()
 
     # 3. Генерируем результат (твой старый код)
-    res = random.choices(RARITIES, weights=WEIGHTS)[0]
+        res = random.choices(RARITIES, weights=WEIGHTS)[0]
     
         if res == user_choice:
             win = int(100 * coeffs[user_choice])
