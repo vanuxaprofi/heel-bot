@@ -421,6 +421,10 @@ async def start_bet_cmd(message: types.Message, state: FSMContext):
 
 @dp.message(BetState.choosing_rarity)
 async def play_bet(message: types.Message, state: FSMContext):
+    # Если нажали "Назад", выходим из этой функции и не считаем ставку
+    if message.text == "◀️ Назад":
+        return
+
     user_id = message.from_user.id
     
     # 1. Приводим текст кнопки к ключу из словаря DATA
@@ -435,9 +439,15 @@ async def play_bet(message: types.Message, state: FSMContext):
     }
     
     user_choice = mapping.get(message.text)
+    
+    # Если нажато что-то левое, просим выбрать редкость
+    if not user_choice:
+        return await message.answer("Пожалуйста, выбери редкость кнопками ниже!")
+
     inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
     if balance < 100: 
+        await state.clear() # Сбрасываем режим ставки, если нет денег
         return await message.answer("❌ Мало монет!")
     
     # Коэффициенты для расчета выплаты
