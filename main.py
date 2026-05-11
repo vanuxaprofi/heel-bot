@@ -75,7 +75,8 @@ DATA = {
         "🚽 Скибиди пятка": "AgACAgIAAxkBAAIrK2oB8NUBWtzAJZIWJcmkchU3UAqKAAJsGmsb5TkQSK2CbTrBHqNzAQADAgADeQADOwQ",
         "🍯 мёдовая пятка": "AgACAgIAAxkBAAIrB2oB8L0iBw3XUCNNOmfoBEsVKnTFAAJnGmsb5TkQSORnCjFQ_1S1AQADAgADeQADOwQ",
         "⚠️ Error пятка": "AgACAgIAAxkBAAItA2oB-r4nO1i-UAOyQI-4G6TrFxOZAALPGmsb5TkQSNrm9KIVCTfFAQADAgADeQADOwQ",
-        "🥚 Пасхальная": "AgACAgQAAxkBAAIm2moB7NBsYpKXRVILEvd9W5iVaNUlAALJDmsbNt0RUPXWKmv3DVlxAQADAgADeQADOwQ"
+        "🥚 Пасхальная": "AgACAgQAAxkBAAIm2moB7NBsYpKXRVILEvd9W5iVaNUlAALJDmsbNt0RUPXWKmv3DVlxAQADAgADeQADOwQ",
+        "🍭 Леденец пятка": "AgACAgIAAxkBAAIt-2oCCfukCXROINtl2fhYy7WAVekDAALeF2sbqjIRSC3U0wz81WMSAQADAgADeQADOwQ"
     },
     "🟣 ЭПИЧЕСКАЯ (8%)": {
         "🦕 Доисторическая пятка": "AgACAgIAAxkBAAIEDmn_FHIDuHJ8g9yLUs4oqYtuWan6AAK1FWsb1ZD5S6THTIczYFOcAQADAgADeQADOwQ",
@@ -98,8 +99,9 @@ DATA = {
         "🟧 Фанта пятка": "AgACAgIAAxkBAAItB2oB_Ley35igtONqEpZ6jR8U4QcnAALeGmsb5TkQSI0-7d6dx8c0AQADAgADeQADOwQ",
         "🟦 Пепси пятка": "AgACAgIAAxkBAAItC2oB_MblDm8LrYHJjk9IKzcszNcVAALfGmsb5TkQSIhVfyVxbjj5AQADAgADeQADOwQ",
         "🟥 Кокакольная пятка": "AgACAgIAAxkBAAItDWoB_Mtb6RmdlIA4PDQK2-nhz1y6AALgGmsb5TkQSPiojjR8aO2UAQADAgADeQADOwQ",
-        "❄️ Новогодняя": "AgACAgQAAxkBAAImoWoB6udzvyoOY-hM29s9xHMkW8w-AAJADmsbckoAAVAAAcrxlQ5syJsBAAMCAAN5AAM7BA",
-        "💀 Хелоувин": "AgACAgQAAxkBAAIm02oB7Mv3Il2_nfpeV8vQjMM2lfFxAALIDmsbNt0RUAXPFiRJvQtIAQADAgADeQADOwQ"
+        "❄️ Новогодняя пятка": "AgACAgQAAxkBAAImoWoB6udzvyoOY-hM29s9xHMkW8w-AAJADmsbckoAAVAAAcrxlQ5syJsBAAMCAAN5AAM7BA",
+        "💀 Хэллоувин пятка": "AgACAgQAAxkBAAIm02oB7Mv3Il2_nfpeV8vQjMM2lfFxAALIDmsbNt0RUAXPFiRJvQtIAQADAgADeQADOwQ",
+        "📰 Новостная пятка": "AgACAgIAAxkBAAIt-WoCCeiv_QMHiWnc-EFhY_XnaaEyAAI8G2sb5TkQSNDhPvwIK53xAQADAgADeQADOwQ"
     },
     "🔴 МИФИЧЕСКАЯ (4%)": {
         "👹 Демоническая пятка": "AgACAgIAAxkBAAID4Gn_Ev0bSON3TUcSQ6EHpC3SseeRAAKaFWsb1ZD5SyPWO53iJqvZAQADAgADeQADOwQ",
