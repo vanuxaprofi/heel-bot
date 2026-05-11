@@ -410,7 +410,7 @@ async def buy_chest(call: types.CallbackQuery):
 async def start_bet_cmd(message: types.Message, state: FSMContext):
     buttons = [
         [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
-        [KeyboardButton(text="🔵 РЕДКАЯ (x15)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
+        [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
         [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
         [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
         [KeyboardButton(text="◀️ Назад")]
@@ -525,13 +525,33 @@ async def play_randomizer(message: types.Message):
     if balance < bet:
         return await message.answer(f"❌ Не хватает монет! Нужно {bet} 💰")
 
-    if random.random() < 0.4:
-        win = bet * 3
-        balance += win
-        res = f"✅ **Удача!** Ты выиграл **{win}** 💰"
-    else:
+        # --- НОВАЯ ЛОГИКА РАНДОМА ---
+    roll = random.randint(1, 10)
+    
+    if roll <= 4:
+        multiplier = 0
         balance -= bet
-        res = f"❌ **Проигрыш.** Ты потерял **{bet}** 💰"
+        res = f"❌ **Проигрыш**\n🎲 Число: `{roll}` | Множитель: `x0`"
+    elif roll == 5:
+        multiplier = 1
+        # Баланс не меняем (возврат)
+        res = f"🤝 **Возврат**\n🎲 Число: `{roll}` | Множитель: `x1`"
+    elif 6 <= roll <= 8:
+        multiplier = 3
+        win = bet * multiplier
+        balance += win
+        res = f"🔥 **Удача!**\n🎲 Число: `{roll}` | Множитель: `x3`"
+    elif roll == 9:
+        multiplier = 5
+        win = bet * multiplier
+        balance += win
+        res = f"💎 **Ого!**\n🎲 Число: `{roll}` | Множитель: `x5`"
+    else:  # Это если выпало 10
+        multiplier = 10
+        win = bet * multiplier
+        balance += win
+        res = f"👑 **ДЖЕКПОТ!**\n🎲 Число: `{roll}` | Множитель: `x10`"
+    # ----------------------------
 
     last_rand_time[user_id] = current_time
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
