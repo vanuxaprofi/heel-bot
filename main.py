@@ -421,8 +421,8 @@ async def show_shop(message: Message):
     await message.answer(text, reply_markup=ikb, parse_mode="Markdown")
 @dp.callback_query(F.data.startswith("buy_"))
 async def buy_chest(call: types.CallbackQuery):
+    await call.answer()
     user_id = call.from_user.id
-   await call.answer()
     inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
     
     # Настройки сундуков: (Цена, Шансы, Название)
