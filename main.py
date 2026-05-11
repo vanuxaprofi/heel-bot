@@ -169,8 +169,8 @@ def get_kb():
         [KeyboardButton(text="🎁 Промокод")]  # Вот эта строчка добавляет кнопку
     ]
     
-    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer("Главное меню:", reply_markup=kb)
+        kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+        await message.answer("Главное меню:", reply_markup=kb)
     
 @dp.message(F.photo)
 async def get_photo_id(message: Message):
