@@ -165,11 +165,9 @@ def get_kb():
         [KeyboardButton(text="🦶 Выбить пятку")],
         [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
         [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
-        # Проверь вот эту строку:
         [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")],
-        [KeyboardButton(text="🎁 Промокод")]
+        [KeyboardButton(text="🎁 Промокод")] # Убедись, что смайлик именно этот
     ]
-    # resize_keyboard=True делает кнопки маленькими и аккуратными
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     
 @dp.message(F.photo)
@@ -453,9 +451,11 @@ async def start_bet_cmd(message: types.Message, state: FSMContext):
 @dp.message(BetState.choosing_rarity)
 async def play_bet(message: types.Message, state: FSMContext):
     # Если нажата кнопка "Назад" прямо во время выбора ставки
-    if message.text == "◀️ Назад":
-        await state.clear() # Сначала выключаем режим ставки
-        return await back_to_main(message, state) # Сразу вызываем функцию главного меню
+        # Если в тексте кнопки есть слово Назад (независимо от смайликов)
+        if "Назад" in message.text:
+        await state.clear()
+        return await back_to_main(message, state) # Обязательно с return!
+ # Сразу вызываем функцию главного меню
 
     user_id = message.from_user.id
     
