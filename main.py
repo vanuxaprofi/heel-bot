@@ -247,11 +247,23 @@ async def show_inventory(message: Message):
     # Исправляем вызов функции (теперь get_user_data)
     inv, balance, total_opens, duplicates, bet_count = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
     
-    if not inv: 
-        return await message.answer("Твой инвентарь пуст!")
+        if not inv:
+        return await message.answer("📦 Твой инвентарь пуст!")
+
+    # 1. Считаем количество уникальных предметов
+    # Если TOTAL_CARDS не задан, можно просто написать общее число вручную, например 50
+    total_cards_count = 50 
     
-    # Собираем список предметов
-    text = f"🎒 **Коллекция ({len(inv)}/{TOTAL_CARDS}):**\n\n" + "\n".join([f"• {i}" for i in sorted(list(inv))])
+    # 2. Формируем список (убираем дубликаты через set и сортируем)
+    unique_items = sorted(list(set(inv)))
+    items_list = "\n".join([f"• {item}" for item in unique_items])
+    
+    # 3. Собираем текст
+    text = (
+        f"🎒 **Коллекция ({len(unique_items)}/{total_cards_count}):**\n\n"
+        f"{items_list}"
+    )
+    
     await message.answer(text, parse_mode="Markdown")
 
 @dp.message(F.text == "🏆 Топ игроков")
