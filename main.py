@@ -627,12 +627,14 @@ async def check_promo_cmd(message: types.Message, state: FSMContext):
             user_id = message.from_user.id
             inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
             
-            balance += reward
-            ACTIVE_PROMOS[code][1] -= 1  # Забираем 1 активацию
+                        balance += reward
+            ACTIVE_PROMOS[code] -= 1  # Уменьшаем число активаций
             
             update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
             
-            await message.answer(f"✅ **Код активирован!**\n💰 Начислено: **{reward}** монет.\nОсталось активаций: {ACTIVE_PROMOS[code][1]}
+            # Внимательно проверь кавычку в конце этой строки:
+            await message.answer(f"✅ **Код активирован!**\n💰 Начислено: **{reward}** монет.\nОсталось активаций: {ACTIVE_PROMOS[code]}")
+            
             await state.clear()
             await back_to_main(message, state)
         else:
