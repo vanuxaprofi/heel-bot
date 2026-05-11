@@ -195,6 +195,7 @@ async def open_case(message: types.Message):
     
     # Получаем данные пользователя
     inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    inv = list(inv)
     
     # Выбираем редкость
     res_list = random.choices(RARITIES, weights=WEIGHTS)
