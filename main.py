@@ -457,7 +457,7 @@ async def play_bet(message: types.Message, state: FSMContext):
             return await back_to_main(message, state) # Обязательно с return!
  # Сразу вызываем функцию главного меню
 
-    user_id = message.from_user.id
+        user_id = message.from_user.id
     
     # 1. Приводим текст кнопки к ключу из словаря DATA
     mapping = {
