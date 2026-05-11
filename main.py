@@ -250,7 +250,7 @@ async def show_inventory(message: Message):
     if not inv:
         return await message.answer("📦 Твой инвентарь пуст!")
 
-    total_cards_count = 50 
+    total_cards_count = 74 
     unique_items = sorted(list(set(inv)))
     items_list = "\n".join([f"• {item}" for item in unique_items])
     
