@@ -421,9 +421,10 @@ async def start_bet_cmd(message: types.Message, state: FSMContext):
 
 @dp.message(BetState.choosing_rarity)
 async def play_bet(message: types.Message, state: FSMContext):
-    # Если нажали "Назад", выходим из этой функции и не считаем ставку
+    # Если нажата кнопка "Назад" прямо во время выбора ставки
     if message.text == "◀️ Назад":
-        return
+        await state.clear() # Сначала выключаем режим ставки
+        return await back_to_main(message, state) # Сразу вызываем функцию главного меню
 
     user_id = message.from_user.id
     
