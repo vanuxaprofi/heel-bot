@@ -250,22 +250,40 @@ async def open_case(message: types.Message):
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
-        # Проверь, чтобы эта строка стояла с ОДНИМ отступом Tab от края
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    user_id = message.from_user.id
+    # Достаем данные (убедись, что твоя функция get_user_data возвращает inv первым)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
 
-    if not inv:
-        return await message.answer("📦 Твой инвентарь пуст!")
+    if not inv:
+        return await message.answer("🎒 Твой инвентарь пуст!")
 
-    total_cards_count = 74 
-    unique_items = sorted(list(set(inv)))
-    items_list = "\n".join([f"• {item}" for item in unique_items])
-    
-    text = (
-        f"🎒 **Коллекция ({len(unique_items)}/{total_cards_count}):**\n\n"
-        f"{items_list}"
-    )
-    
-    await message.answer(text, parse_mode="Markdown")
+    # Создаем пустые списки для каждой категории
+    categories = {
+        "⚪️ ОБЫЧНЫЕ": [],
+        "🟢 НЕОБЫЧНЫЕ": [],
+        "🔵 РЕДКИЕ": [],
+        "🟣 ЭПИЧЕСКИЕ": [],
+        "🔴 МИФИЧЕСКИЕ": [],
+        "🟡 ЛЕГЕНДАРНЫЕ": [],
+        "👑 ИДЕАЛЬНЫЕ": []
+    }
+
+    # Раскладываем пятки из твоего инвентаря по спискам
+    for name, count in inv.items():
+        rarity = ALL_FEETS.get(name, "⚪️ ОБЫЧНЫЕ") # Ищем редкость в твоем справочнике
+        if rarity in categories:
+            categories[rarity].append(f"• {name} — {count} шт.")
+
+    # Собираем финальное сообщение (Шаг 3 будет ниже)
+    response = "🎒 **ТВОЙ ИНВЕНТАРЬ**\n\n"
+    for rar_name, items in categories.items():
+        response += f"**{rar_name}:**\n"
+        if items:
+            response += "\n".join(items) + "\n\n"
+        else:
+            response += "*(У тебя пока нет карт этой редкости)*\n\n"
+
+    await message.answer(response, parse_mode="Markdown")
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
