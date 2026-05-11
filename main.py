@@ -422,7 +422,7 @@ async def show_shop(message: Message):
 @dp.callback_query(F.data.startswith("buy_"))
 async def buy_chest(call: types.CallbackQuery):
     user_id = call.from_user.id
-    # Получаем данные
+   await call.answer()
     inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
     
     # Настройки сундуков: (Цена, Шансы, Название)
@@ -462,7 +462,6 @@ async def buy_chest(call: types.CallbackQuery):
     async def bet_menu(message: Message):
         user_id = message.from_user.id
         current_time = time.time()
-        # Получаем данные (теперь их 5)
         inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
         # Проверка на 3 попытки и КД 9 часов
