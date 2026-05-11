@@ -159,13 +159,13 @@ async def start_web():
     app = web.Application(); app.router.add_get("/", handle)
     runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
-def get_kb(): # Убираем async и message
+def get_kb():
     buttons = [
         [KeyboardButton(text="🕹 Выбить пятку")],
         [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🛍 Магазин")],
         [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🎲 Рандомайзер")],
         [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="⏳ Топ игроков")],
-        [KeyboardButton(text="🎁 Промокод")]
+        [KeyboardButton(text="🎁 Промокод")] # Убедитесь, что текст 1 в 1 как тут
     ]
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     
