@@ -130,12 +130,10 @@ DATA = {
         "❓ Пропавшая пятка": "AgACAgIAAxkBAAIECGn_FE09s8tp4ww0wV6N-SkRNh4QAAKzFWsb1ZD5S8x5gqxhxEe9AQADAgADeQADOwQ"}
 }
 
-# --- ШАГ №2: ИСПРАВЛЕННЫЙ АВТО-СПРАВОЧНИК ---
 ALL_FEETS = {}
 for rarity, cards in DATA.items():
     for card_name in cards.keys():
-        # Важно: убираем только проценты, оставляя эмодзи и текст категории
-        # Теперь бот будет видеть "⚪️ ОБЫЧНЫЕ", а не список ['⚪️ ОБЫЧНЫЕ']
+        # Добавляем [0] в конце строки — это ГЛАВНОЕ исправление
         clean_rarity = rarity.split(" (")[0] 
         ALL_FEETS[card_name] = clean_rarity
 
