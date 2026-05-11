@@ -627,8 +627,8 @@ async def check_promo_cmd(message: types.Message, state: FSMContext):
             user_id = message.from_user.id
             inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
             
-                        balance += reward
-            ACTIVE_PROMOS[code] -= 1  # Уменьшаем число активаций
+        balance += reward
+            ACTIVE_PROMOS[code][1] -= 1 # Уменьшаем число активаций
             
             update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
             
