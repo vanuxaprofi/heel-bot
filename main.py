@@ -7,6 +7,9 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.context import FSMContext
 
 # ТВОЙ ТОКЕН
 API_TOKEN = "8539851697:AAHefsphF_9xArNF1wa2Qi6AT_B-0YTAn_E"
@@ -106,7 +109,10 @@ WEIGHTS = [45, 25, 15, 8, 4, 2, 1]
 TOTAL_CARDS = sum(len(v) for v in DATA.values())
 
 bot = Bot(token=API_TOKEN)
-dp = Dispatcher()
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
+class BetState(StatesGroup):
+    choosing_rarity = State()
 last_bet_time = {}
 last_time = {}
 last_random_time = {}
@@ -401,11 +407,20 @@ async def buy_chest(call: types.CallbackQuery):
         await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
 
 @dp.message(F.text == "🎰 Ставки")
-@dp.message(lambda message: message.text in [
-    "⚪ ОБЫЧНАЯ (x1.5)", "🟢 НЕОБЫЧНАЯ (x2.5)", "🔵 РЕДКАЯ (x5)", 
-    "🟣 ЭПИЧЕСКАЯ (x10)", "🔴 МИФИЧЕСКАЯ (x20)", "🟡 ЛЕГЕНДАРНАЯ (x40)", "👑 ИДЕАЛЬНАЯ (x80)"
-])
-async def play_bet(message: types.Message):
+async def start_bet_cmd(message: types.Message, state: FSMContext):
+    buttons = [
+        [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
+        [KeyboardButton(text="🔵 РЕДКАЯ (x15)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
+        [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
+        [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
+        [KeyboardButton(text="◀️ Назад")]
+    ]
+    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    await state.set_state(BetState.choosing_rarity)
+    await message.answer("🎰 Выбери редкость, на которую хочешь поставить:", reply_markup=kb)
+
+@dp.message(BetState.choosing_rarity)
+async def play_bet(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     
     # 1. Приводим текст кнопки к ключу из словаря DATA
@@ -454,13 +469,16 @@ async def play_bet(message: types.Message):
     await message.answer(f"{res_txt}\n\n💰 Баланс: **{balance}**", reply_markup=kb, parse_mode="Markdown")
 
 @dp.message(F.text == "◀️ Назад")
-async def back_to_main(message: types.Message):
+async def back_to_main(message: types.Message, state: FSMContext):
+    # Очищаем состояние, чтобы бот не ждал ставку, если мы вышли в меню
+    await state.clear() 
+    
     buttons = [
-    [KeyboardButton(text="🦶 Выбить пятку")],
-    [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
-    [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
-    [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
-]
+        [KeyboardButton(text="🦶 Выбить пятку")],
+        [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
+        [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
+        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
+    ]
     kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     await message.answer("Вы вернулись в главное меню", reply_markup=kb)
 
