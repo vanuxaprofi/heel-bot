@@ -417,9 +417,27 @@ async def buy_chest(call: types.CallbackQuery):
 
 @dp.message(F.text == "🎰 Ставки")
 async def start_bet_cmd(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    current_time = time.time()
+    
+    # 1. Сначала получаем данные игрока, чтобы узнать bet_count
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+
+    # 2. Проверка: если 3 попытки уже использованы
+    if bet_count >= 3:
+        if user_id in last_bet_time and current_time - last_bet_time[user_id] < BET_COOLDOWN:
+            rem = int(BET_COOLDOWN - (current_time - last_bet_time[user_id]))
+            h, m = rem // 3600, (rem % 3600) // 60
+            return await message.answer(f"⏳ Попытки кончились! Новые будут через {h} ч. {m} мин.")
+        else:
+            # Если 9 часов прошло — сбрасываем счетчик в базе
+            bet_count = 0
+            update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
+
+    # 3. Если всё ок, показываем меню
     buttons = [
         [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
-        [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
+        [KeyboardButton(text="🔵 РЕДКАЯ (x15)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
         [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
         [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
         [KeyboardButton(text="◀️ Назад")]
@@ -468,13 +486,17 @@ async def play_bet(message: types.Message, state: FSMContext):
         "👑 ИДЕАЛЬНАЯ (1%)": 80.0
     }
     
+       # 1. Списываем монеты и прибавляем попытку
     balance -= 100
-    last_bet_time[user_id] = time.time()
-    
-    # Генерируем выпавшую редкость
+    bet_count += 1 
+
+    # 2. Если это была 3-я попытка — запускаем таймер на 9 часов
+    if bet_count >= 3:
+        last_bet_time[user_id] = time.time()
+
+    # 3. Генерируем результат (твой старый код)
     res = random.choices(RARITIES, weights=WEIGHTS)[0]
     
-    # 2. Теперь сравнение будет работать правильно
     if res == user_choice:
         win = int(100 * coeffs[user_choice])
         balance += win
@@ -482,6 +504,7 @@ async def play_bet(message: types.Message, state: FSMContext):
     else:
         res_txt = f"❌ **ПРОИГРАЛ**\nВыпало: {res}\nСтавка сгорела."
     
+    # 4. Сохраняем всё в базу, включая новый bet_count
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     
     # 3. Добавляем кнопку "Назад" в ответ, чтобы она не пропадала
@@ -505,6 +528,9 @@ async def back_to_main(message: types.Message, state: FSMContext):
 # КД для рандомайзера: 9 часов = 32400 секунд
 RAND_COOLDOWN = 32400 
 last_rand_time = {}
+# КД для обычных ставок: 9 часов = 32400 секунд
+BET_COOLDOWN = 32400 
+last_bet_time = {}
 
 @dp.message(F.text == "🍀 Рандомайзер")
 async def start_randomizer_cmd(message: types.Message):
