@@ -162,7 +162,7 @@ async def start_web():
 def get_kb():
     # Создаем список кнопок заново
     row1 = [KeyboardButton(text="🦶 Выбить пятку")]
-    row2 = [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🏪 Магазин")]
+    row2 = [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")]
     row3 = [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")]
     row4 = [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
     row5 = [KeyboardButton(text="🎁 Промокод")]
@@ -298,7 +298,7 @@ async def show_top(message: Message):
         await message.answer(txt.replace("**", ""))
 
 # ВСТАВЛЯЙ СЮДА:
-@dp.message(F.text == "👤 Профиль")
+@dp.message(F.text == "💰 Профиль")
 async def show_profile(message: types.Message):
     user_id = message.from_user.id
     # ... остальной код профиля ...
@@ -525,10 +525,10 @@ async def back_to_main(message: types.Message, state: FSMContext):
     await state.clear() 
     
     buttons = [
-        [KeyboardButton(text="🕹 Выбить пятку")],
-        [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🛍 Магазин")],
-        [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🎲 Рандомайзер")],
-        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="⏳ Топ игроков")],
+        [KeyboardButton(text="🦶 Выбить пятку")],
+        [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
+        [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
+        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")],
         [KeyboardButton(text="🎁 Промокод")] # Убедитесь, что тут закрыты обе скобки: ])
     ]
     
