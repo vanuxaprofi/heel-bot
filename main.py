@@ -521,12 +521,13 @@ async def back_to_main(message: types.Message, state: FSMContext):
     await state.clear() 
     
     buttons = [
-        [KeyboardButton(text="🦶 Выбить пятку")],
-        [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
-        [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
-        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
-        [KeyboardButton(text="🎁 Промокод")]
+        [KeyboardButton(text="🕹 Выбить пятку")],
+        [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🛍 Магазин")],
+        [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🎲 Рандомайзер")],
+        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="⏳ Топ игроков")],
+        [KeyboardButton(text="🎁 Промокод")] # Убедитесь, что тут закрыты обе скобки: ])
     ]
+    
     kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     await message.answer("Вы вернулись в главное меню", reply_markup=kb)
 
