@@ -614,7 +614,7 @@ async def promo_start_cmd(message: types.Message, state: FSMContext):
     
 # 1. Сам список кодов
 ACTIVE_PROMOS = {
-    "TOP_CARD": [1488, 2]
+    "TOP_CARD": [1488, 2],
     "FOR_ADMIN_TEST": [1234567890, 2]
 }
 
