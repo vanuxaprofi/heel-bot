@@ -478,9 +478,9 @@ async def play_bet(message: types.Message, state: FSMContext):
 
         inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
-    if balance < 100: 
-        await state.clear() # Сбрасываем режим ставки, если нет денег
-        return await message.answer("❌ Мало монет!")
+        if balance < 100: 
+            await state.clear() # Сбрасываем режим ставки, если нет денег
+            return await message.answer("❌ Мало монет!")
     
     # Коэффициенты для расчета выплаты
     coeffs = {
