@@ -491,8 +491,8 @@ async def play_bet(message: types.Message, state: FSMContext):
     }
     
        # 1. Списываем монеты и прибавляем попытку
-    balance -= 100
-    bet_count += 1 
+        balance -= 100
+        bet_count += 1 
 
     # 2. Если это была 3-я попытка — запускаем таймер на 9 часов
     if bet_count >= 3:
