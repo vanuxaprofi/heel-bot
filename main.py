@@ -208,13 +208,15 @@ async def open_case(message: types.Message):
     balance += reward
 
     # Логика инвентаря
-    if item_name not in inv:
-        if isinstance(inv, list): inv.append(item_name)
-        else: inv.add(item_name)
-        status = f"✨ Пятка добавлена! (+{reward} 💰)"
-    else:
+       # Логика инвентаря
+    if item_name in inv:
+        # Если уже есть в списке — это повторка
         duplicates += 1
-        status = f"♻️ Уже есть! Получено (+{reward} 💰)"
+        status = f"♻️ У тебя уже есть эта пятка! (+{reward} 💰)"
+    else:
+        # Если нет — добавляем новую
+        inv.append(item_name)
+        status = f"✨ Новая пятка добавлена в инвентарь! (+{reward} 💰)"
     
     # Сохраняем статистику (теперь бесплатно)
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
