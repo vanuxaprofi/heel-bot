@@ -453,8 +453,8 @@ async def play_bet(message: types.Message, state: FSMContext):
     # Если нажата кнопка "Назад" прямо во время выбора ставки
         # Если в тексте кнопки есть слово Назад (независимо от смайликов)
         if "Назад" in message.text:
-        await state.clear()
-        return await back_to_main(message, state) # Обязательно с return!
+            await state.clear()
+            return await back_to_main(message, state) # Обязательно с return!
  # Сразу вызываем функцию главного меню
 
     user_id = message.from_user.id
