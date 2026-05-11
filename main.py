@@ -131,11 +131,10 @@ DATA = {
 }
 
 ALL_FEETS = {}
-for rarity, cards in DATA.items():
+for rarity_key, cards in DATA.items():
     for card_name in cards.keys():
-        # Добавляем [0] в конце строки — это ГЛАВНОЕ исправление
-        clean_rarity = rarity.split(" (")[0] 
-        ALL_FEETS[card_name] = clean_rarity
+        # Бот запомнит: "Пятка соседа": "⚪ ОБЫЧНАЯ (45%)"
+        ALL_FEETS[card_name] = rarity_key
 
 RARITIES = list(DATA.keys())
 WEIGHTS = [45, 25, 15, 8, 4, 2, 1]
@@ -298,41 +297,37 @@ async def show_inventory(message: Message):
     if not inv:
         return await message.answer("🎒 Твой инвентарь пока пуст!")
 
+    # 1. Берем категории прямо из твоего словаря DATA, чтобы не ошибиться в буквах
+    categories = {rarity: [] for rarity in DATA.keys()}
+    
+    # 2. Цены (названия должны СТРОГО совпадать с ключами в DATA)
     prices = {
-        "⚪️ ОБЫЧНЫЕ": 50,
-        "🟢 НЕОБЫЧНЫЕ": 150,
-        "🔵 РЕДКИЕ": 450,
-        "🟣 ЭПИЧЕСКИЕ": 1200,
-        "🔴 МИФИЧЕСКИЕ": 3500,
-        "🟡 ЛЕГЕНДАРНЫЕ": 10000,
-        "👑 ИДЕАЛЬНЫЕ": 50000
+        "⚪ ОБЫЧНАЯ (45%)": 50,
+        "🟢 НЕОБЫЧНАЯ (25%)": 150,
+        "🔵 РЕДКАЯ (15%)": 450,
+        "🟣 ЭПИЧЕСКАЯ (8%)": 1200,
+        "🔴 МИФИЧЕСКАЯ (4%)": 3500,
+        "🟡 ЛЕГЕНДАРНАЯ (2%)": 10000,
+        "👑 ИДЕАЛЬНАЯ (1%)": 50000
     }
 
-    categories = {
-        "⚪️ ОБЫЧНЫЕ": [],
-        "🟢 НЕОБЫЧНЫЕ": [],
-        "🔵 РЕДКИЕ": [],
-        "🟣 ЭПИЧЕСКИЕ": [],
-        "🔴 МИФИЧЕСКИЕ": [],
-        "🟡 ЛЕГЕНДАРНЫЕ": [],
-        "👑 ИДЕАЛЬНЫЕ": []
-    }
-    
     total_value = 0
 
+    # 3. Раскладываем пятки
     for name, count in inv.items():
-        rarity = ALL_FEETS.get(name, "⚪️ ОБЫЧНЫЕ")
+        rarity = ALL_FEETS.get(name)
         if rarity in categories:
             categories[rarity].append(f"• {name} — {count} шт.")
             total_value += prices.get(rarity, 0) * count
 
+    # 4. Формируем текст
     response = "🎒 **ТВОЙ ИНВЕНТАРЬ**\n\n"
     for rar_name, items in categories.items():
         response += f"**{rar_name}:**\n"
         if items:
             response += "\n".join(items) + "\n\n"
         else:
-            response += "*(У тебя пока нет карт этой редкости)*\n\n"
+            response += "*(Пусто)*\n\n"
 
     response += f"💰 **Общая стоимость:** {total_value} монет"
     await message.answer(response, parse_mode="Markdown")
