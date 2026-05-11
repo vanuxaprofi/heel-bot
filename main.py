@@ -113,6 +113,8 @@ storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 class BetState(StatesGroup):
     choosing_rarity = State()
+class PromoState(StatesGroup):
+    waiting_for_code = State()
 last_bet_time = {}
 last_time = {}
 last_random_time = {}
@@ -164,6 +166,7 @@ def get_kb():
         [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
         [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
         [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
+        [KeyboardButton(text="🎁 Промокод")]
     ]
     # resize_keyboard=True делает кнопки маленькими и аккуратными
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
@@ -521,6 +524,7 @@ async def back_to_main(message: types.Message, state: FSMContext):
         [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
         [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
         [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
+        [KeyboardButton(text="🎁 Промокод")]
     ]
     kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     await message.answer("Вы вернулись в главное меню", reply_markup=kb)
@@ -591,6 +595,50 @@ async def play_randomizer(message: types.Message):
     last_rand_time[user_id] = current_time
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     await message.answer(f"{res}\n💰 Баланс: **{balance}**", parse_mode="Markdown")
+    
+@dp.message(F.text == "🎁 Промокод")
+async def promo_start_cmd(message: types.Message, state: FSMContext):
+    # Говорим боту ждать ввода текста
+    await state.set_state(PromoState.waiting_for_code)
+    
+    # Показываем только кнопку "Назад"
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="◀️ Назад")]], resize_keyboard=True)
+    
+    await message.answer("✍️ **Введи секретный промокод:**", reply_markup=kb, parse_mode="Markdown")
+    
+# 1. Сам список кодов
+ACTIVE_PROMOS = {
+    "TOP_CARD": [1488, 2]
+}
+
+# 2. Логика проверки (вставляй СРАЗУ после promo_start_cmd)
+@dp.message(PromoState.waiting_for_code)
+async def check_promo_cmd(message: types.Message, state: FSMContext):
+    if message.text == "◀️ Назад":
+        await state.clear()
+        return await back_to_main(message, state)
+
+    code = message.text.strip()
+
+    if code in ACTIVE_PROMOS:
+        reward, limit = ACTIVE_PROMOS[code]
+        
+        if limit > 0:
+            user_id = message.from_user.id
+            inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+            
+            balance += reward
+            ACTIVE_PROMOS[code][1] -= 1  # Забираем 1 активацию
+            
+            update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
+            
+            await message.answer(f"✅ **Код активирован!**\n💰 Начислено: **{reward}** монет.\nОсталось активаций: {ACTIVE_PROMOS[code][1]}
+            await state.clear()
+            await back_to_main(message, state)
+        else:
+            await message.answer("❌ Этот код уже закончился!")
+    else:
+        await message.answer("❌ Неверный код! Попробуй еще раз или нажми 'Назад'.")
 
 async def main():
     # Добавляем новые колонки в базу, если их еще нет
