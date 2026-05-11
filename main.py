@@ -122,7 +122,6 @@ last_random_time = {}
 async def start_cmd(message: Message):
     await message.answer("Жми на кнопки ниже!", reply_markup=get_kb())
 
-
 # БАЗА ДАННЫХ
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
@@ -160,7 +159,7 @@ async def start_web():
     app = web.Application(); app.router.add_get("/", handle)
     runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
-async def get_kb(message):
+def get_kb(): # Убираем async и message
     buttons = [
         [KeyboardButton(text="🕹 Выбить пятку")],
         [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🛍 Магазин")],
@@ -168,9 +167,7 @@ async def get_kb(message):
         [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="⏳ Топ игроков")],
         [KeyboardButton(text="🎁 Промокод")]
     ]
-    
-    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer("Главное меню:", reply_markup=kb)
+    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     
 @dp.message(F.photo)
 async def get_photo_id(message: Message):
