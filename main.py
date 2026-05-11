@@ -239,7 +239,7 @@ async def open_case(message: types.Message):
     caption = (
         f"🎉 **Поздравляю** 🎉\n\n"
         f"Вам выпала • **{item_name}**\n"
-        f"Редкость • {icon} **{rarity} ({chance})**\n\n"
+        f"Редкость • {icon} **{rarity} ({chance})**\n"
         f"🎒 Пятка добавлена! (+{reward} 💰)\n"
         f"💰 Твой баланс: **{balance}** монет"
     )
