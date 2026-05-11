@@ -160,17 +160,17 @@ async def start_web():
     app = web.Application(); app.router.add_get("/", handle)
     runner = web.AppRunner(app); await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", 10000).start()
-def get_kb():
-        buttons = [
+async def get_kb(message):
+    buttons = [
         [KeyboardButton(text="🕹 Выбить пятку")],
         [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="🛍 Магазин")],
         [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🎲 Рандомайзер")],
         [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="⏳ Топ игроков")],
-        [KeyboardButton(text="🎁 Промокод")]  # Вот эта строчка добавляет кнопку
+        [KeyboardButton(text="🎁 Промокод")]
     ]
     
-        kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-        await message.answer("Главное меню:", reply_markup=kb)
+    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    await message.answer("Главное меню:", reply_markup=kb)
     
 @dp.message(F.photo)
 async def get_photo_id(message: Message):
