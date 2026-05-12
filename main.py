@@ -364,6 +364,36 @@ async def show_top(message: Message):
         # Если всё равно ошибка — шлем без жирного шрифта
         await message.answer(txt.replace("**", ""))
 
+@dp.message(F.text == "🏪 Магазин")
+async def show_shop(message: types.Message):
+    # Получаем актуальный баланс
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        message.from_user.id, message.from_user.full_name, message.from_user.username
+    )
+    
+    text = (
+        f"🛒 **МАГАЗИН СУНДУКОВ**\n"
+        f"💰 Твой баланс: **{balance}** монет\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"📦 **Эпический сундук** — 1000 💰\n"
+        f"└ *Шанс на Идеал: 1%*\n\n"
+        f"💎 **Мифический сундук** — 4500 💰\n"
+        f"└ *Шанс на Идеал: 5%*\n\n"
+        f"👑 **Легендарный сундук** — 15000 💰\n"
+        f"└ *Шанс на Идеал: 20%*\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"Чтобы купить, нажми на кнопку ниже 👇"
+    )
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    ikb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Купить Эпический (1000)", callback_data="buy_epic")],
+        [InlineKeyboardButton(text="Купить Мифический (4500)", callback_data="buy_mythic")],
+        [InlineKeyboardButton(text="Купить Легендарный (15000)", callback_data="buy_legend")]
+    ])
+    
+    await message.answer(text, reply_markup=ikb, parse_mode="Markdown")
+
 # ВСТАВЛЯЙ СЮДА:
 @dp.message(F.text == "💰 Профиль")
 async def show_profile(message: types.Message):
