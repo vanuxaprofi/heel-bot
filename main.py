@@ -393,106 +393,67 @@ async def show_profile(message: types.Message):
     except:
         await message.answer(text, parse_mode="Markdown")
 
-@dp.message(F.text == "🏪 Магазин")
-async def show_shop(message: Message):
-    # Получаем баланс игрока
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(message.from_user.id, message.from_user.full_name, message.from_user.username)
-    
-    text = (
-        f"🛒 **МАГАЗИН СУНДУКОВ**\n"
-        f"💰 Твой баланс: **{balance}** монет\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"📦 **Эпический сундук** — 1000 💰\n"
-        f"└ *Шанс на Идеал: 1%*\n\n"
-        f"💎 **Мифический сундук** — 4500 💰\n"
-        f"└ *Шанс на Идеал: 5%*\n\n"
-        f"👑 **Легендарный сундук** — 15000 💰\n"
-        f"└ *Шанс на Идеал: 20%*\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"Чтобы купить, нажми на кнопку ниже 👇"
-    )
-    
-    # Сделаем красивые кнопки под сообщением
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Купить Эпический (1000)", callback_data="buy_epic")],
-        [InlineKeyboardButton(text="Купить Мифический (4500)", callback_data="buy_mythic")],
-        [InlineKeyboardButton(text="Купить Легендарный (15000)", callback_data="buy_legend")]
-    ])
-    
-    await message.answer(text, reply_markup=ikb, parse_mode="Markdown")
 @dp.callback_query(F.data.startswith("buy_"))
 async def buy_chest(call: types.CallbackQuery):
-    await call.answer()
     user_id = call.from_user.id
+    # 1. Получаем данные (важно: inv должен быть списком!)
     inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
+    inv = list(inv) 
     
-    # Настройки сундуков: (Цена, Шансы, Название)
     chests = {
         "buy_epic": (1000, [75, 19, 5, 1], ["🟣 ЭПИЧЕСКАЯ (8%)", "🔴 МИФИЧЕСКАЯ (4%)", "🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"], "Эпический"),
         "buy_mythic": (4500, [70, 25, 5], ["🔴 МИФИЧЕСКАЯ (4%)", "🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"], "Мифический"),
         "buy_legend": (15000, [80, 20], ["🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"], "Легендарный")
     }
     
+    if call.data not in chests:
+        return
+        
     price, weights, rarities, chest_name = chests[call.data]
     
     if balance < price:
         return await call.answer("❌ Недостаточно монет!", show_alert=True)
     
-    # Списываем деньги
+    # 2. Логика покупки
     balance -= price
+    total_opens += 1
     
-    # Крутим сундук
+    # Выбираем редкость
     rarity = random.choices(rarities, weights=weights)[0]
-    item_name, photo_id = random.choice(list(DATA[rarity].items()))
     
-       # Проверяем, есть ли уже такая карта (для статистики дублей)
+    # 3. ПОИСК ПРЕДМЕТА (Проверь, чтобы в DATA[rarity] точно были элементы!)
+    items_dict = DATA.get(rarity, {})
+    if not items_dict:
+        return await call.message.answer(f"Ошибка: Редкость {rarity} не найдена в базе!")
+        
+    item_name, photo_id = random.choice(list(items_dict.items()))
+    
+    # 4. Проверка на повторку (работаем со СПИСКОМ)
     if item_name in inv:
         duplicates += 1
+        status = "♻️ **Уже была!** (ушла в повторки)"
+    else:
+        inv.append(item_name)
+        status = "🎒 **НОВАЯ ПЯТКА!** добавлена в коллекцию"
     
-    # Добавляем карту в инвентарь или увеличиваем счетчик
-    inv[item_name] = inv.get(item_name, 0) + 1
-    
-    # Сохраняем и отвечаем
-    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
-
-    # ВОТ ЭТУ СТРОКУ НУЖНО ДОБАВИТЬ:
-    is_new = inv.get(item_name, 0) <= 1 
-
-    status = "🆕 Пятка добавлена!" if is_new else "✨ Уже была (ушла в повторки)"
+    # 5. Сохранение
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     
-    status = "🎒 Пятка добавлена!" if is_new else "♻️ Уже была (ушла в повторки)"
-    caption = f"🎁 **ОТКРЫТИЕ СУНДУКА: {chest_name}**\n\nВы выбили: **{item_name}**\nРедкость: **{rarity}**\n\n{status}\n💰 Остаток: **{balance}** монет"
+    # 6. Отправка сообщения
+    caption = (
+        f"🎁 **ОТКРЫТИЕ СУНДУКА: {chest_name}**\n\n"
+        f"Вам выпала • **{item_name}**\n"
+        f"Редкость • **{rarity}**\n\n"
+        f"{status}\n"
+        f"💰 Остаток: **{balance}** монет"
+    )
     
-    await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
-    await call.answer() # Убираем "часики" с кнопки
-    async def bet_menu(message: Message):
-        user_id = message.from_user.id
-        current_time = time.time()
-        inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    try:
+        await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
+    except Exception as e:
+        await call.message.answer(f"Ошибка при отправке фото: {e}\n\n{caption}")
     
-        # Проверка на 3 попытки и КД 9 часов
-        if bet_count >= 3:
-            if user_id in last_bet_time and current_time - last_bet_time[user_id] < BET_COOLDOWN:
-                rem = int(BET_COOLDOWN - (current_time - last_bet_time[user_id]))
-                h, m = rem // 3600, (rem % 3600) // 60
-                return await message.answer(f"⏳ Попытки кончились! Новые будут через {h} ч. {m} мин.")
-            else:
-                bet_count = 0 
-                update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
-    
-        txt = f"🎰 **КАЗИНО ПЯТОК**\n💰 Баланс: {balance} монет\n🔔 Попыток: {3 - bet_count} из 3\n\nВыбери редкость:"
-        
-        buttons = [
-            [KeyboardButton(text="⚪ ОБЫЧНАЯ (x1.5)"), KeyboardButton(text="🟢 НЕОБЫЧНАЯ (x2.5)")],
-            [KeyboardButton(text="🔵 РЕДКАЯ (x5)"), KeyboardButton(text="🟣 ЭПИЧЕСКАЯ (x10)")],
-            [KeyboardButton(text="🔴 МИФИЧЕСКАЯ (x20)"), KeyboardButton(text="🟡 ЛЕГЕНДАРНАЯ (x40)")],
-            [KeyboardButton(text="👑 ИДЕАЛЬНАЯ (x80)")],
-            [KeyboardButton(text="◀️ Назад")]
-        ]
-        kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-        await message.answer(txt, reply_markup=kb, parse_mode="Markdown")
+    await call.answer()
 
 @dp.message(F.text == "🎰 Ставки")
 async def start_bet_cmd(message: types.Message, state: FSMContext):
