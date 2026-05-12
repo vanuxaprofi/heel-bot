@@ -454,7 +454,7 @@ async def buy_chest(call: types.CallbackQuery):
     inv[item_name] = inv.get(item_name, 0) + 1
     
     # Сохраняем и отвечаем
-        update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
 
     # ВОТ ЭТУ СТРОКУ НУЖНО ДОБАВИТЬ:
     is_new = inv.get(item_name, 0) <= 1 
