@@ -269,18 +269,20 @@ async def open_case(message: types.Message):
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
     last_time[user_id] = current_time
     
-        # Шансы и иконки для оформления
+        # Шансы и иконки (строки 272-274)
     chances = {"ОБЫЧНАЯ": "45%", "НЕОБЫЧНАЯ": "25%", "РЕДКАЯ": "15%", "ЭПИЧЕСКАЯ": "10%", "МИФИЧЕСКАЯ": "3%", "ЛЕГЕНДАРНАЯ": "1.5%", "ИДЕАЛЬНАЯ": "1%"}
     icons = {"ОБЫЧНАЯ": "⚪️", "НЕОБЫЧНАЯ": "🟢", "РЕДКАЯ": "🔵", "ЭПИЧЕСКАЯ": "🟣", "МИФИЧЕСКАЯ": "🔴", "ЛЕГЕНДАРНАЯ": "🟡", "ИДЕАЛЬНАЯ": "👑"}
     
-    chance = chances.get(rarity, "0%")
-    icon = icons.get(rarity, "⚪️")
+    # ИСПРАВЛЕНИЕ: приводим rarity к верхнему регистру
+    rarity_key = rarity.upper() 
+    chance = chances.get(rarity_key, "???")
+    icon = icons.get(rarity_key, "❓")
     
-    # Формируем красивый текст
+    # Формируем чистый текст (строка 280+)
     caption = (
         f"🎉 **Поздравляю** 🎉\n\n"
-        f"Вам выпала • **{item_name}**\n"
-        f"Редкость • {icon} **{rarity} ({chance})**\n"
+        f"Вам выпала • {icon} **{item_name}**\n"
+        f"Редкость • {icon} **{rarity_key} ({chance})**\n"
         f"🎒 Пятка добавлена! (+{reward} 💰)\n"
         f"💰 Твой баланс: **{balance}** монет"
     )
