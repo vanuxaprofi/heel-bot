@@ -55,7 +55,7 @@ DATA = {
         "🏳️ ластик пятка": "AgACAgIAAxkBAAIrSGoB8OjLZIiZebM5ZAABQZd8T6nbFAACeBprG-U5EEgGnmal-GtRPwEAAwIAA3kAAzsE",
         "🧦 Бомж пятка": "AgACAgIAAxkBAAIrD2oB8MGzJxlwIXrtB43hdpge9gwnAAJoGmsb5TkQSI55rXuJzgQxAQADAgADeQADOwQ",
         "🥬 растения пятка": "AgACAgIAAxkBAAIrAWoB8LnvYqJQslDOLmAP8YzJJh5cAAJmGmsb5TkQSI6qWrNbgt-xAQADAgADeQADOwQ",
-        "🪩 диско пятка": "AgACAgIAAxkBAAIrJWoB8M9nLqKz8IyAZ9f9t6ReST6VAAJpGmsb5TkQSLKlZK2u-Ne6AQADAgADeQADOwQ"
+        "🪩 диско пятка": "AgACAgIAAxkBAAIzFGoDmpjkpRt2upafzLaGO83m1CzgAALbFGsb5TkgSDwrC98X5lK_AQADAgADeQADOwQ"
     },
     "🔵 РЕДКАЯ (15%)": {
         "🎀 Пикми пятка": "AgACAgIAAxkBAAPhaf2PnXKz5ieWdDUui3Ss2GLkYP4AAroTaxv04fFLuKGCU27-HowBAAMCAAN5AAM7BA",
@@ -93,7 +93,7 @@ DATA = {
         "🌌 Гравити фолз пятка": "AgACAgIAAxkBAAID4mn_EwtwCf_6dTwAAdszn7WaUH-7PwACmxVrG9WQ-UtpmdUHcfnbmAEAAwIAA3kAAzsE",
         "🌊 Подводная пятка": "AgACAgIAAxkBAAID8mn_E28DXmAeisv9AyjTY4svxGqWAAKkFWsb1ZD5S6v3dYj_UdtbAQADAgADeQADOwQ",
         "🍕 Пицца пятка": "AgACAgIAAxkBAAID9Gn_E427KoTE1WKBQhGiiMFJKTT6AAKlFWsb1ZD5S9jLZsS2gyuJAQADAgADeQADOwQ",
-        "🧇 орео пятка": "AgACAgIAAxkBAAIrJWoB8M9nLqKz8IyAZ9f9t6ReST6VAAJpGmsb5TkQSLKlZK2u-Ne6AQADAgADeQADOwQ",
+        "🧇 орео пятка": "AgACAgIAAxkBAAIzEmoDmjgT0VubPnzc4yzmh_arnxK5AALaFGsb5TkgSL3Xs42BnYn1AQADAgADeQADOwQ",
         "👨‍🚀 Пятка в скафандре": "AgACAgIAAxkBAAItAWoB-VtB0x1RQiGu3_sswLUUcLb0AALMGmsb5TkQSLNDa3yTmOZ5AQADAgADeQADOwQ",
         "🟨 Пивная пятка": "AgACAgIAAxkBAAItEWoB_PVyDhPsnJZkpbPOTkbHln4jAAKmF2sbMOcRSCC6a5lU6AMeAQADAgADeQADOwQ",
         "🟧 Фанта пятка": "AgACAgIAAxkBAAItB2oB_Ley35igtONqEpZ6jR8U4QcnAALeGmsb5TkQSI0-7d6dx8c0AQADAgADeQADOwQ",
