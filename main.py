@@ -367,7 +367,7 @@ async def open_case(message: types.Message, state: FSMContext):
 async def show_inventory(message: types.Message):
     user_id = message.from_user.id
     
-    # 1. Запрашиваем инвентарь из базы данных
+    # 1. Запрашиваем инвентарь игрока из базы данных
     cursor.execute("SELECT items FROM users WHERE user_id = ?", (user_id,))
     r = cursor.fetchone()
     raw_list = r[0].split(",") if r and r[0] else []
@@ -376,43 +376,33 @@ async def show_inventory(message: types.Message):
     if not inv:
         return await message.answer("🎒 Твой рюкзак пуст! Выбей свою первую пятку.")
 
-    text = "🎒 **Твой рюкзак и стоимость коллекции:**\n\n"
+    text = "🎒 **ТВОЙ ИНВЕНТАРЬ**\n\n"
     total_collection_value = 0
 
-    # Словарь иконок для категорий редкостей
-    icons = {
-        "⚪ ОБЫЧНАЯ (45%)": "⚪", 
-        "🟢 НЕОБЫЧНАЯ (25%)": "🟢", 
-        "🔵 РЕДКАЯ (15%)": "🔵", 
-        "🟣 ЭПИЧЕСКАЯ (8%)": "🟣", 
-        "🔴 МИФИЧЕСКАЯ (4%)": "🔴", 
-        "🟡 ЛЕГЕНДАРНАЯ (2%)": "🟡", 
-        "👑 ИДЕАЛЬНАЯ (1%)": "👑"
-    }
-
-    # 2. Перебираем редкости по порядку
+    # 2. Перебираем редкости строго в вашем старом стиле
     for rarity in RARITIES:
         base_price = MONEY_REWARDS.get(rarity, 0) 
         rarity_text = ""
-        icon = icons.get(rarity, "🔹")
 
         for card_name in DATA[rarity].keys():
             if card_name in inv and inv[card_name] > 0:
                 count = inv[card_name]
                 
-                # Расчет цены: 1-я уникальная карта = номинал, остальные = х2 цена повторки
+                # Математика считает х2 за копии в фоне, но не спамит формулами в текст
                 card_value = base_price + (base_price * 2 * (count - 1))
                 total_collection_value += card_value
 
-                if count > 1:
-                    rarity_text += f"• {card_name} — {count} шт. (1-я: {base_price} 🪙 + {count-1} повт.: +{base_price * 2 * (count - 1)} 🪙)\n"
-                else:
-                    rarity_text += f"• {card_name} — 1 шт. ({base_price} 🪙)\n"
+                # Чистый старый стиль вывода строк
+                rarity_text += f"• {card_name} — {count} шт.\n"
 
+        # Если в редкости что-то есть — выводим категорию, если нет — пишем (Пусто)
         if rarity_text:
-            text += f"{icon} **{rarity}** (Базовая: {base_price} 🪙 / Повторка: {base_price * 2} 🪙):\n{rarity_text}\n"
+            text += f"**{rarity}**:\n{rarity_text}\n"
+        else:
+            text += f"**{rarity}**:\n(Пусто)\n\n"
 
-    text += f"📊 **Общая ценность твоих пяток:** {total_collection_value} 🪙"
+    # Красивый финальный итог
+    text += f"💰 **Общая стоимость:** {total_collection_value} монет"
     await message.answer(text, parse_mode="Markdown")
 
 @dp.message(F.text == "🏆 Топ игроков")
