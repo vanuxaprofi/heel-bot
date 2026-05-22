@@ -208,14 +208,14 @@ if r:
         
     return items, r[1], r[2], r[3], r[4]
     
-        cursor.execute("""
-            INSERT OR IGNORE INTO users 
-            (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) 
-            VALUES (?, ?, ?, '', 0, 0, 0, 0, 0, 1, '')
-        """, (uid, n, un))
-        cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
-        conn.commit()
-        return {}, 0, 0, 0, 0
+    cursor.execute("""
+        INSERT OR IGNORE INTO users 
+        (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) 
+        VALUES (?, ?, ?, '', 0, 0, 0, 0, 0, 1, '')
+    """, (uid, n, un))
+    cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
+    conn.commit()
+    return {}, 0, 0, 0, 0
 
 def get_user_game_features(uid):
     cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
