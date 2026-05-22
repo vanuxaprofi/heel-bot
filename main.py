@@ -249,103 +249,69 @@ def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, p
     conn.commit()
 
 async def check_and_grant_quests(message, uid, inv, balance):
-    # Исправленный подсчет с учетом точных ключей из DATA
+    # 1. Считаем уникальные карты по каждой редкости (точно так же, как в меню квестов!)
     counts = {r: 0 for r in RARITIES}
     for rarity in RARITIES:
-        for card in DATA[rarity].keys():
-            if card in inv and inv[card] > 0:
-                counts[rarity] += 1
+        if rarity in DATA:
+            for card in DATA[rarity].keys():
+                if card in inv:  # Проверяем наличие карты в строке инвентаря
+                    counts[rarity] += 1
+                    
     total_unique = sum(counts.values())
 
-    # ... [Далее логика БД и проверки, полный код в исходном ответе]
-    # Используй логику проверки counts["⚪ ОБЫЧНАЯ (45%)"] >= 10 и т.д.
-
+    # 2. Получаем текущие статусы квестов из базы
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
     if not q:
-        return
+        cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
+        conn.commit()
+        cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
+        q = cursor.fetchone()
 
+    # Маппинг статусов квестов по колонкам (индексы строго с 1 по 10)
     columns = ["common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2", "global_10", "global_50", "global_100"]
     q_status = {col: q[i+1] for i, col in enumerate(columns)}
-
+    
     new_balance = balance
     triggered = False
 
-    def get_rarity_text(rarity_name, coins):
-        return (
-            f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-            f"Ты собрал 10 {rarity_name} карточек!\n"
-            f"Твоя награда: {coins} монет 💰\n"
-            f"✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"
-        )
+    # Сетка условий: (имя_колонки, текущее_значение, цель, награда, текст)
+    QUESTS_LOGIC = [
+        ("common_10", counts.get("⚪ ОБЫЧНАЯ (45%)", 0), 10, 300, "Ты собрал 10 обычных карточек!\nТвоя награда: 300 монет 💰\n✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"),
+        ("uncommon_10", counts.get("🟢 НЕОБЫЧНАЯ (25%)", 0), 10, 600, "Ты собрал 10 необычных карточек!\nТвоя награда: 600 монет 💰\n✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"),
+        ("rare_10", counts.get("🔵 РЕДКАЯ (15%)", 0), 10, 1200, "Ты собрал 10 редких карточек!\nТвоя награда: 1 200 монет 💰\n✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"),
+        ("epic_10", counts.get("🟣 ЭПИЧЕСКАЯ (8%)", 0), 10, 2500, "Ты собрал 10 эпических карточек!\nТвоя награда: 2 500 монет 💰\n✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"),
+        ("mythic_10", counts.get("🔴 МИФИЧЕСКАЯ (4%)", 0), 10, 7500, "Ты собрал 10 мифических карточек!\nТвоя награда: 7 500 монет 💰\n✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"),
+        ("legend_3", counts.get("🟡 ЛЕГЕНДАРНАЯ (2%)", 0), 3, 15000, "Ты собрал 3 легендарных карточки!\nТвоя награда: 15 000 монет 💰\n✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"),
+        ("perfect_2", counts.get("👑 ИДЕАЛЬНАЯ (1%)", 0), 2, 25000, "Ты собрал 2 идеальных карточки!\nТвоя награда: 25 000 монет 💰\n✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"),
+        # Глобальные
+        ("global_10", total_unique, 10, 1500, "🏆 ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН! 🏆\nНачало положено! Ты преодолел первые этапы и собрал 10 пяток в свою коллекцию.\nТвоя награда: 1 500 монет 💰\n✨ Твоя выдержка впечатляет. Пора прикупить сундук подороже! ✨\n👣"),
+        ("global_50", total_unique, 50, 10000, "🏆 ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН! 🏆\nНевероятная преданность делу! В твоем альбоме уже 50 пяток. Настоящий коллекционер.\nТвоя награда: 10 000 монет 💰\n✨ Это серьезный капитал. Удача на твоей стороне! ✨\n💎"),
+        ("global_100", total_unique, 100, 35000, "🏆 ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ! 🏆\nТы сделал это! 100 ПЯТОК! 👑 Ты шел к этому результату сотни часов.\nТвоя награда: 35 000 монет 💰\n✨ Ты — легенда этого бота. Твоему терпению можно только позавидовать! ✨\n🏰")
+    ]
 
-    if counts["⚪ ОБЫЧНАЯ (45%)"] >= 10 and q_status["common_10"] == 0:
-        new_balance += 300; q_status["common_10"] = 1; triggered = True
-        await message.answer(get_rarity_text("обычных", 300), parse_mode="Markdown")
+    # 3. Проверяем условия выполнения
+    for col, current, target, reward, success_text in QUESTS_LOGIC:
+        if q_status[col] == 0 and current >= target:
+            new_balance += reward
+            triggered = True
+            
+            # Меняем статус квеста на выполненный (1) в базе
+            cursor.execute(f"UPDATE user_quests SET {col} = 1 WHERE user_id = ?", (uid,))
+            conn.commit()
+            
+            # Отправляем красивое сообщение
+            if col.startswith("global"):
+                await message.answer(success_text, parse_mode="Markdown")
+            else:
+                await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
 
-    if counts["🟢 НЕОБЫЧНАЯ (25%)"] >= 10 and q_status["uncommon_10"] == 0:
-        new_balance += 600; q_status["uncommon_10"] = 1; triggered = True
-        await message.answer(get_rarity_text("необычных", 600), parse_mode="Markdown")
-
-    if counts["🔵 РЕДКАЯ (15%)"] >= 10 and q_status["rare_10"] == 0:
-        new_balance += 1200; q_status["rare_10"] = 1; triggered = True
-        await message.answer(get_rarity_text("редких", 1200), parse_mode="Markdown")
-
-    if counts["🟣 ЭПИЧЕСКАЯ (8%)"] >= 10 and q_status["epic_10"] == 0:
-        new_balance += 2500; q_status["epic_10"] = 1; triggered = True
-        await message.answer(get_rarity_text("эпических", 2500), parse_mode="Markdown")
-
-    if counts["🔴 МИФИЧЕСКАЯ (4%)"] >= 10 and q_status["mythic_10"] == 0:
-        new_balance += 7500; q_status["mythic_10"] = 1; triggered = True
-        await message.answer(get_rarity_text("мифических", 7500), parse_mode="Markdown")
-
-    if counts["🟡 ЛЕГЕНДАРНАЯ (2%)"] >= 3 and q_status["legend_3"] == 0:
-        new_balance += 15000; q_status["legend_3"] = 1; triggered = True
-        await message.answer(
-            f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\nТы собрал 3 легендарных карточки!\n"
-            f"Твоя награда: 15 000 монет 💰\n"
-            f"✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣", parse_mode="Markdown"
-        )
-
-    if counts["👑 ИДЕАЛЬНАЯ (1%)"] >= 2 and q_status["perfect_2"] == 0:
-        new_balance += 25000; q_status["perfect_2"] = 1; triggered = True
-        await message.answer(
-            f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\nТы собрал 2 идеальных карточки!\n"
-            f"Твоя награда: 25 000 монет 💰\n"
-            f"✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣", parse_mode="Markdown"
-        )
-
-    if total_unique >= 10 and q_status["global_10"] == 0:
-        new_balance += 1500; q_status["global_10"] = 1; triggered = True
-        await message.answer(
-            f"🏆 **ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-            f"Начало положено! Ты преодолел первые этапы и собрал 10 пяток в свою коллекцию.\n"
-            f"Твоя награда: 1 500 монет 💰\n"
-            f"✨ Твоя выдержка впечатляет. Пора прикупить сундук подороже! ✨\n👣", parse_mode="Markdown"
-        )
-
-    if total_unique >= 50 and q_status["global_50"] == 0:
-        new_balance += 10000; q_status["global_50"] = 1; triggered = True
-        await message.answer(
-            f"🏆 **ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-            f"Невероятная преданность делу! В твоем альбоме уже 50 пяток. Настоящий коллекционер.\n"
-            f"Твоя награда: 10 000 монет 💰\n"
-            f"✨ Это серьезный капитал. Удача на твоей стороне! ✨\n💎", parse_mode="Markdown"
-        )
-
-    if total_unique >= 100 and q_status["global_100"] == 0:
-        new_balance += 35000; q_status["global_100"] = 1; triggered = True
-        await message.answer(
-            f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n"
-            f"Ты сделал это! 100 ПЯТОК! 👑 Ты шел к этому результату сотни часов.\n"
-            f"Твоя награда: 35 000 монет 💰\n"
-            f"✨ Ты — легенда этого бота. Твоему терпению можно только позавидовать! ✨\n🏰", parse_mode="Markdown"
-        )
-
+    # 4. Если хоть один квест сработал, обновляем баланс игрока в таблице users
     if triggered:
         cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
-        cursor.execute(f"UPDATE user_quests SET {', '.join([f'{col} = ?' for col in columns])} WHERE user_id = ?", (*[q_status[col] for col in columns], uid))
         conn.commit()
+            
+    return new_balance
 
 # ОЖИВИТЕЛЬ
 async def handle(r): return web.Response(text="Alive")
