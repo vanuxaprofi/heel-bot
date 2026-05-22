@@ -147,6 +147,8 @@ class BetState(StatesGroup):
     choosing_rarity = State()
 class PromoState(StatesGroup):
     waiting_for_code = State()
+class LimitState(StatesGroup):
+    playing = State()
 last_bet_time = {}
 last_time = {}
 last_random_time = {}
@@ -325,7 +327,8 @@ def get_kb():
     row3 = [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")]
     row4 = [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
     row5 = [KeyboardButton(text="📜 Квесты"), KeyboardButton(text="📅 Календарь")] # Теперь они вместе сбоку!
-    row6 = [KeyboardButton(text="🎁 Промокод")]
+    row6 = [KeyboardButton(text="🎁 Промокод"), KeyboardButton(text="🎲 Лимит")]
+
     
     kb = ReplyKeyboardMarkup(
         keyboard=[row1, row2, row3, row4, row5, row6],
@@ -874,6 +877,96 @@ async def check_promo_cmd(message: types.Message, state: FSMContext):
     else:
         await message.answer("❌ Неверный код! Попробуй еще раз или нажми 'Назад'.")
         
+ # --- ИГРА «ЛИМИТ» ---
+
+def get_limit_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🔽 Меньше ([2х])", callback_data="limit_less"),
+            InlineKeyboardButton(text="🔼 Больше ([2х])", callback_data="limit_more")
+        ]
+    ])
+
+@dp.message(F.text == "🎲 Лимит")
+async def start_limit_game(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, message.from_user.full_name, message.from_user.username
+    )
+    
+    if balance < 10:
+        return await message.answer("❌ **[Недостаточно монет]** для игры в ЛИМИТ! Нужно минимум **[10]** 💰")
+    
+    start_number = random.randint(1, 100)
+    
+    await state.update_data(current_number=start_number)
+    await state.set_state(LimitState.playing)
+    
+    text = (
+        f"📊 **Игра «ЛИМИТ»**\n\n"
+        f"Бот выбрал число: **[{start_number}]** 🎲\n\n"
+        f"Как думаете, каким будет следующее число от **[1]** до **[100]**? 👇\n"
+        f"💡 *Ставка: [10] монет*"
+    )
+    
+    await message.answer(text, reply_markup=get_limit_keyboard(), parse_mode="Markdown")
+
+
+@dp.callback_query(LimitState.playing, F.data.startswith("limit_"))
+async def process_limit_choice(call: CallbackQuery, state: FSMContext):
+    user_id = call.from_user.id
+    # Исправлено: забираем чистый выбор "less" или "more"
+    choice = call.data.replace("limit_", "") 
+    
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, call.from_user.full_name, call.from_user.username
+    )
+    pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
+    
+    if balance < 10:
+        await state.clear()
+        return await call.answer("❌ У вас не хватает монет!", show_alert=True)
+    
+    user_data = await state.get_data()
+    old_number = user_data.get("current_number")
+    
+    if not old_number:
+        await state.clear()
+        return await call.message.answer("⚠️ Сессия игры устарела. Нажмите «🎲 Лимит» снова.")
+    
+    new_number = random.randint(1, 100)
+    balance -= 10
+    
+    is_win = False
+    if choice == "more" and new_number > old_number:
+        is_win = True
+    elif choice == "less" and new_number < old_number:
+        is_win = True
+    
+    if is_win:
+        balance += 20 
+        result_text = (
+            f"🎉 **Победа!**\n"
+            f"Новое число: **[{new_number}]** 🎲\n\n"
+            f"Вы угадали и забираете выигрыш **[2х]**!\n"
+            f"💰 Ваш баланс: **[{balance}]** монет."
+        )
+    else:
+        result_text = (
+            f"😢 **Не повезло...**\n"
+            f"Новое число: **[{new_number}]** 🎲\n\n"
+            f"Ваша ставка **[10]** монет сгорела.\n"
+            f"💰 Ваш баланс: **[{balance}]** монет.\n"
+            f"Попробуйте еще раз!"
+        )
+        
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
+    
+    await call.message.edit_text(result_text, parse_mode="Markdown")
+    await state.clear()
+    await call.answer()
+       
 @dp.message(F.text == "📜 Квесты")
 async def show_quests_list(message: Message):
     user_id = message.from_user.id
