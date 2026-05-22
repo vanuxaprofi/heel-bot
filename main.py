@@ -897,9 +897,19 @@ async def check_promo_cmd(message: types.Message, state: FSMContext):
     else:
         await message.answer("❌ Неверный код! Попробуй еще раз или нажми 'Назад'.")
         
-@dp.message(F.text == "📜 Квесты")
-async def show_quests_list(message: Message):
-    user_id = message.from_user.id
+@dp.message(F.text == "📅 Календарь")
+async def show_calendar_cmd(message: Message):
+    try:
+        # Вставляем словарь прямо сюда с отступом в 8 пробелов:
+        DAILY_REWARDS = {
+            1: 200, 2: 250, 3: 300, 4: 350, 5: 400, 6: 450, 7: 1000,
+            8: 600, 9: 700, 10: 800, 11: 900, 12: 1000, 13: 1100, 14: 2500,
+            15: 1300, 16: 1400, 17: 1500, 18: 1600, 19: 1700, 20: 1800, 21: 5000,
+            22: 2200, 23: 2400, 24: 2600, 25: 2800, 26: 3000, 27: 3200, 28: 3500, 29: 4000, 30: 15000
+        }
+
+        user_id = message.from_user.id
+        # ... дальше идет весь остальной код функции получения статов и даты ...
     
     # 1. Получаем инвентарь и статистику игрока
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
