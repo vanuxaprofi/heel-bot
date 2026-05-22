@@ -377,7 +377,7 @@ async def show_inventory(message: types.Message):
         return await message.answer("🎒 Твой рюкзак пуст! Выбей свою первую пятку.")
 
     @dp.message(F.text == "🎒 Инвентарь")
-async def show_inventory(message: types.Message):
+    async def show_inventory(message: types.Message):
     user_id = message.from_user.id
     
     # 1. Запрашиваем инвентарь игрока из базы данных
