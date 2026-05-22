@@ -780,8 +780,10 @@ async def play_bet(message: types.Message, state: FSMContext):
 
 @dp.message(F.text == "◀️ Назад")
 async def back_to_main(message: types.Message, state: FSMContext):
-    # Очищаем состояние, чтобы бот не ждал ставку, если мы вышли в меню
-    await state.clear() 
+    # Полностью очищаем любые зависшие состояния (ставок, промокодов)
+    await state.clear()
+    # Возвращаем главное меню, вызывая функцию get_kb()
+    await message.answer("Вы вернулись в главное меню", reply_markup=get_kb())
     
     buttons = [
         [KeyboardButton(text="🦶 Выбить пятку")],
