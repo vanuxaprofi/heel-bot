@@ -199,7 +199,106 @@ def get_user_data(uid, n, un):
     cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) VALUES (?, ?, ?, '', 0, 0, 0, 0, 0, 1, '')", (uid, n, un))
     conn.commit()
     return {}, 0, 0, 0, 0
-    
+
+async def check_and_grant_quests(message, uid, inv, balance):
+    # 1. Считаем уникальные карты
+    counts = {r: 0 for r in RARITIES}
+    for rarity in RARITIES:
+        for card in DATA[rarity].keys():
+            if card in inv and inv[card] > 0:
+                counts[rarity] += 1
+                
+    total_unique = sum(counts.values())
+
+    # 2. Подгружаем квесты
+    cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
+    q = cursor.fetchone()
+    if not q:
+        return
+
+    columns = ["common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2", "global_10", "global_50", "global_100"]
+    q_status = {col: q[i+1] for i, col in enumerate(columns)}
+
+    new_balance = balance
+    triggered = False
+
+    def get_rarity_text(rarity_name, coins):
+        return (
+            f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
+            f"Ты собрал 10 {rarity_name} карточек!\n"
+            f"Твоя награда: {coins} монет 💰\n"
+            f"✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"
+        )
+
+    # --- ПРОВЕРКИ ---
+    if counts["⚪ ОБЫЧНАЯ (45%)"] >= 10 and q_status["common_10"] == 0:
+        new_balance += 300; q_status["common_10"] = 1; triggered = True
+        await message.answer(get_rarity_text("обычных", 300), parse_mode="Markdown")
+
+    if counts["🟢 НЕОБЫЧНАЯ (25%)"] >= 10 and q_status["uncommon_10"] == 0:
+        new_balance += 600; q_status["uncommon_10"] = 1; triggered = True
+        await message.answer(get_rarity_text("необычных", 600), parse_mode="Markdown")
+
+    if counts["🔵 РЕДКАЯ (15%)"] >= 10 and q_status["rare_10"] == 0:
+        new_balance += 1200; q_status["rare_10"] = 1; triggered = True
+        await message.answer(get_rarity_text("редких", 1200), parse_mode="Markdown")
+
+    if counts["🟣 ЭПИЧЕСКАЯ (8%)"] >= 10 and q_status["epic_10"] == 0:
+        new_balance += 2500; q_status["epic_10"] = 1; triggered = True
+        await message.answer(get_rarity_text("эпических", 2500), parse_mode="Markdown")
+
+    if counts["🔴 МИФИЧЕСКАЯ (4%)"] >= 10 and q_status["mythic_10"] == 0:
+        new_balance += 7500; q_status["mythic_10"] = 1; triggered = True
+        await message.answer(get_rarity_text("мифических", 7500), parse_mode="Markdown")
+
+    if counts["🟡 ЛЕГЕНДАРНАЯ (2%)"] >= 3 and q_status["legend_3"] == 0:
+        new_balance += 15000; q_status["legend_3"] = 1; triggered = True
+        await message.answer(
+            f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\nТы собрал 3 легендарных карточки!\n"
+            f"Твоя награда: 15 000 монет 💰\n"
+            f"✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣", parse_mode="Markdown"
+        )
+
+    if counts["👑 ИДЕАЛЬНАЯ (1%)"] >= 2 and q_status["perfect_2"] == 0:
+        new_balance += 25000; q_status["perfect_2"] = 1; triggered = True
+        await message.answer(
+            f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\nТы собрал 2 идеаных карточки!\n"
+            f"Твоя награда: 25 000 монет 💰\n"
+            f"✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣", parse_mode="Markdown"
+        )
+
+    if total_unique >= 10 and q_status["global_10"] == 0:
+        new_balance += 1500; q_status["global_10"] = 1; triggered = True
+        await message.answer(
+            f"🏆 **ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН!** 🏆\n"
+            f"Начало положено! Ты преодолел первые этапы и собрал 10 пяток в свою коллекцию.\n"
+            f"Твоя награда: 1 500 монет 💰\n"
+            f"✨ Твоя выдержка впечатляет. Пора прикупить сундук подороже! ✨\n👣", parse_mode="Markdown"
+        )
+
+    if total_unique >= 50 and q_status["global_50"] == 0:
+        new_balance += 10000; q_status["global_50"] = 1; triggered = True
+        await message.answer(
+            f"🏆 **ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН!** 🏆\n"
+            f"Невероятная преданность делу! В твоем альбоме уже 50 пяток. Настоящий коллекционер.\n"
+            f"Твоя награда: 10 000 монет 💰\n"
+            f"✨ Это серьезный капитал. Удача на твоей стороне! ✨\n💎", parse_mode="Markdown"
+        )
+
+    if total_unique >= 100 and q_status["global_100"] == 0:
+        new_balance += 35000; q_status["global_100"] = 1; triggered = True
+        await message.answer(
+            f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n"
+            f"Ты сделал это! 100 ПЯТОК! 👑 Ты шел к этому результату сотни часов.\n"
+            f"Твоя награда: 35 000 монет 💰\n"
+            f"✨ Ты — легенда этого бота. Твоему терпению можно только позавидовать! ✨\n🏰", parse_mode="Markdown"
+        )
+
+    if triggered:
+        cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
+        cursor.execute(f"UPDATE user_quests SET {', '.join([f'{col} = ?' for col in columns])} WHERE user_id = ?", (*[q_status[col] for col in columns], uid))
+        conn.commit()
+
 def get_user_game_features(uid):
     cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
