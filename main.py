@@ -871,7 +871,7 @@ async def show_quests_list(message: Message):
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
         user_id, message.from_user.full_name, message.from_user.username
     )
-         balance = await check_and_grant_quests(message, user_id, inv, balance)
+    balance = await check_and_grant_quests(message, user_id, inv, balance)
     
     # Считаем количество карт по каждой редкости в инвентаре
     counts = {r: 0 for r in RARITIES}
