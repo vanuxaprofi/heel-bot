@@ -189,34 +189,23 @@ global_100 INTEGER DEFAULT 0)''')
 conn.commit()
 
 def get_user_data(uid, n, un):
-    cursor.execute("""
-        SELECT items, balance, total_opens, duplicates, bet_count, 
-               pity_counter, current_day, last_claim_date 
-        FROM users WHERE user_id = ?
-    """, (uid,))
+    cursor.execute("SELECT items, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
-    
     if r:
         raw_list = r[0].split(",") if r[0] else []
         items = {name: raw_list.count(name) for name in set(raw_list) if name}
-        
-        cursor.execute("SELECT user_id FROM user_quests WHERE user_id = ?", (uid,))
-        if not cursor.fetchone():
-            cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
-            conn.commit()
-            
-        return items, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]
+        return items, r[1], r[2], r[3], r[4]
     
-    cursor.execute("""
-        INSERT OR IGNORE INTO users 
-        (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (uid, n, un, "", 0, 0, 0, 0, 0, 1, ""))
-    
-    cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
+    cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates, bet_count) VALUES (?, ?, ?, '', 0, 0, 0, 0)", (uid, n, un))
     conn.commit()
+    return {}, 0, 0, 0, 0
     
-    return {}, 0, 0, 0, 0, 0, 1, ""
+def get_user_game_features(uid):
+    cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
+    r = cursor.fetchone()
+    if r:
+        return r, r, r
+    return 0, 1, ""
 
 # ОЖИВИТЕЛЬ
 async def handle(r): return web.Response(text="Alive")
@@ -290,6 +279,66 @@ def get_smart_random_card(user_id, inv_dict, rarity, pity_counter):
             return random.choice(my_cards_in_rarity), False, pity_counter + 1
         else:
             return random.choice(new_cards_in_rarity), True, 0
+            
+@dp.message(F.text == "🦶 Выбить пятку")
+async def open_case(message: types.Message):
+    user_id = message.from_user.id
+    current_time = time.time()
+
+    if user_id in last_time and current_time - last_time[user_id] < 1:
+        return await message.answer("⏳ Подожди 1 сек.")
+
+    # Получаем базовые данные и новые игровые фичи отдельно
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
+
+    res_list = random.choices(RARITIES, weights=WEIGHTS)
+    rarity = res_list[0]
+
+    # Крутим наш Умный Рандом!
+    item_name, is_new, new_pity = get_smart_random_card(user_id, inv, rarity, pity_counter)
+    pity_counter = new_pity
+
+    base_reward = MONEY_REWARDS.get(rarity, 0)
+    total_opens += 1
+
+    if not is_new:
+        duplicates += 1
+        reward = base_reward * 2  # Классический х2 за повторку
+        status = f"♻ **Повторка!**\nВыпало: {item_name}\nЗачислено: +{reward} 💰 (х2 бонус за повторку!)"
+        inv[item_name] = inv.get(item_name, 0) + 1
+    else:
+        reward = base_reward
+        status = f"✨ **НОВАЯ ПЯТКА!**\nВыпало: {item_name}\nДобавлена в коллекцию! (+{reward} 💰)"
+        inv[item_name] = 1
+
+    balance += reward
+
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
+    last_time[user_id] = current_time
+
+    chances = {"⚪ ОБЫЧНАЯ (45%)": "45%", "🟢 НЕОБЫЧНАЯ (25%)": "25%", "🔵 РЕДКАЯ (15%)": "15%", "🟣 ЭПИЧЕСКАЯ (8%)": "8%", "🔴 МИФИЧЕСКАЯ (4%)": "4%", "🟡 ЛЕГЕНДАРНАЯ (2%)": "2%", "👑 ИДЕАЛЬНАЯ (1%)": "1%"}
+    icons = {"⚪ ОБЫЧНАЯ (45%)": "⚪", "🟢 НЕОБЫЧНАЯ (25%)": "🟢", "🔵 РЕДКАЯ (15%)": "🔵", "🟣 ЭПИЧЕСКАЯ (8%)": "🟣", "🔴 МИФИЧЕСКАЯ (4%)": "🔴", "🟡 ЛЕГЕНДАРНАЯ (2%)": "🟡", "👑 ИДЕАЛЬНАЯ (1%)": "👑"}
+
+    chance = chances.get(rarity, "")
+    icon = icons.get(rarity, "")
+    photo_id = DATA[rarity][item_name]
+
+    caption = (
+        f"🎉 **Поздравляю** 🎉\n\n"
+        f"Вам выпала • {icon} **{item_name}**\n"
+        f"Редкость • {rarity} ({chance})\n\n"
+        f"{status}\n"
+        f"💰 Твой баланс: **{balance}** монет"
+    )
+
+    try:
+        await message.answer_photo(photo_id, caption=caption, parse_mode="Markdown")
+    except Exception as e:
+        await message.answer(f"{caption}\n\n(Ошибка фото: {e})")
+
+    # Вызов проверки квестов
+    await check_and_grant_quests(message, user_id, inv, balance)
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
