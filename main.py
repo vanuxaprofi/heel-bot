@@ -376,19 +376,6 @@ async def show_inventory(message: types.Message):
     if not inv:
         return await message.answer("🎒 Твой рюкзак пуст! Выбей свою первую пятку.")
 
-    @dp.message(F.text == "🎒 Инвентарь")
-    async def show_inventory(message: types.Message):
-    user_id = message.from_user.id
-    
-    # 1. Запрашиваем инвентарь игрока из базы данных
-    cursor.execute("SELECT items FROM users WHERE user_id = ?", (user_id,))
-    r = cursor.fetchone()
-    raw_list = r.split(",") if r and r else []
-    inv = {name: raw_list.count(name) for name in set(raw_list) if name}
-
-    if not inv:
-        return await message.answer("🎒 Твой рюкзак пуст! Выбей свою первую пятку.")
-
     text = "🎒 **ТВОЙ ИНВЕНТАРЬ**\n\n"
     total_collection_value = 0
 
