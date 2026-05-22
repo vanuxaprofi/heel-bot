@@ -189,16 +189,28 @@ global_100 INTEGER DEFAULT 0)''')
 conn.commit()
 
 def get_user_data(uid, n, un):
-    cursor.execute("SELECT items, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (uid,))
+    cursor.execute("""
+        SELECT items, balance, total_opens, duplicates, bet_count, 
+               pity_counter, current_day, last_claim_date 
+        FROM users WHERE user_id = ?
+    """, (uid,))
     r = cursor.fetchone()
+    
     if r:
         raw_list = r[0].split(",") if r[0] else []
         items = {name: raw_list.count(name) for name in set(raw_list) if name}
-        return items, r[1], r[2], r[3], r[4]
+        return items, r[1], r[2], r[3], r[4], r[5], r[6], r[7]
     
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates, bet_count) VALUES (?, ?, ?, '', 0, 0, 0, 0)", (uid, n, un))
+    cursor.execute("""
+        INSERT OR IGNORE INTO users 
+        (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (uid, n, un, "", 0, 0, 0, 0, 0, 1, ""))
+    
+    cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
     conn.commit()
-    return {}, 0, 0, 0, 0
+    
+    return {}, 0, 0, 0, 0, 0, 1, ""
     
 def get_user_game_features(uid):
     cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
@@ -207,12 +219,20 @@ def get_user_game_features(uid):
         return r[0], r[1], r[2]
     return 0, 1, ""
     
-def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date):
+def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter=0, current_day=1, last_claim_date=''):
     if isinstance(items, dict):
         items_str = ",".join([name for name, count in items.items() for _ in range(count)])
     else:
         items_str = ",".join(list(items))
         
+    # Защита: если старая игра прислала дефолтные значения, 
+    # подтягиваем настоящие данные из базы, чтобы не обнулять их игроку
+    if pity_counter == 0 and current_day == 1 and last_claim_date == '':
+        cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
+        res = cursor.fetchone()
+        if res:
+            pity_counter, current_day, last_claim_date = res[0], res[1], res[2]
+
     cursor.execute("""
         UPDATE users 
         SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ?, 
@@ -555,7 +575,8 @@ async def start_bet_cmd(message: types.Message, state: FSMContext):
     current_time = time.time()
     
     # 1. Сначала получаем данные игрока, чтобы узнать bet_count
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+        inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
 
     # 2. Проверка: если 3 попытки уже использованы
     if bet_count >= 3:
