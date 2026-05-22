@@ -989,15 +989,15 @@ async def show_calendar_cmd(message: Message):
         )
         
         # 2. Безопасное чтение игровых фич
-        try:
-            res = get_user_game_features(user_id)
-            pity_counter = res[0] if (res and res[0] is not None) else 0
-            current_day = res[1] if (res and res[1] is not None) else 0
-            last_claim_date = res[2] if (res and res[2] is not None) else None
-        except Exception:
-            pity_counter = 0
+    try:
+        pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
+     except Exception:
+        pity_counter = 0
+        current_day = 0
+        last_claim_date = None
+
+        if current_day is None:
             current_day = 0
-            last_claim_date = None
 
         # 3. Безопасный расчет даты без pytz
         from datetime import datetime, timedelta
