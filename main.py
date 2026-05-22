@@ -585,9 +585,12 @@ async def show_profile(message: types.Message):
 @dp.callback_query(F.data.startswith("buy_"))
 async def buy_chest(call: types.CallbackQuery):
     user_id = call.from_user.id
-    # 1. Получаем данные (важно: inv должен быть списком!)
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, call.from_user.full_name, call.from_user.username)
-    inv = list(inv) 
+    
+    # 1. Отримуємо дані гравця та фічі (pity_counter)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, call.from_user.full_name, call.from_user.username
+    )
+    pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
     
     chests = {
         "buy_epic": (1000, [75, 19, 5, 1], ["🟣 ЭПИЧЕСКАЯ (8%)", "🔴 МИФИЧЕСКАЯ (4%)", "🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"], "Эпический"),
@@ -602,33 +605,41 @@ async def buy_chest(call: types.CallbackQuery):
     
     if balance < price:
         return await call.answer("❌ Недостаточно монет!", show_alert=True)
-    
-    # 2. Логика покупки
+        
+    # 2. Логіка покупки
     balance -= price
     total_opens += 1
     
-    # Выбираем редкость
+    # Вибираємо рідкість
     rarity = random.choices(rarities, weights=weights)[0]
     
-    # 3. ПОИСК ПРЕДМЕТА (Проверь, чтобы в DATA[rarity] точно были элементы!)
-    items_dict = DATA.get(rarity, {})
-    if not items_dict:
-        return await call.message.answer(f"Ошибка: Редкость {rarity} не найдена в базе!")
-        
-    item_name, photo_id = random.choice(list(items_dict.items()))
+    # 🔥 ВИКЛИКАЄМО ТВІЙ РОЗУМНИЙ РАНДОМ ЗАМІСТЬ ЗВИЧАЙНОГО CHOICE!
+    item_name, is_new, new_pity = get_smart_random_card(user_id, inv, rarity, pity_counter)
+    pity_counter = new_pity
     
-    # 4. Проверка на повторку (работаем со СПИСКОМ)
-    if item_name in inv:
+    base_reward = MONEY_REWARDS.get(rarity, 0)
+    photo_id = DATA[rarity][item_name]
+    
+    # 3. Перевірка на повторку (працюємо зі словником inv)
+    if not is_new:
         duplicates += 1
-        status = "♻️ **Уже была!** (ушла в повторки)"
+        reward = base_reward * 2 # Бонус за повторку х2
+        status = f"♻ **Повторка!**\nЗачислено: +{reward} 💰 (х2 бонус за повторку!)"
+        inv[item_name] = inv.get(item_name, 0) + 1
     else:
-        inv.append(item_name)
-        status = "🎒 **НОВАЯ ПЯТКА!** добавлена в коллекцию"
+        reward = base_reward
+        status = f"✨ **НОВАЯ ПЯТКА!**\nДобавлена в твою коллекцию! (+{reward} 💰)"
+        inv[item_name] = inv.get(item_name, 0) + 1
+        
+    balance += reward
     
-    # 5. Сохранение
-    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
+    # 4. Збереження в базу
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
     
-    # 6. Отправка сообщения
+    # Автоматично перевіряємо квести після відкриття сундука
+    balance = await check_and_grant_quests(call.message, user_id, inv, balance)
+    
+    # 5. Відправка повідомлення
     caption = (
         f"🎁 **ОТКРЫТИЕ СУНДУКА: {chest_name}**\n\n"
         f"Вам выпала • **{item_name}**\n"
@@ -640,8 +651,8 @@ async def buy_chest(call: types.CallbackQuery):
     try:
         await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
     except Exception as e:
-        await call.message.answer(f"Ошибка при отправке фото: {e}\n\n{caption}")
-    
+        await call.message.answer(f"Ошибка при отправке photo: {e}\n\n{caption}")
+        
     await call.answer()
 
 @dp.message(F.text == "🎰 Ставки")
