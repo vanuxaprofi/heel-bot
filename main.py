@@ -355,12 +355,11 @@ def get_kb():
     row2 = [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")]
     row3 = [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")]
     row4 = [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")]
-    row5 = [KeyboardButton(text="📜 Квестов" if "📜 Квесты" in ["📜 Квесты"] else "📜 Квесты")] # Квесты со свитком
-    row6 = [KeyboardButton(text="📅 Календарь")]   # Календарь наград
-    row7 = [KeyboardButton(text="🎁 Промокод")]
+    row5 = [KeyboardButton(text="📜 Квесты"), KeyboardButton(text="📅 Календарь")] # Теперь они вместе сбоку!
+    row6 = [KeyboardButton(text="🎁 Промокод")]
     
     kb = ReplyKeyboardMarkup(
-        keyboard=[row1, row2, row3, row4, row5, row6, row7],
+        keyboard=[row1, row2, row3, row4, row5, row6],
         resize_keyboard=True
     )
     return kb
