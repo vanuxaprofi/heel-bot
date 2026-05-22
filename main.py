@@ -189,28 +189,16 @@ global_100 INTEGER DEFAULT 0)''')
 conn.commit()
 
 def get_user_data(uid, n, un):
-    cursor.execute("""
-        SELECT items, balance, total_opens, duplicates, bet_count, 
-               pity_counter, current_day, last_claim_date 
-        FROM users WHERE user_id = ?
-    """, (uid,))
+    cursor.execute("SELECT items, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
-    
     if r:
         raw_list = r[0].split(",") if r[0] else []
         items = {name: raw_list.count(name) for name in set(raw_list) if name}
-        return items, r[1], r[2], r[3], r[4], r[5], r[6], r[7]
+        return items, r[1], r[2], r[3], r[4]
     
-    cursor.execute("""
-        INSERT OR IGNORE INTO users 
-        (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (uid, n, un, "", 0, 0, 0, 0, 0, 1, ""))
-    
-    cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
+    cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) VALUES (?, ?, ?, '', 0, 0, 0, 0, 0, 1, '')", (uid, n, un))
     conn.commit()
-    
-    return {}, 0, 0, 0, 0, 0, 1, ""
+    return {}, 0, 0, 0, 0
     
 def get_user_game_features(uid):
     cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
