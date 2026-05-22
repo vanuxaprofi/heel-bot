@@ -196,17 +196,17 @@ def get_user_data(uid, n, un):
     """, (uid,))
     r = cursor.fetchone()
     
-if r:
-    raw_str = r[0] if r[0] else ""
-    raw_list = [name.strip() for name in raw_str.split(",") if name.strip()]
-    items = {name: raw_list.count(name) for name in set(raw_list)}
-    
-    cursor.execute("SELECT user_id FROM user_quests WHERE user_id = ?", (uid,))
-    if not cursor.fetchone():
-        cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
-        conn.commit()
+    if r:
+        raw_str = r[0] if r[0] else ""
+        raw_list = [name.strip() for name in raw_str.split(",") if name.strip()]
+        items = {name: raw_list.count(name) for name in set(raw_list)}
         
-    return items, r[1], r[2], r[3], r[4]
+        cursor.execute("SELECT user_id FROM user_quests WHERE user_id = ?", (uid,))
+        if not cursor.fetchone():
+            cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
+            conn.commit()
+            
+        return items, r[1], r[2], r[3], r[4]
     
     cursor.execute("""
         INSERT OR IGNORE INTO users 
