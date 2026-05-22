@@ -897,19 +897,9 @@ async def check_promo_cmd(message: types.Message, state: FSMContext):
     else:
         await message.answer("❌ Неверный код! Попробуй еще раз или нажми 'Назад'.")
         
-@dp.message(F.text == "📅 Календарь")
-async def show_calendar_cmd(message: Message):
-    try:
-        # Вставляем словарь прямо сюда с отступом в 8 пробелов:
-        DAILY_REWARDS = {
-            1: 200, 2: 250, 3: 300, 4: 350, 5: 400, 6: 450, 7: 1000,
-            8: 600, 9: 700, 10: 800, 11: 900, 12: 1000, 13: 1100, 14: 2500,
-            15: 1300, 16: 1400, 17: 1500, 18: 1600, 19: 1700, 20: 1800, 21: 5000,
-            22: 2200, 23: 2400, 24: 2600, 25: 2800, 26: 3000, 27: 3200, 28: 3500, 29: 4000, 30: 15000
-        }
-
-        user_id = message.from_user.id
-        # ... дальше идет весь остальной код функции получения статов и даты ...
+@dp.message(F.text == "📜 Квесты")
+async def show_quests_list(message: Message):
+    user_id = message.from_user.id
     
     # 1. Получаем инвентарь и статистику игрока
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
@@ -936,7 +926,6 @@ async def show_calendar_cmd(message: Message):
     # Считаем общее количество выполненных квестов (индексы 1-10)
     completed_count = sum(1 for val in q[1:11] if val == 1)
     
-    # Функция для генерации мини-линии прогресса из пикселей
     def make_mini_bar(current, target):
         current = min(current, target)
         filled = int((current / target) * 5)
@@ -985,45 +974,42 @@ async def show_calendar_cmd(message: Message):
         f"━━━━━━━━━━━━━━━━━━\n"
         f"💡 *Квесты выполняются автоматически при выбивании нужных пяток!*"
     )
-    
     await message.answer(text, parse_mode="Markdown")
-    
+
+
 @dp.message(F.text == "📅 Календарь")
 async def show_calendar_cmd(message: Message):
+    DAILY_REWARDS = {
+        1: 200, 2: 250, 3: 300, 4: 350, 5: 400, 6: 450, 7: 1000,
+        8: 600, 9: 700, 10: 800, 11: 900, 12: 1000, 13: 1100, 14: 2500,
+        15: 1300, 16: 1400, 17: 1500, 18: 1600, 19: 1700, 20: 1800, 21: 5000,
+        22: 2200, 23: 2400, 24: 2600, 25: 2800, 26: 3000, 27: 3200, 28: 3500, 29: 4000, 30: 15000
+    }
     try:
         user_id = message.from_user.id
-        
-        # 1. Базовые статы
         inv, balance, total_opens, duplicates, bet_count = get_user_data(
             user_id, message.from_user.full_name, message.from_user.username
         )
         
-        # # 2. Безопасное чтение игровых фич (вставляй строго с четырьмя пробелами отступа!)
         pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
-
         if current_day is None:
             current_day = 0
 
-        if current_day is None:
-            current_day = 0
-
-        # 3. Безопасный расчет даты без pytz
         from datetime import datetime, timedelta
-        today_str = str((datetime.utcnow() + timedelta(hours=3)).date())
+        today_date = (datetime.utcnow() + timedelta(hours=3)).date()
+        today_str = str(today_date)
         
-        # Проверка финала
         if current_day > 30 or (current_day == 30 and last_claim_date == today_str):
             txt = (
                 "🏁 **КАЛЕНДАРЬ ЗАВЕРШЕН**\n\n"
-                "Ты уже забрал все 30 наград и прошел путь новичка до конца."
+                "Ты уже забрал все 30 наград и прошел путь новичка до конца. Твой стартовый бонус полностью выплачен.\n"
+                "Теперь твой доход — это новые пятки, квесты и дубликаты. Посмотрим, сможешь ли ты собрать всю коллекцию до конца!"
             )
             return await message.answer(txt, parse_mode="Markdown")
 
-        # Проверка "уже забирал сегодня"
         if last_claim_date == today_str:
-            return await message.answer("📅 **Ежедневный бонус**\n\nВы уже забирали сегодня! ❌\nЗаходи завтра после 00:00!", parse_mode="Markdown")
+            return await message.answer("📅 **Ежедневный бонус**\n\nВы уже забрали сегодняшнюю награду! ❌\nЗаходи завтра после 00:00 по МСК!", parse_mode="Markdown")
 
-        # 4. Расчет дня
         new_day = current_day
         if last_claim_date:
             try:
@@ -1041,37 +1027,32 @@ async def show_calendar_cmd(message: Message):
         if new_day < 1: new_day = 1
         if new_day > 30: new_day = 30
 
-        # Награда монет
         reward_coins = DAILY_REWARDS.get(new_day, 200)
         balance += reward_coins
         
-        # 5. Сохранение в БД
         try:
             update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, new_day, today_str)
         except Exception:
-            # Аварийная запись напрямую в SQL
             cursor.execute(
                 "UPDATE users SET balance = ?, current_day = ?, last_claim_date = ? WHERE user_id = ?",
                 (balance, new_day, today_str, user_id)
             )
             conn.commit()
         
-        # Шаблоны вывода текстов
         if new_day == 7:
-            msg = f"🏆 **НЕДЕЛЯ ПОЗАДИ!**\nТы забирал бонусы 7 дней подряд. Первая серьезная отметка достигнута!\n\n💰 Награда: {reward_coins} монет"
+            msg = f"🏆 **НЕДЕЛЯ ПОЗАДИ!**\nТы забирал бонусы 7 дней подряд. Первая серьезная отметка достигнута!\n\n💰 Награда: {reward_coins} монет\n✨ Не останавливайся, впереди еще много интересного.\n👣"
         elif new_day == 14:
-            msg = f"🏆 **ДВЕ НЕДЕЛИ В ИГРЕ!**\nТы забираешь награды уже 14 дней. Это половина пути до финала!\n\n💰 Награда: {reward_coins} монет"
+            msg = f"🏆 **ДВЕ НЕДЕЛИ В ИГРЕ!**\nТы забираешь награды уже 14 дней. Это половина пути до финала!\n\n💰 Награда: {reward_coins} монет\n✨ Твой капитал растет, как и твоя коллекция.\n💎"
         elif new_day == 21:
-            msg = f"🏆 **ТРИ НЕДЕЛИ ВЕРНОСТИ!**\n21 день пролетает незаметно. Осталась последняя прямая!\n\n💰 Награда: {reward_coins} монет"
+            msg = f"🏆 **ТРИ НЕДЕЛИ ВЕРНОСТИ!**\n21 день пролетает незаметно, когда цель близка. Осталась последняя прямая!\n\n💰 Награда: {reward_coins} монет\n✨ Совсем скоро ты заберешь главный приз.\n🔥"
         elif new_day == 30:
-            msg = f"👑 **ФИНАЛЬНАЯ НАГРАДА ПОЛУЧЕНА!**\nПоздравляем! Путь в 30 дней завершен.\n\n💰 Награда: {reward_coins} монет"
+            msg = f"👑 **ФИНАЛЬНАЯ НАГРАДА ПОЛУЧЕНА!**\nПоздравляем! Ты прошел путь длиной в 30 дней и забрал последний бонус. Твоё упорство достойно уважения!\n\n💰 Награда: {reward_coins} монет\n🏁 Твой календарь наград завершен.\nТеперь ты — опытный коллекционер. Используй этот капитал с умом!\n✨"
         else:
             msg = f"📅 **Ежедневный бонус**\nНаграда № {new_day}/30 получена!\n\n💰 Начислено: {reward_coins} монет\nЗаходи завтра после 00:00!"
 
         await message.answer(msg, parse_mode="Markdown")
 
     except Exception as error:
-        # Если код упадет, бот пришлет тебе ТЕКСТ ошибки, а не будет молчать!
         await message.answer(f"❌ Ошибка в календаре:\n`{str(error)}`", parse_mode="Markdown")
 
 async def main():
