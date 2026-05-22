@@ -206,6 +206,20 @@ def get_user_game_features(uid):
     if r:
         return r[0], r[1], r[2]
     return 0, 1, ""
+    
+def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date):
+    if isinstance(items, dict):
+        items_str = ",".join([name for name, count in items.items() for _ in range(count)])
+    else:
+        items_str = ",".join(list(items))
+        
+    cursor.execute("""
+        UPDATE users 
+        SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ?, 
+            pity_counter = ?, current_day = ?, last_claim_date = ? 
+        WHERE user_id = ?
+    """, (items_str, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date, uid))
+    conn.commit()
 
 # ОЖИВИТЕЛЬ
 async def handle(r): return web.Response(text="Alive")
