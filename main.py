@@ -1020,7 +1020,6 @@ async def show_calendar_cmd(message: Message):
         if last_claim_date:
             try:
                 last_date = datetime.strptime(last_claim_date, "%Y-%m-%d").date()
-                today_date = (datetime.utcnow() + timedelta(hours=3)).date()
                 delta = today_date - last_date
                 if delta.days > 1:
                     new_day = 1
