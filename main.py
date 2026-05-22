@@ -204,7 +204,7 @@ def get_user_game_features(uid):
     cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
     if r:
-        return r, r, r
+        return r[0], r[1], r[2]
     return 0, 1, ""
 
 # ОЖИВИТЕЛЬ
