@@ -188,21 +188,67 @@ global_100 INTEGER DEFAULT 0)''')
 
 conn.commit()
 
-def get_user_data(uid, n, un):
-    cursor.execute("SELECT items, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (uid,))
+   def get_user_data(uid, n, un):
+    cursor.execute("""
+        SELECT items, balance, total_opens, duplicates, bet_count, 
+               pity_counter, current_day, last_claim_date 
+        FROM users WHERE user_id = ?
+    """, (uid,))
     r = cursor.fetchone()
+    
     if r:
-        # ИСПРАВЛЕНИЕ: Разбиваем именно ячейку ИНВЕНТАРЯ (индекс 0 в нашем SQL-запросе!)
-        raw_list = r[0].split(",") if r[0] else []
-        items = {name: raw_list.count(name) for name in set(raw_list) if name}
+        raw_str = r[0] if r[0] else ""
+        raw_list = [name.strip() for name in raw_str.split(",") if name.strip()]
+        items = {name: raw_list.count(name) for name in set(raw_list)}
+        
+        cursor.execute("SELECT user_id FROM user_quests WHERE user_id = ?", (uid,))
+        if not cursor.fetchone():
+            cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
+            conn.commit()
+            
         return items, r[1], r[2], r[3], r[4]
     
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) VALUES (?, ?, ?, '', 0, 0, 0, 0, 0, 1, '')", (uid, n, un))
+        cursor.execute("""
+            INSERT OR IGNORE INTO users 
+            (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) 
+            VALUES (?, ?, ?, '', 0, 0, 0, 0, 0, 1, '')
+        """, (uid, n, un))
+        cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
+        conn.commit()
+        return {}, 0, 0, 0, 0
+
+def get_user_game_features(uid):
+    cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
+    r = cursor.fetchone()
+    if r:
+        return r[0], r[1], r[2]
+    return 0, 1, ""
+
+def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter=None, current_day=None, last_claim_date=None):
+    if isinstance(items, dict):
+        items_str = ",".join([name for name, count in items.items() for _ in range(count)])
+    else:
+        items_str = ",".join(list(items))
+        
+    if pity_counter is None or current_day is None or last_claim_date is None:
+        cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
+        res = cursor.fetchone()
+        if res:
+            if pity_counter is None: pity_counter = res[0]
+            if current_day is None: current_day = res[1]
+            if last_claim_date is None: last_claim_date = res[2]
+        else:
+            pity_counter, current_day, last_claim_date = 0, 1, ""
+
+    cursor.execute("""
+        UPDATE users 
+        SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ?, 
+            pity_counter = ?, current_day = ?, last_claim_date = ? 
+        WHERE user_id = ?
+    """, (items_str, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date, uid))
     conn.commit()
-    return {}, 0, 0, 0, 0
 
 async def check_and_grant_quests(message, uid, inv, balance):
-    # 1. Считаем уникальные карты
     counts = {r: 0 for r in RARITIES}
     for rarity in RARITIES:
         for card in DATA[rarity].keys():
@@ -211,7 +257,6 @@ async def check_and_grant_quests(message, uid, inv, balance):
                 
     total_unique = sum(counts.values())
 
-    # 2. Подгружаем квесты
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
     if not q:
@@ -231,7 +276,6 @@ async def check_and_grant_quests(message, uid, inv, balance):
             f"✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣"
         )
 
-    # --- ПРОВЕРКИ ---
     if counts["⚪ ОБЫЧНАЯ (45%)"] >= 10 and q_status["common_10"] == 0:
         new_balance += 300; q_status["common_10"] = 1; triggered = True
         await message.answer(get_rarity_text("обычных", 300), parse_mode="Markdown")
@@ -263,7 +307,7 @@ async def check_and_grant_quests(message, uid, inv, balance):
     if counts["👑 ИДЕАЛЬНАЯ (1%)"] >= 2 and q_status["perfect_2"] == 0:
         new_balance += 25000; q_status["perfect_2"] = 1; triggered = True
         await message.answer(
-            f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\nТы собрал 2 идеаных карточки!\n"
+            f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\nТы собрал 2 идеальных карточки!\n"
             f"Твоя награда: 25 000 монет 💰\n"
             f"✨ Продолжай в том же духе, коллекция сама себя не соберет! ✨\n👣👣👣", parse_mode="Markdown"
         )
@@ -299,38 +343,6 @@ async def check_and_grant_quests(message, uid, inv, balance):
         cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
         cursor.execute(f"UPDATE user_quests SET {', '.join([f'{col} = ?' for col in columns])} WHERE user_id = ?", (*[q_status[col] for col in columns], uid))
         conn.commit()
-
-def get_user_game_features(uid):
-    cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
-    r = cursor.fetchone()
-    if r:
-        return r[0], r[1], r[2]
-    return 0, 1, ""
-    
-def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter=0, current_day=1, last_claim_date='', msg=None):
-    if isinstance(items, dict):
-        items_str = ",".join([name for name, count in items.items() for _ in range(count)])
-    else:
-        items_str = ",".join(list(items))
-        
-    if pity_counter == 0 and current_day == 1 and last_claim_date == '':
-        cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
-        res = cursor.fetchone()
-        if res:
-            pity_counter, current_day, last_claim_date = res[0], res[1], res[2]
-
-    cursor.execute("""
-        UPDATE users 
-        SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ?, 
-            pity_counter = ?, current_day = ?, last_claim_date = ? 
-        WHERE user_id = ?
-    """, (items_str, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date, uid))
-    conn.commit()
-
-    # Если в функцию передали сообщение, бот автоматически проверяет квесты
-    if msg is not None:
-        import asyncio
-        asyncio.create_task(check_and_grant_quests(msg, uid, items, balance))
 
 # ОЖИВИТЕЛЬ
 async def handle(r): return web.Response(text="Alive")
