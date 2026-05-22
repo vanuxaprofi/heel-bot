@@ -575,7 +575,7 @@ async def start_bet_cmd(message: types.Message, state: FSMContext):
     current_time = time.time()
     
     # 1. Сначала получаем данные игрока, чтобы узнать bet_count
-        inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
 
     # 2. Проверка: если 3 попытки уже использованы
