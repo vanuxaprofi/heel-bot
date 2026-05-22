@@ -907,6 +907,20 @@ async def check_promo_cmd(message: types.Message, state: FSMContext):
 async def show_quests_list(message: Message):
     user_id = message.from_user.id
     
+    # 1. Получаем инвентарь и статистику игрока из твоих функций
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, message.from_user.full_name, message.from_user.username
+    )
+    
+    # Считаем количество карт по каждой редкости в инвентаре
+    counts = {r: 0 for r in RARITIES}
+    for rarity in RARITIES:
+        # DATA должна быть импортирована или доступна в main.py
+        for card in DATA[rarity].keys():
+            if card in inv and inv[card] > 0:
+                counts[rarity] += 1
+                
+    # 2. Получаем статусы выполнения квестов (0 или 1) из базы
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (user_id,))
     q = cursor.fetchone()
     
@@ -916,108 +930,64 @@ async def show_quests_list(message: Message):
         cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (user_id,))
         q = cursor.fetchone()
 
-    # Считаем сумму всех выполненных квестов (элементы с индекса 1 по 10)
+    # Считаем общее количество выполненных квестов (индексы 1-10)
     completed_count = sum(1 for val in q[1:11] if val == 1)
-    total_quests = 10
     
-    # Линия прогресса из пиксельных квадратных блоков
-    progress_bar = "▚" * completed_count + "░" * (total_quests - completed_count)
+    # Функция для генерации мини-линии прогресса из пикселей
+    def make_mini_bar(current, target):
+        # Ограничиваем текущий прогресс таргетом, чтобы линия не улетала вправо
+        current = min(current, target)
+        # Шкала будет состоять из 5 блоков для компактности в телеграме
+        filled = int((current / target) * 5)
+        return "▚" * filled + "░" * (5 - filled)
 
     def status(val):
         return "✅" if val == 1 else "⏳"
 
+    # Подготавливаем текущие значения для каждого квеста
+    # По редкостям:
+    c_com = counts.get('common', 0)
+    c_uncom = counts.get('uncommon', 0)
+    c_rare = counts.get('rare', 0)
+    c_epic = counts.get('epic', 0)
+    c_myth = counts.get('mythic', 0)
+    c_leg = counts.get('legendary', 0)
+    c_perf = counts.get('perfect', 0)
+    # Глобальные (общее число собранных уникальных карт или всего открытий - зависит от твоей логики в check_and_grant_quests)
+    # Используем общее количество уникальных карт для глобального квеста
+    total_unique = sum(counts.values())
+
     text = (
         f"📜 **СПИСОК ТВОИХ КВЕСТОВ**\n"
-        f"Прогресс: **{completed_count}/{total_quests}** выполненных заданий\n"
-        f"📊 {progress_bar}\n"
+        f"Выполнено: **{completed_count}/10** заданий\n"
         f"━━━━━━━━━━━━━━━━━━\n\n"
-        f"⚙️ **По редкости карт:**\n"
-        f"{status(q[1])} Собрать 10 обычных — 300 💰\n"
-        f"{status(q[2])} Собрать 10 необычных — 600 💰\n"
-        f"{status(q[3])} Собрать 10 редких — 1 200 💰\n"
-        f"{status(q[4])} Собрать 10 эпических — 2 500 💰\n"
-        f"{status(q[5])} Собрать 10 мифических — 7 500 💰\n"
-        f"{status(q[6])} Собрать 3 легендарных — 15 000 💰\n"
-        f"{status(q[7])} Собрать 2 идеальных — 25 000 💰\n\n"
-        f"🌐 **Глобальные достижения:**\n"
-        f"{status(q[8])} Собрать 10 любых карт — 1 500 💰\n"
-        f"{status(q[9])} Собрать 50 любых карт — 10 000 💰\n"
-        f"{status(q[10])} Собрать 100 любых карт — 35 000 💰\n"
+        f"⚙️ **По редкости карт:**\n\n"
+        f"{status(q[1])} **10 обычных — 300 💰**\n"
+        f"└ Прогресс: {make_mini_bar(c_com, 10)} *({c_com}/10)*\n\n"
+        f"{status(q[2])} **10 необычных — 600 💰**\n"
+        f"└ Прогресс: {make_mini_bar(c_uncom, 10)} *({c_uncom}/10)*\n\n"
+        f"{status(q[3])} **10 редких — 1 200 💰**\n"
+        f"└ Прогресс: {make_mini_bar(c_rare, 10)} *({c_rare}/10)*\n\n"
+        f"{status(q[4])} **10 эпических — 2 500 💰**\n"
+        f"└ Прогресс: {make_mini_bar(c_epic, 10)} *({c_epic}/10)*\n\n"
+        f"{status(q[5])} **10 мифических — 7 500 💰**\n"
+        f"└ Прогресс: {make_mini_bar(c_myth, 10)} *({c_myth}/10)*\n\n"
+        f"{status(q[6])} **3 легендарных — 15 000 💰**\n"
+        f"└ Прогресс: {make_mini_bar(c_leg, 3)} *({c_leg}/3)*\n\n"
+        f"{status(q[7])} **2 идеальных — 25 000 💰**\n"
+        f"└ Прогресс: {make_mini_bar(c_perf, 2)} *({c_perf}/2)*\n\n"
+        f"🌐 **Глобальные достижения:**\n\n"
+        f"{status(q[8])} **10 любых карт — 1 500 💰**\n"
+        f"└ Прогресс: {make_mini_bar(total_unique, 10)} *({total_unique}/10)*\n\n"
+        f"{status(q[9])} **50 любых карт — 10 000 💰**\n"
+        f"└ Прогресс: {make_mini_bar(total_unique, 50)} *({total_unique}/50)*\n\n"
+        f"{status(q[10])} **100 любых карт — 35 000 💰**\n"
+        f"└ Прогресс: {make_mini_bar(total_unique, 100)} *({total_unique}/100)*\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"💡 *Квесты выполняются автоматически при выбивании нужных пяток!*"
     )
     
     await message.answer(text, parse_mode="Markdown")
-    
-import pytz
-from datetime import datetime
-
-# Сетка наград по дням
-DAILY_REWARDS = {
-    1: 200, 2: 250, 3: 300, 4: 350, 5: 400, 6: 450, 7: 1000,
-    8: 600, 9: 700, 10: 800, 11: 900, 12: 1000, 13: 1100, 14: 2500,
-    15: 1300, 16: 1400, 17: 1500, 18: 1600, 19: 1700, 20: 1800, 21: 5000,
-    22: 2200, 23: 2400, 24: 2600, 25: 2800, 26: 3000, 27: 3200, 28: 3500, 29: 4000, 30: 15000
-}
-
-def get_moscow_date():
-    return datetime.now(pytz.timezone('Europe/Moscow')).date()
-
-@dp.message(F.text == "📅 Календарь")
-async def show_calendar_cmd(message: Message):
-    user_id = message.from_user.id
-    
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(
-        user_id, message.from_user.full_name, message.from_user.username
-    )
-    pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
-    
-    today_str = str(get_moscow_date())
-    
-    # 1. Проверка на финал календаря
-    if current_day > 30 or (current_day == 30 and last_claim_date == today_str):
-        txt = (
-            "🏁 **КАЛЕНДАРЬ ЗАВЕРШЕН**\n\n"
-            "Ты уже забрал все 30 наград и прошел путь новичка до конца. Твой стартовый бонус полностью выплачен.\n"
-            "Теперь твой доход — это новые пятки, квесты и дубликаты. Посмотрим, сможешь ли ты собрать всю коллекцию до конца!"
-        )
-        return await message.answer(txt, parse_mode="Markdown")
-
-    # 2. Проверка: Забирали ли уже сегодня
-    if last_claim_date == today_str:
-        return await message.answer("📅 **Ежедневный бонус**\n\nВы уже забрали сегодняшнюю награду! ❌\nЗаходи завтра после 00:00!", parse_mode="Markdown")
-
-    # 3. Расчёт дней с проверкой на пропуск
-    new_day = current_day
-    if last_claim_date:
-        last_date = datetime.strptime(last_claim_date, "%Y-%m-%d").date()
-        delta = get_moscow_date() - last_date
-        if delta.days > 1:
-            new_day = 1  # Сброс за пропуск дня
-        elif delta.days == 1:
-            new_day += 1 # Следующий день серии
-    else:
-        new_day = 1
-
-    reward_coins = DAILY_REWARDS.get(new_day, 200)
-    balance += reward_coins
-    
-    # Сохраняем прогресс
-    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, new_day, today_str)
-    
-    # 4. Вывод праздничных сообщений для контрольных дней
-    if new_day == 7:
-        msg = f"🏆 **НЕДЕЛЯ ПОЗАДИ!**\nТы забирал бонусы 7 дней подряд. Первая серьезная отметка достигнута!\n\n💰 Награда: {reward_coins} монет\n✨ Не останавливайся, впереди еще много интересного.\n👣"
-    elif new_day == 14:
-        msg = f"🏆 **ДВЕ НЕДЕЛИ В ИГРЕ!**\nТы забираешь награды уже 14 дней. Это половина пути до финала!\n\n💰 Награда: {reward_coins} монет\n✨ Твой капитал растет, как и твоя коллекция.\n💎"
-    elif new_day == 21:
-        msg = f"🏆 **ТРИ НЕДЕЛИ ВЕРНОСТИ!**\n21 день пролетает незаметно, когда цель близка. Осталась последняя прямая!\n\n💰 Награда: {reward_coins} монет\n✨ Совсем скоро ты заберешь главный приз.\n🔥"
-    elif new_day == 30:
-        msg = f"👑 **ФИНАЛЬНАЯ НАГРАДА ПОЛУЧЕНА!**\nПоздравляем! Ты прошел путь длиной в 30 дней и забрал последний бонус. Твоё упорство достойно уважения!\n\n💰 Награда: {reward_coins} монет\n🏁 Твой календарь наград завершен.\nТеперь ты — опытный коллекционер. Используй этот капитал с умом!\n✨"
-    else:
-        msg = f"📅 **Ежедневный бонус**\nНаграда № {new_day}/30 получена!\n\n💰 Начислено: {reward_coins} монет\nЗаходи завтра после 00:00!"
-
-    await message.answer(msg, parse_mode="Markdown")
 
 async def main():
     # Добавляем новые колонки в базу для старых игроков, если их еще нет
