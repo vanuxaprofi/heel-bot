@@ -157,42 +157,36 @@ async def start_cmd(message: Message):
 # БАЗА ДАННЫХ
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
-cursor.execute('''CREATE TABLE IF NOT EXISTS users 
-               (user_id INTEGER PRIMARY KEY, 
-                name TEXT, 
-                username TEXT, 
-                items TEXT, 
-                balance INTEGER DEFAULT 0, 
-                total_opens INTEGER DEFAULT 0, 
-                duplicates INTEGER DEFAULT 0, 
-                bet_count INTEGER DEFAULT 0)''')
+
+# Обновленная таблица пользователей (добавили pity_counter, current_day, last_claim_date)
+cursor.execute('''CREATE TABLE IF NOT EXISTS users
+(user_id INTEGER PRIMARY KEY,
+name TEXT,
+username TEXT,
+items TEXT,
+balance INTEGER DEFAULT 0,
+total_opens INTEGER DEFAULT 0,
+duplicates INTEGER DEFAULT 0,
+bet_count INTEGER DEFAULT 0,
+pity_counter INTEGER DEFAULT 0,
+current_day INTEGER DEFAULT 1,
+last_claim_date TEXT DEFAULT '')''')
+
+# Новая таблица для отслеживания выполненных квестов (0 - не выполнен, 1 - выполнен)
+cursor.execute('''CREATE TABLE IF NOT EXISTS user_quests
+(user_id INTEGER PRIMARY KEY,
+common_10 INTEGER DEFAULT 0,
+uncommon_10 INTEGER DEFAULT 0,
+rare_10 INTEGER DEFAULT 0,
+epic_10 INTEGER DEFAULT 0,
+mythic_10 INTEGER DEFAULT 0,
+legend_3 INTEGER DEFAULT 0,
+perfect_2 INTEGER DEFAULT 0,
+global_10 INTEGER DEFAULT 0,
+global_50 INTEGER DEFAULT 0,
+global_100 INTEGER DEFAULT 0)''')
+
 conn.commit()
-
-def get_user_data(uid, n, un):
-    cursor.execute("SELECT items, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (uid,))
-    r = cursor.fetchone()
-    if r:
-        # Получаем список всех названий из базы
-        raw_list = r[0].split(",") if r[0] else []
-        # Считаем, сколько раз встречается каждая пятка
-        items = {name: raw_list.count(name) for name in set(raw_list) if name}
-        return items, r[1], r[2], r[3], r[4]
-    
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, name, username, items, balance, total_opens, duplicates, bet_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                   (uid, n, un, "", 0, 0, 0, 0))
-    conn.commit()
-    return set(), 0, 0, 0, 0
-
-def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count):
-    # Превращаем словарь инвентаря обратно в строку через запятую для базы данных
-    if isinstance(items, dict):
-        items_str = ",".join([name for name, count in items.items() for _ in range(count)])
-    else:
-        items_str = ",".join(list(items))
-
-    cursor.execute("UPDATE users SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ? WHERE user_id = ?",
-                   (items_str, balance, total_opens, duplicates, bet_count, uid))
-    conn.commit()
 
 # ОЖИВИТЕЛЬ
 async def handle(r): return web.Response(text="Alive")
@@ -231,65 +225,41 @@ MONEY_REWARDS = {
     "👑 ИДЕАЛЬНАЯ (1%)": 5000
 }
 
-@dp.message(F.text == "🦶 Выбить пятку")
-async def open_case(message: types.Message):
-    user_id = message.from_user.id
-    current_time = time.time()
+def get_smart_random_card(user_id, inv_dict, rarity, pity_counter):
+    # Получаем все карты этой редкости из DATA
+    all_cards = list(DATA[rarity].keys())
     
-    # Кулдаун 1 секунда
-    if user_id in last_time and current_time - last_time[user_id] < 1:
-        return await message.answer("⏳ Подожди 1 сек.")
+    # Разделяем карты на новые для игрока и те, что уже есть
+    my_cards_in_rarity = [card for card in all_cards if card in inv_dict and inv_dict[card] > 0]
+    new_cards_in_rarity = [card for card in all_cards if card not in inv_dict or inv_dict[card] == 0]
     
-    # Получаем данные пользователя
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
-    inv = list(inv)
-    
-    # Выбираем редкость
-    res_list = random.choices(RARITIES, weights=WEIGHTS)
-    rarity = res_list[0]
-    
-    # Выбираем предмет
-    items = list(DATA[rarity].items())
-    item_name, photo_id = random.choice(items)
-    reward = MONEY_REWARDS.get(rarity, 0)
-    total_opens += 1
-    balance += reward
+    # 1. Для Мифических, Легендарных и Идеальных: шанс на повторку — 0%
+    if rarity in ["🔴 МИФИЧЕСКАЯ (4%)", "🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"]:
+        if new_cards_in_rarity:
+            return random.choice(new_cards_in_rarity), True, pity_counter
+        else:
+            # Если игрок вдруг собрал вообще ВСЕ карты этой редкости
+            return random.choice(all_cards), False, pity_counter
 
-        # Проверяем, есть ли уже такая пятка
-    if item_name in inv:
-        # Если ЕСТЬ — это повторка
-        duplicates += 1
-        status = f"♻️ **Повторка!**\nВыпало: {item_name}\nЗачислено: +{reward} 💰"
+    # 2. Если все карты этой редкости уже открыты (Вариант А): всегда повторка
+    if not new_cards_in_rarity:
+        return random.choice(all_cards), False, pity_counter
+
+    # 3. Защита от застревания: если уже выпало 3 повторки подряд, 4-я — 100% новая
+    if pity_counter >= 3:
+        return random.choice(new_cards_in_rarity), True, 0
+
+    # 4. Обычный ролл 80% на новую карту / 20% на повторку
+    roll = random.randint(1, 100)
+    if roll <= 80:
+        # Выпала новая карта
+        return random.choice(new_cards_in_rarity), True, 0
     else:
-        # Если НЕТ — добавляем в список
-        inv.append(item_name)
-        status = f"✨ **НОВАЯ ПЯТКА!**\nВыпало: {item_name}\nДобавлена в коллекцию! (+{reward} 💰)"
-    
-    # Сохраняем статистику (теперь бесплатно)
-    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
-    last_time[user_id] = current_time
-    
-        # Шансы и иконки (строки 272-274)
-    chances = {"ОБЫЧНАЯ": "45%", "НЕОБЫЧНАЯ": "25%", "РЕДКАЯ": "15%", "ЭПИЧЕСКАЯ": "10%", "МИФИЧЕСКАЯ": "3%", "ЛЕГЕНДАРНАЯ": "1.5%", "ИДЕАЛЬНАЯ": "1%"}
-    icons = {"ОБЫЧНАЯ": "⚪️", "НЕОБЫЧНАЯ": "🟢", "РЕДКАЯ": "🔵", "ЭПИЧЕСКАЯ": "🟣", "МИФИЧЕСКАЯ": "🔴", "ЛЕГЕНДАРНАЯ": "🟡", "ИДЕАЛЬНАЯ": "👑"}
-    
-    # Исправляем строки 277-279
-    rarity_key = rarity.upper()
-    chance = chances.get(rarity_key, "") # Теперь тут пусто вместо "???"
-    icon = icons.get(rarity_key, "")     # Теперь тут пусто вместо "❓"
-    
-    # Формируем чистый текст (строка 280+)
-    caption = (
-        f"🎉 **Поздравляю** 🎉\n\n"
-        f"Вам выпала • {icon} **{item_name}**\n"
-        f"Редкость • {icon} **{rarity_key} ({chance})**\n"
-        f"🎒 Пятка добавлена! (+{reward} 💰)\n"
-        f"💰 Твой баланс: **{balance}** монет"
-    )
-    try:
-        await message.answer_photo(photo_id, caption=caption, parse_mode="Markdown")
-    except Exception as e:
-        await message.answer(f"{caption}\n\n(Ошибка фото: {e})")
+        # Выпала повторка (если повторок у игрока еще нет физически — выдаем новую)
+        if my_cards_in_rarity:
+            return random.choice(my_cards_in_rarity), False, pity_counter + 1
+        else:
+            return random.choice(new_cards_in_rarity), True, 0
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: Message):
@@ -714,15 +684,22 @@ async def check_promo_cmd(message: types.Message, state: FSMContext):
         await message.answer("❌ Неверный код! Попробуй еще раз или нажми 'Назад'.")
 
 async def main():
-    # Добавляем новые колонки в базу, если их еще нет
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 0")
-        cursor.execute("ALTER TABLE users ADD COLUMN total_opens INTEGER DEFAULT 0")
-        cursor.execute("ALTER TABLE users ADD COLUMN duplicates INTEGER DEFAULT 0")
-        conn.commit()
-    except:
-        pass # Если колонки уже созданы, просто идем дальше
+    # Добавляем новые колонки в базу для старых игроков, если их еще нет
+    try: cursor.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 0")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN total_opens INTEGER DEFAULT 0")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN duplicates INTEGER DEFAULT 0")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN pity_counter INTEGER DEFAULT 0")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN current_day INTEGER DEFAULT 1")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN last_claim_date TEXT DEFAULT ''")
+    except: pass
     
+    conn.commit()
+
     await start_web()
     await dp.start_polling(bot)
 
