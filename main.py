@@ -977,6 +977,92 @@ async def show_quests_list(message: Message):
     )
     
     await message.answer(text, parse_mode="Markdown")
+    
+@dp.message(F.text == "📅 Календарь")
+async def show_calendar_cmd(message: Message):
+    user_id = message.from_user.id
+    
+    # 1. Получаем базовые данные
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, message.from_user.full_name, message.from_user.username
+    )
+    
+    # 2. Безопасное получение данных игры
+    try:
+        pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
+    except Exception:
+        # Если колонок в БД еще нет, ставим дефолтные значения
+        pity_counter = 0
+        current_day = 0
+        last_claim_date = None
+
+    # Гарантируем, что если данные пришли пустые, бот не выдаст ошибку
+    if current_day is None:
+        current_day = 0
+
+    today_str = str(get_moscow_date())
+    
+    # 1. Проверка на финал календаря
+    if current_day > 30 or (current_day == 30 and last_claim_date == today_str):
+        txt = (
+            "🏁 **КАЛЕНДАРЬ ЗАВЕРШЕН**\n\n"
+            "Ты уже забрал все 30 наград и прошел путь новичка до конца. Твой стартовый бонус полностью выплачен.\n"
+            "Теперь твой доход — это новые пятки, квесты и дубликаты. Посмотрим, сможешь ли ты собрать всю коллекцию до конца!"
+        )
+        return await message.answer(txt, parse_mode="Markdown")
+
+    # 2. Проверка: Забирали ли уже сегодня
+    if last_claim_date == today_str:
+        return await message.answer("📅 **Ежедневный бонус**\n\nВы уже забрали сегодняшнюю награду! ❌\nЗаходи завтра после 00:00 по МСК!", parse_mode="Markdown")
+
+    # 3. Расчёт дней с проверкой на пропуск
+    new_day = current_day
+    if last_claim_date:
+        try:
+            last_date = datetime.strptime(last_claim_date, "%Y-%m-%d").date()
+            delta = get_moscow_date() - last_date
+            if delta.days > 1:
+                new_day = 1  # Сброс за пропуск дня
+            elif delta.days == 1:
+                new_day += 1 # Следующий день серии
+        except Exception:
+            new_day = 1
+    else:
+        new_day = 1
+
+    # На всякий случай страхуем границы сетки наград
+    if new_day < 1:
+        new_day = 1
+    if new_day > 30:
+        new_day = 30
+
+    reward_coins = DAILY_REWARDS.get(new_day, 200)
+    balance += reward_coins
+    
+    # Сохраняем прогресс (пробуем обновить расширенные статы)
+    try:
+        update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, new_day, today_str)
+    except Exception:
+        # Если функция update_user_stats падает из-за нехватки аргументов, сохраняем базовые статы напрямую SQL-запросом
+        cursor.execute(
+            "UPDATE users SET balance = ?, current_day = ?, last_claim_date = ? WHERE user_id = ?",
+            (balance, new_day, today_str, user_id)
+        )
+        conn.commit()
+    
+    # 4. Вывод праздничных сообщений для контрольных дней
+    if new_day == 7:
+        msg = f"🏆 **НЕДЕЛЯ ПОЗАДИ!**\nТы забирал бонусы 7 дней подряд. Первая серьезная отметка достигнута!\n\n💰 Награда: {reward_coins} монет\n✨ Не останавливайся, впереди еще много интересного.\n👣"
+    elif new_day == 14:
+        msg = f"🏆 **ДВЕ НЕДЕЛИ В ИГРЕ!**\nТы забираешь награды уже 14 дней. Это половина пути до финала!\n\n💰 Награда: {reward_coins} монет\n✨ Твой капитал растет, как и твоя коллекция.\n💎"
+    elif new_day == 21:
+        msg = f"🏆 **ТРИ НЕДЕЛИ ВЕРНОСТИ!**\n21 день пролетает незаметно, когда цель близка. Осталась последняя прямая!\n\n💰 Награда: {reward_coins} монет\n✨ Совсем скоро ты заберешь главный приз.\n🔥"
+    elif new_day == 30:
+        msg = f"👑 **ФИНАЛЬНАЯ НАГРАДА ПОЛУЧЕНА!**\nПоздравляем! Ты прошел путь длиной в 30 дней и забрал последний бонус. Твоё упорство достойно уважения!\n\n💰 Награда: {reward_coins} монет\n🏁 Твой календарь наград завершен.\nТеперь ты — опытный коллекционер. Используй этот капитал с умом!\n✨"
+    else:
+        msg = f"📅 **Ежедневный бонус**\nНаграда № {new_day}/30 получена!\n\n💰 Начислено: {reward_coins} монет\nЗаходи завтра после 00:00 по МСК!"
+
+    await message.answer(msg, parse_mode="Markdown")
 
 async def main():
     # Добавляем новые колонки в базу для старых игроков, если их еще нет
