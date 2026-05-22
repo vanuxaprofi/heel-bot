@@ -207,14 +207,12 @@ def get_user_game_features(uid):
         return r[0], r[1], r[2]
     return 0, 1, ""
     
-def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter=0, current_day=1, last_claim_date=''):
+def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter=0, current_day=1, last_claim_date='', msg=None):
     if isinstance(items, dict):
         items_str = ",".join([name for name, count in items.items() for _ in range(count)])
     else:
         items_str = ",".join(list(items))
         
-    # Защита: если старая игра прислала дефолтные значения, 
-    # подтягиваем настоящие данные из базы, чтобы не обнулять их игроку
     if pity_counter == 0 and current_day == 1 and last_claim_date == '':
         cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
         res = cursor.fetchone()
@@ -228,6 +226,11 @@ def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, p
         WHERE user_id = ?
     """, (items_str, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date, uid))
     conn.commit()
+
+    # Если в функцию передали сообщение, бот автоматически проверяет квесты
+    if msg is not None:
+        import asyncio
+        asyncio.create_task(check_and_grant_quests(msg, uid, items, balance))
 
 # ОЖИВИТЕЛЬ
 async def handle(r): return web.Response(text="Alive")
@@ -337,7 +340,7 @@ async def open_case(message: types.Message, state: FSMContext):
 
     balance += reward
 
-    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date, msg=message)
     last_time[user_id] = current_time
 
     chances = {"⚪ ОБЫЧНАЯ (45%)": "45%", "🟢 НЕОБЫЧНАЯ (25%)": "25%", "🔵 РЕДКАЯ (15%)": "15%", "🟣 ЭПИЧЕСКАЯ (8%)": "8%", "🔴 МИФИЧЕСКАЯ (4%)": "4%", "🟡 ЛЕГЕНДАРНАЯ (2%)": "2%", "👑 ИДЕАЛЬНАЯ (1%)": "1%"}
@@ -359,9 +362,6 @@ async def open_case(message: types.Message, state: FSMContext):
         await message.answer_photo(photo_id, caption=caption, parse_mode="Markdown")
     except Exception as e:
         await message.answer(f"{caption}\n\n(Ошибка фото: {e})")
-
-    # Вызов проверки квестов
-    await check_and_grant_quests(message, user_id, inv, balance)
 
 @dp.message(F.text == "🎒 Инвентарь")
 async def show_inventory(message: types.Message):
