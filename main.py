@@ -716,7 +716,7 @@ async def play_bet(message: types.Message, state: FSMContext):
         # Если в тексте кнопки есть слово Назад (независимо от смайликов)
         if message.text == "◀️ Назад":
             await state.clear()
-            return await back_to_main(message, state)
+            return await message.answer("Вы вернулись в главное меню", reply_markup=get_kb())
 
  # Сразу вызываем функцию главного меню
 
@@ -780,21 +780,8 @@ async def play_bet(message: types.Message, state: FSMContext):
 
 @dp.message(F.text == "◀️ Назад")
 async def back_to_main(message: types.Message, state: FSMContext):
-    # Полностью очищаем любые зависшие состояния (ставок, промокодов)
     await state.clear()
-    # Возвращаем главное меню, вызывая функцию get_kb()
     await message.answer("Вы вернулись в главное меню", reply_markup=get_kb())
-    
-    buttons = [
-        [KeyboardButton(text="🦶 Выбить пятку")],
-        [KeyboardButton(text="💰 Профиль"), KeyboardButton(text="🏪 Магазин")],
-        [KeyboardButton(text="🎰 Ставки"), KeyboardButton(text="🍀 Рандомайзер")],
-        [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="🏆 Топ игроков")],
-        [KeyboardButton(text="🎁 Промокод")] # Убедитесь, что тут закрыты обе скобки: ])
-    ]
-    
-    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer("Вы вернулись в главное меню", reply_markup=kb)
 
 # КД для рандомайзера: 9 часов = 32400 секунд
 RAND_COOLDOWN = 32400 
@@ -884,7 +871,7 @@ ACTIVE_PROMOS = {
 async def check_promo_cmd(message: types.Message, state: FSMContext):
     if message.text == "◀️ Назад":
         await state.clear()
-        return await back_to_main(message, state)
+        return await message.answer("Вы вернулись в главное меню", reply_markup=get_kb())
 
     code = message.text.strip()
 
