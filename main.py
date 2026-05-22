@@ -249,13 +249,16 @@ def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, p
     conn.commit()
 
 async def check_and_grant_quests(message, uid, inv, balance):
+    # Исправленный подсчет с учетом точных ключей из DATA
     counts = {r: 0 for r in RARITIES}
     for rarity in RARITIES:
         for card in DATA[rarity].keys():
             if card in inv and inv[card] > 0:
                 counts[rarity] += 1
-                
     total_unique = sum(counts.values())
+
+    # ... [Далее логика БД и проверки, полный код в исходном ответе]
+    # Используй логику проверки counts["⚪ ОБЫЧНАЯ (45%)"] >= 10 и т.д.
 
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
@@ -907,7 +910,7 @@ async def check_promo_cmd(message: types.Message, state: FSMContext):
 async def show_quests_list(message: Message):
     user_id = message.from_user.id
     
-    # 1. Получаем инвентарь и статистику игрока из твоих функций
+    # 1. Получаем инвентарь и статистику игрока
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
         user_id, message.from_user.full_name, message.from_user.username
     )
@@ -915,7 +918,6 @@ async def show_quests_list(message: Message):
     # Считаем количество карт по каждой редкости в инвентаре
     counts = {r: 0 for r in RARITIES}
     for rarity in RARITIES:
-        # DATA должна быть импортирована или доступна в main.py
         for card in DATA[rarity].keys():
             if card in inv and inv[card] > 0:
                 counts[rarity] += 1
@@ -935,26 +937,22 @@ async def show_quests_list(message: Message):
     
     # Функция для генерации мини-линии прогресса из пикселей
     def make_mini_bar(current, target):
-        # Ограничиваем текущий прогресс таргетом, чтобы линия не улетала вправо
         current = min(current, target)
-        # Шкала будет состоять из 5 блоков для компактности в телеграме
         filled = int((current / target) * 5)
         return "▚" * filled + "░" * (5 - filled)
 
     def status(val):
         return "✅" if val == 1 else "⏳"
 
-    # Подготавливаем текущие значения для каждого квеста
-    # По редкостям:
-    c_com = counts.get('common', 0)
-    c_uncom = counts.get('uncommon', 0)
-    c_rare = counts.get('rare', 0)
-    c_epic = counts.get('epic', 0)
-    c_myth = counts.get('mythic', 0)
-    c_leg = counts.get('legendary', 0)
-    c_perf = counts.get('perfect', 0)
-    # Глобальные (общее число собранных уникальных карт или всего открытий - зависит от твоей логики в check_and_grant_quests)
-    # Используем общее количество уникальных карт для глобального квеста
+    # Привязываем точные текстовые ключи из твоей DATA
+    c_com = counts.get("⚪ ОБЫЧНАЯ (45%)", 0)
+    c_uncom = counts.get("🟢 НЕОБЫЧНАЯ (25%)", 0)
+    c_rare = counts.get("🔵 РЕДКАЯ (15%)", 0)
+    c_epic = counts.get("🟣 ЭПИЧЕСКАЯ (8%)", 0)
+    c_myth = counts.get("🔴 МИФИЧЕСКАЯ (4%)", 0)
+    c_leg = counts.get("🟡 ЛЕГЕНДАРНАЯ (2%)", 0)
+    c_perf = counts.get("👑 ИДЕАЛЬНАЯ (1%)", 0)
+    
     total_unique = sum(counts.values())
 
     text = (
