@@ -327,12 +327,12 @@ async def open_case(message: types.Message, state: FSMContext):
 
     if not is_new:
         duplicates += 1
-        reward = base_reward * 2  # Классический х2 за повторку
-        status = f"♻ **Повторка!**\nВыпало: {item_name}\nЗачислено: +{reward} 💰 (х2 бонус за повторку!)"
+        reward = base_reward * 2  # Наш х2 бонус за повторку
+        status = f"♻ **Повторка!**\nЗачислено: +{reward} 💰 (х2 бонус за повторку!)"
         inv[item_name] = inv.get(item_name, 0) + 1
     else:
         reward = base_reward
-        status = f"✨ **НОВАЯ ПЯТКА!**\nВыпало: {item_name}\nДобавлена в коллекцию! (+{reward} 💰)"
+        status = f"✨ **НОВАЯ ПЯТКА!**\nДобавлена в твою коллекцию! (+{reward} 💰)"
         inv[item_name] = 1
 
     balance += reward
@@ -349,8 +349,8 @@ async def open_case(message: types.Message, state: FSMContext):
 
     caption = (
         f"🎉 **Поздравляю** 🎉\n\n"
-        f"Вам выпала • {icon} **{item_name}**\n"
-        f"Редкость • {rarity} ({chance})\n\n"
+        f"Вам выпала • **{item_name}**\n"
+        f"Редкость • {rarity}\n\n"
         f"{status}\n"
         f"💰 Твой баланс: **{balance}** монет"
     )
