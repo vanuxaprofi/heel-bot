@@ -364,47 +364,56 @@ async def open_case(message: types.Message, state: FSMContext):
     await check_and_grant_quests(message, user_id, inv, balance)
 
 @dp.message(F.text == "🎒 Инвентарь")
-async def show_inventory(message: Message):
+async def show_inventory(message: types.Message):
     user_id = message.from_user.id
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    
+    # 1. Запрашиваем инвентарь из базы данных
+    cursor.execute("SELECT items FROM users WHERE user_id = ?", (user_id,))
+    r = cursor.fetchone()
+    raw_list = r[0].split(",") if r and r[0] else []
+    inv = {name: raw_list.count(name) for name in set(raw_list) if name}
 
     if not inv:
-        return await message.answer("🎒 Твой инвентарь пока пуст!")
+        return await message.answer("🎒 Твой рюкзак пуст! Выбей свою первую пятку.")
 
-    # 1. Берем категории прямо из твоего словаря DATA, чтобы не ошибиться в буквах
-    categories = {rarity: [] for rarity in DATA.keys()}
-    
-    # 2. Цены (названия должны СТРОГО совпадать с ключами в DATA)
-    prices = {
-        "⚪ ОБЫЧНАЯ (45%)": 50,
-        "🟢 НЕОБЫЧНАЯ (25%)": 150,
-        "🔵 РЕДКАЯ (15%)": 450,
-        "🟣 ЭПИЧЕСКАЯ (8%)": 1200,
-        "🔴 МИФИЧЕСКАЯ (4%)": 3500,
-        "🟡 ЛЕГЕНДАРНАЯ (2%)": 10000,
-        "👑 ИДЕАЛЬНАЯ (1%)": 50000
+    text = "🎒 **Твой рюкзак и стоимость коллекции:**\n\n"
+    total_collection_value = 0
+
+    # Словарь иконок для категорий редкостей
+    icons = {
+        "⚪ ОБЫЧНАЯ (45%)": "⚪", 
+        "🟢 НЕОБЫЧНАЯ (25%)": "🟢", 
+        "🔵 РЕДКАЯ (15%)": "🔵", 
+        "🟣 ЭПИЧЕСКАЯ (8%)": "🟣", 
+        "🔴 МИФИЧЕСКАЯ (4%)": "🔴", 
+        "🟡 ЛЕГЕНДАРНАЯ (2%)": "🟡", 
+        "👑 ИДЕАЛЬНАЯ (1%)": "👑"
     }
 
-    total_value = 0
+    # 2. Перебираем редкости по порядку
+    for rarity in RARITIES:
+        base_price = MONEY_REWARDS.get(rarity, 0) 
+        rarity_text = ""
+        icon = icons.get(rarity, "🔹")
 
-    # 3. Раскладываем пятки
-    for name, count in inv.items():
-        rarity = ALL_FEETS.get(name)
-        if rarity in categories:
-            categories[rarity].append(f"• {name} — {count} шт.")
-            total_value += prices.get(rarity, 0) * count
+        for card_name in DATA[rarity].keys():
+            if card_name in inv and inv[card_name] > 0:
+                count = inv[card_name]
+                
+                # Расчет цены: 1-я уникальная карта = номинал, остальные = х2 цена повторки
+                card_value = base_price + (base_price * 2 * (count - 1))
+                total_collection_value += card_value
 
-    # 4. Формируем текст
-    response = "🎒 **ТВОЙ ИНВЕНТАРЬ**\n\n"
-    for rar_name, items in categories.items():
-        response += f"**{rar_name}:**\n"
-        if items:
-            response += "\n".join(items) + "\n\n"
-        else:
-            response += "*(Пусто)*\n\n"
+                if count > 1:
+                    rarity_text += f"• {card_name} — {count} шт. (1-я: {base_price} 🪙 + {count-1} повт.: +{base_price * 2 * (count - 1)} 🪙)\n"
+                else:
+                    rarity_text += f"• {card_name} — 1 шт. ({base_price} 🪙)\n"
 
-    response += f"💰 **Общая стоимость:** {total_value} монет"
-    await message.answer(response, parse_mode="Markdown")
+        if rarity_text:
+            text += f"{icon} **{rarity}** (Базовая: {base_price} 🪙 / Повторка: {base_price * 2} 🪙):\n{rarity_text}\n"
+
+    text += f"📊 **Общая ценность твоих пяток:** {total_collection_value} 🪙"
+    await message.answer(text, parse_mode="Markdown")
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
