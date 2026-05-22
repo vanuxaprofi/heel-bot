@@ -988,13 +988,11 @@ async def show_calendar_cmd(message: Message):
             user_id, message.from_user.full_name, message.from_user.username
         )
         
-        # 2. Безопасное чтение игровых фич
-    try:
+        # # 2. Безопасное чтение игровых фич (вставляй строго с четырьмя пробелами отступа!)
         pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
-     except Exception:
-        pity_counter = 0
-        current_day = 0
-        last_claim_date = None
+
+        if current_day is None:
+            current_day = 0
 
         if current_day is None:
             current_day = 0
