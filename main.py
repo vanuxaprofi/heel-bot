@@ -148,7 +148,8 @@ class BetState(StatesGroup):
 class PromoState(StatesGroup):
     waiting_for_code = State()
 class LimitState(StatesGroup):
-    playing = State()
+    choosing_bet = State()  # Новый этап: выбор суммы
+    playing = State()       # Сам раунд (Больше/Меньше)
 last_bet_time = {}
 last_time = {}
 last_random_time = {}
@@ -658,6 +659,9 @@ async def buy_chest(call: types.CallbackQuery):
         
     await call.answer()
 
+LIMIT_COOLDOWN = 32400
+last_limit_time = {}
+
 @dp.message(F.text == "🎰 Ставки")
 async def start_bet_cmd(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
@@ -887,85 +891,311 @@ def get_limit_keyboard():
         ]
     ])
 
+# --- ИГРА «ЛИМИТ» С ВЫБОРОМ СТАВКИ И КД ---
+
+def get_limit_inline_kb(multiplier=2):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=f"🔽 Меньше ([{multiplier}х])", callback_data="limit_less"),
+            InlineKeyboardButton(text=f"🔼 Больше ([{multiplier}х])", callback_data="limit_more")
+        ]
+    ])
+
+# 1. Нажатие кнопки в главном меню — открываем выбор ставки
 @dp.message(F.text == "🎲 Лимит")
-async def start_limit_game(message: Message, state: FSMContext):
+async def start_limit_cmd(message: Message, state: FSMContext):
     user_id = message.from_user.id
+    current_time = time.time()
     
+    # Получаем данные, чтобы проверить bet_count (используем твой счетчик)
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
         user_id, message.from_user.full_name, message.from_user.username
     )
     
-    if balance < 10:
-        return await message.answer("❌ **[Недостаточно монет]** для игры в ЛИМИТ! Нужно минимум **[10]** 💰")
+    # Проверка КД: если 3 попытки уже израсходованы
+    if bet_count >= 3:
+        if user_id in last_limit_time and current_time - last_limit_time[user_id] < LIMIT_COOLDOWN:
+            rem = int(LIMIT_COOLDOWN - (current_time - last_limit_time[user_id]))
+            h, m = rem // 3600, (rem % 3600) // 60
+            return await message.answer(f"⏳ Попытки кончились! Новые в ЛИМИТ будут через {h} ч. {m} мин.")
+        else:
+            # Если 9 часов прошло — сбрасываем счетчик попыток в базе
+            bet_count = 0
+            update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
+
+    # Меню выбора ставки как в Рандомайзере
+    buttons = [
+        [KeyboardButton(text="🎰 Ставка 100"), KeyboardButton(text="🎰 Ставка 500")],
+        [KeyboardButton(text="🎰 Ставка 1000")],
+        [KeyboardButton(text="◀ Назад")]
+    ]
+    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     
+    await state.set_state(LimitState.choosing_bet)
+    await message.answer("🎲 **ЛИМИТ**\n\nВыбери размер твоей ставки кнопками ниже 👇", reply_markup=kb, parse_mode="Markdown")
+
+# 2. Обработка выбранной ставки и генерация первого числа
+@dp.message(LimitState.choosing_bet)
+async def limit_choose_bet(message: Message, state: FSMContext):
+    if message.text == "◀ Назад":
+        await state.clear()
+        return await message.answer("Вы вернулись в главное меню", reply_markup=get_kb())
+        
+    # Извлекаем сумму ставки из текста кнопки
+    try:
+        bet = int(message.text.split()[-1])
+    except:
+        return await message.answer("Пожалуйста, используй кнопки для выбора ставки!")
+        
+    if bet not in [100, 500, 1000]:
+        return await message.answer("Неверная ставка! Выбери 100, 500 или 1000.")
+        
+    user_id = message.from_user.id
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, message.from_user.full_name, message.from_user.username
+    )
+    
+    if balance < bet:
+        return await message.answer(f"❌ Не хватает монет! Твой баланс: {balance} 💰")
+        
+    # Генерируем первое число
     start_number = random.randint(1, 100)
     
-    await state.update_data(current_number=start_number)
+    # Сохраняем ставку и число в FSM
+    await state.update_data(current_bet=bet, current_number=start_number)
     await state.set_state(LimitState.playing)
     
     text = (
         f"📊 **Игра «ЛИМИТ»**\n\n"
         f"Бот выбрал число: **[{start_number}]** 🎲\n\n"
-        f"Как думаете, каким будет следующее число от **[1]** до **[100]**? 👇\n"
-        f"💡 *Ставка: [10] монет*"
+        f"Как думаете, каким будет следующее число от [1] до [100]? 👇\n"
+        f"💡 *Ваша ставка: [{bet}] монет*"
     )
     
-    await message.answer(text, reply_markup=get_limit_keyboard(), parse_mode="Markdown")
+    # Переключаем игрока на инлайн-кнопки Больше/Меньше
+    await message.answer(text, reply_markup=get_limit_inline_kb(), parse_mode="Markdown")
 
-
+# 3. Обработка инлайн-кнопок (Меньше / Больше)
 @dp.callback_query(LimitState.playing, F.data.startswith("limit_"))
 async def process_limit_choice(call: CallbackQuery, state: FSMContext):
     user_id = call.from_user.id
-    # Исправлено: забираем чистый выбор "less" или "more"
-    choice = call.data.replace("limit_", "") 
+    choice = call.data.replace("limit_", "")
+    current_time = time.time()
     
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
         user_id, call.from_user.full_name, call.from_user.username
     )
     pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
     
-    if balance < 10:
-        await state.clear()
-        return await call.answer("❌ У вас не хватает монет!", show_alert=True)
-    
+    # Достаем данные раунда из памяти
     user_data = await state.get_data()
+    bet = user_data.get("current_bet", 100)
     old_number = user_data.get("current_number")
     
     if not old_number:
         await state.clear()
         return await call.message.answer("⚠️ Сессия игры устарела. Нажмите «🎲 Лимит» снова.")
+        
+    if balance < bet:
+        await state.clear()
+        return await call.answer("❌ У вас резко уменьшился баланс!", show_alert=True)
+        
+    # Списываем монеты и прибавляем попытку за игру
+    balance -= bet
+    bet_count += 1
     
+    # Если это была 3-я попытка — включаем таймер КД на 9 часов
+    if bet_count >= 3:
+        last_limit_time[user_id] = current_time
+        
     new_number = random.randint(1, 100)
-    balance -= 10
     
     is_win = False
     if choice == "more" and new_number > old_number:
         is_win = True
     elif choice == "less" and new_number < old_number:
         is_win = True
-    
+        
     if is_win:
-        balance += 20 
+        win_amount = bet * 2
+        balance += win_amount
         result_text = (
             f"🎉 **Победа!**\n"
             f"Новое число: **[{new_number}]** 🎲\n\n"
-            f"Вы угадали и забираете выигрыш **[2х]**!\n"
-            f"💰 Ваш баланс: **[{balance}]** монет."
+            f"Вы угадали и забираете выигрыш **[2х]** (+{win_amount} 💰)!\n"
+            f"💰 Ваш баланс: **[{balance}]** монет.\n"
+            f"Осталось попыток до КД: **[{max(0, 3 - bet_count)}]**"
         )
     else:
         result_text = (
             f"😢 **Не повезло...**\n"
             f"Новое число: **[{new_number}]** 🎲\n\n"
-            f"Ваша ставка **[10]** монет сгорела.\n"
+            f"Ваша ставка **[{bet}]** монет сгорела.\n"
             f"💰 Ваш баланс: **[{balance}]** монет.\n"
-            f"Попробуйте еще раз!"
+            f"Осталось попыток до КД: **[{max(0, 3 - bet_count)}]**"
         )
         
+    # Сохраняем новые данные в SQLite
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
     
+    # Сбрасываем стейт, возвращаем обычную клавиатуру главного меню
     await call.message.edit_text(result_text, parse_mode="Markdown")
+    await call.message.answer("Вы вернулись в меню. Можете сыграть еще раз или выбрать другую вкладку.", reply_markup=get_kb())
     await state.clear()
     await call.answer()
+# --- ИГРА «ЛИМИТ» С ВЫБОРОМ СТАВКИ И КД ---
+
+def get_limit_inline_kb(multiplier=2):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=f"🔽 Меньше ([{multiplier}х])", callback_data="limit_less"),
+            InlineKeyboardButton(text=f"🔼 Больше ([{multiplier}х])", callback_data="limit_more")
+        ]
+    ])
+
+# 1. Нажатие кнопки в главном меню — открываем выбор ставки
+@dp.message(F.text == "🎲 Лимит")
+async def start_limit_cmd(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    current_time = time.time()
+    
+    # Получаем данные, чтобы проверить bet_count (используем твой счетчик)
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, message.from_user.full_name, message.from_user.username
+    )
+    
+    # Проверка КД: если 3 попытки уже израсходованы
+    if bet_count >= 3:
+        if user_id in last_limit_time and current_time - last_limit_time[user_id] < LIMIT_COOLDOWN:
+            rem = int(LIMIT_COOLDOWN - (current_time - last_limit_time[user_id]))
+            h, m = rem // 3600, (rem % 3600) // 60
+            return await message.answer(f"⏳ Попытки кончились! Новые в ЛИМИТ будут через {h} ч. {m} мин.")
+        else:
+            # Если 9 часов прошло — сбрасываем счетчик попыток в базе
+            bet_count = 0
+            update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count)
+
+    # Меню выбора ставки как в Рандомайзере
+    buttons = [
+        [KeyboardButton(text="🎰 Ставка 100"), KeyboardButton(text="🎰 Ставка 500")],
+        [KeyboardButton(text="🎰 Ставка 1000")],
+        [KeyboardButton(text="◀ Назад")]
+    ]
+    kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    
+    await state.set_state(LimitState.choosing_bet)
+    await message.answer("🎲 **ЛИМИТ**\n\nВыбери размер твоей ставки кнопками ниже 👇", reply_markup=kb, parse_mode="Markdown")
+
+# 2. Обработка выбранной ставки и генерация первого числа
+@dp.message(LimitState.choosing_bet)
+async def limit_choose_bet(message: Message, state: FSMContext):
+    if message.text == "◀ Назад":
+        await state.clear()
+        return await message.answer("Вы вернулись в главное меню", reply_markup=get_kb())
+        
+    # Извлекаем сумму ставки из текста кнопки
+    try:
+        bet = int(message.text.split()[-1])
+    except:
+        return await message.answer("Пожалуйста, используй кнопки для выбора ставки!")
+        
+    if bet not in [100, 500, 1000]:
+        return await message.answer("Неверная ставка! Выбери 100, 500 или 1000.")
+        
+    user_id = message.from_user.id
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, message.from_user.full_name, message.from_user.username
+    )
+    
+    if balance < bet:
+        return await message.answer(f"❌ Не хватает монет! Твой баланс: {balance} 💰")
+        
+    # Генерируем первое число
+    start_number = random.randint(1, 100)
+    
+    # Сохраняем ставку и число в FSM
+    await state.update_data(current_bet=bet, current_number=start_number)
+    await state.set_state(LimitState.playing)
+    
+    text = (
+        f"📊 **Игра «ЛИМИТ»**\n\n"
+        f"Бот выбрал число: **[{start_number}]** 🎲\n\n"
+        f"Как думаете, каким будет следующее число от [1] до [100]? 👇\n"
+        f"💡 *Ваша ставка: [{bet}] монет*"
+    )
+    
+    # Переключаем игрока на инлайн-кнопки Больше/Меньше
+    await message.answer(text, reply_markup=get_limit_inline_kb(), parse_mode="Markdown")
+
+# 3. Обработка инлайн-кнопок (Меньше / Больше)
+@dp.callback_query(LimitState.playing, F.data.startswith("limit_"))
+async def process_limit_choice(call: CallbackQuery, state: FSMContext):
+    user_id = call.from_user.id
+    choice = call.data.replace("limit_", "")
+    current_time = time.time()
+    
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, call.from_user.full_name, call.from_user.username
+    )
+    pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
+    
+    # Достаем данные раунда из памяти
+    user_data = await state.get_data()
+    bet = user_data.get("current_bet", 100)
+    old_number = user_data.get("current_number")
+    
+    if not old_number:
+        await state.clear()
+        return await call.message.answer("⚠️ Сессия игры устарела. Нажмите «🎲 Лимит» снова.")
+        
+    if balance < bet:
+        await state.clear()
+        return await call.answer("❌ У вас резко уменьшился баланс!", show_alert=True)
+        
+    # Списываем монеты и прибавляем попытку за игру
+    balance -= bet
+    bet_count += 1
+    
+    # Если это была 3-я попытка — включаем таймер КД на 9 часов
+    if bet_count >= 3:
+        last_limit_time[user_id] = current_time
+        
+    new_number = random.randint(1, 100)
+    
+    is_win = False
+    if choice == "more" and new_number > old_number:
+        is_win = True
+    elif choice == "less" and new_number < old_number:
+        is_win = True
+        
+    if is_win:
+        win_amount = bet * 2
+        balance += win_amount
+        result_text = (
+            f"🎉 **Победа!**\n"
+            f"Новое число: **[{new_number}]** 🎲\n\n"
+            f"Вы угадали и забираете выигрыш **[2х]** (+{win_amount} 💰)!\n"
+            f"💰 Ваш баланс: **[{balance}]** монет.\n"
+            f"Осталось попыток до КД: **[{max(0, 3 - bet_count)}]**"
+        )
+    else:
+        result_text = (
+            f"😢 **Не повезло...**\n"
+            f"Новое число: **[{new_number}]** 🎲\n\n"
+            f"Ваша ставка **[{bet}]** монет сгорела.\n"
+            f"💰 Ваш баланс: **[{balance}]** монет.\n"
+            f"Осталось попыток до КД: **[{max(0, 3 - bet_count)}]**"
+        )
+        
+    # Сохраняем новые данные в SQLite
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
+    
+    # Сбрасываем стейт, возвращаем обычную клавиатуру главного меню
+    await call.message.edit_text(result_text, parse_mode="Markdown")
+    await call.message.answer("Вы вернулись в меню. Можете сыграть еще раз или выбрать другую вкладку.", reply_markup=get_kb())
+    await state.clear()
+    await call.answer()
+
        
 @dp.message(F.text == "📜 Квесты")
 async def show_quests_list(message: Message):
