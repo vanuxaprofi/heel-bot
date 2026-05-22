@@ -452,7 +452,7 @@ async def open_case(message: types.Message, state: FSMContext):
 
     balance += reward
 
-    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date, msg=message)
+    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
     last_time[user_id] = current_time
 
     chances = {"⚪ ОБЫЧНАЯ (45%)": "45%", "🟢 НЕОБЫЧНАЯ (25%)": "25%", "🔵 РЕДКАЯ (15%)": "15%", "🟣 ЭПИЧЕСКАЯ (8%)": "8%", "🔴 МИФИЧЕСКАЯ (4%)": "4%", "🟡 ЛЕГЕНДАРНАЯ (2%)": "2%", "👑 ИДЕАЛЬНАЯ (1%)": "1%"}
