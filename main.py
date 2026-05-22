@@ -192,6 +192,7 @@ def get_user_data(uid, n, un):
     cursor.execute("SELECT items, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (uid,))
     r = cursor.fetchone()
     if r:
+        # ИСПРАВЛЕНИЕ: Разбиваем именно ячейку ИНВЕНТАРЯ (индекс 0 в нашем SQL-запросе!)
         raw_list = r[0].split(",") if r[0] else []
         items = {name: raw_list.count(name) for name in set(raw_list) if name}
         return items, r[1], r[2], r[3], r[4]
