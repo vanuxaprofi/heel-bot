@@ -376,32 +376,51 @@ async def show_inventory(message: types.Message):
     if not inv:
         return await message.answer("🎒 Твой рюкзак пуст! Выбей свою первую пятку.")
 
+    @dp.message(F.text == "🎒 Инвентарь")
+async def show_inventory(message: types.Message):
+    user_id = message.from_user.id
+    
+    # 1. Запрашиваем инвентарь игрока из базы данных
+    cursor.execute("SELECT items FROM users WHERE user_id = ?", (user_id,))
+    r = cursor.fetchone()
+    raw_list = r.split(",") if r and r else []
+    inv = {name: raw_list.count(name) for name in set(raw_list) if name}
+
+    if not inv:
+        return await message.answer("🎒 Твой рюкзак пуст! Выбей свою первую пятку.")
+
     text = "🎒 **ТВОЙ ИНВЕНТАРЬ**\n\n"
     total_collection_value = 0
 
-    # 2. Перебираем редкости строго в вашем старом стиле
+    # 2. Перебираем редкости и считаем прогресс сборки
     for rarity in RARITIES:
         base_price = MONEY_REWARDS.get(rarity, 0) 
         rarity_text = ""
+        
+        # Считаем, сколько ВСЕГО карт в этой редкости прописано в DATA
+        total_cards_in_rarity = len(DATA[rarity].keys())
+        # Считаем, сколько УНИКАЛЬНЫХ карт из них уже открыл игрок
+        collected_unique = 0
 
         for card_name in DATA[rarity].keys():
             if card_name in inv and inv[card_name] > 0:
                 count = inv[card_name]
+                collected_unique += 1
                 
-                # Математика считает х2 за копии в фоне, но не спамит формулами в текст
+                # Математика стоимости (1-я = номинал, повторки = х2)
                 card_value = base_price + (base_price * 2 * (count - 1))
                 total_collection_value += card_value
 
                 # Чистый старый стиль вывода строк
                 rarity_text += f"• {card_name} — {count} шт.\n"
 
-        # Если в редкости что-то есть — выводим категорию, если нет — пишем (Пусто)
+        # Выводим заголовок редкости с указанием прогресса (например, Собрано: 4/10)
         if rarity_text:
-            text += f"**{rarity}**:\n{rarity_text}\n"
+            text += f"**{rarity}** (Собрано: {collected_unique}/{total_cards_in_rarity}):\n{rarity_text}\n"
         else:
-            text += f"**{rarity}**:\n(Пусто)\n\n"
+            text += f"**{rarity}** (Собрано: 0/{total_cards_in_rarity}):\n(Пусто)\n\n"
 
-    # Красивый финальный итог
+    # Финальный итог
     text += f"💰 **Общая стоимость:** {total_collection_value} монет"
     await message.answer(text, parse_mode="Markdown")
 
