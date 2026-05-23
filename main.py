@@ -387,12 +387,12 @@ else:
         await asyncio.sleep(0.5)
 
             # Пробуем отправить в ЛС, если бот заблокирован — кидаем в группу
-            try:
+        try:
                 if col in ["global_100", "dup_100", "win_10"]:
                     await message.bot.send_message(uid, f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
                 else:
                     await message.bot.send_message(uid, f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
-            except Exception:
+        except Exception:
                 if col in ["global_100", "dup_100", "win_10"]:
                     await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
                 else:
