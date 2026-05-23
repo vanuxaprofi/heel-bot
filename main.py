@@ -203,40 +203,21 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS user_quests
  dup_100 INTEGER DEFAULT 0)''')
 conn.commit()
 
-def get_user_data(uid, n, un):
-    # Достаем inventory из базы
-    cursor.execute("""
-        SELECT inventory, balance, total_opens, duplicates, bet_count,
-               pity_counter, current_day, last_claim_date
-        FROM users WHERE user_id = ?
-    """, (uid,))
-    r = cursor.fetchone()
-    
-    if r:
-        # Конвертируем строку инвентаря обратно в словарь для твоего кода
-        raw_str = r[0] if r[0] else ""
-        raw_list = [name.strip() for name in raw_str.split(",") if name.strip()]
-        items = {name: raw_list.count(name) for name in set(raw_list)}
-        
-        # Обновляем имя и юзернейм
-        cursor.execute("UPDATE users SET name = ?, username = ? WHERE user_id = ?", (n, un, uid))
-        conn.commit()
-        return items, r[1], r[2], r[3], r[4]
-        
-    # Если юзера нет в базе — создаем пустой словарь инвентаря
-    cursor.execute("""
-        INSERT INTO users (user_id, name, username, inventory, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
-        VALUES (?, ?, ?, '', 100, 0, 0, 0, 0, 1, '')
-    """, (uid, n, un))
-    conn.commit()
-    return {}, 100, 0, 0, 0
+def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter=None, current_day=None, last_claim_date=None):
+    if isinstance(items, dict):
+        items_str = ",".join([name for name, count in items.items() for _ in range(count)])
+    else:
+        items_str = ",".join(list(items))
 
-def get_user_game_features(uid):
-    cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
-    r = cursor.fetchone()
-    if r:
-        return r[0], r[1], r[2]
-    return 0, 1, ""
+    if pity_counter is None or current_day is None or last_claim_date is None:
+        cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
+        res = cursor.fetchone()
+        if res:
+            if pity_counter is None: pity_counter = res[0]
+            if current_day is None: current_day = res[1]
+            if last_claim_date is None: last_claim_date = res[2]
+        else:
+            pity_counter, current_day, last_claim_date = 0, 1, ""
 
     cursor.execute("""
         UPDATE users
@@ -245,6 +226,31 @@ def get_user_game_features(uid):
         WHERE user_id = ?
     """, (items_str, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date, uid))
     conn.commit()
+
+
+def get_user_data(uid, n, un):
+    cursor.execute("""
+        SELECT inventory, balance, total_opens, duplicates, bet_count,
+               pity_counter, current_day, last_claim_date
+        FROM users WHERE user_id = ?
+    """, (uid,))
+    r = cursor.fetchone()
+    
+    if r:
+        raw_str = r[0] if r[0] else ""
+        raw_list = [name.strip() for name in raw_str.split(",") if name.strip()]
+        items = {name: raw_list.count(name) for name in set(raw_list)}
+        
+        cursor.execute("UPDATE users SET name = ?, username = ? WHERE user_id = ?", (n, un, uid))
+        conn.commit()
+        return items, r[1], r[2], r[3], r[4]
+        
+    cursor.execute("""
+        INSERT INTO users (user_id, name, username, inventory, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
+        VALUES (?, ?, ?, '', 100, 0, 0, 0, 0, 1, '')
+    """, (uid, n, un))
+    conn.commit()
+    return {}, 100, 0, 0, 0
 
 async def check_and_grant_quests(message, uid, inv, balance):
     # 1. Считаем уникальные карты по каждой редкости (точно так же, как в меню квестов!)
