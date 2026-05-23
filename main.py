@@ -238,26 +238,10 @@ def get_user_game_features(uid):
         return r[0], r[1], r[2]
     return 0, 1, ""
 
-def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, pity_counter=None, current_day=None, last_claim_date=None):
-    if isinstance(items, dict):
-        items_str = ",".join([name for name, count in items.items() for _ in range(count)])
-    else:
-        items_str = ",".join(list(items))
-        
-    if pity_counter is None or current_day is None or last_claim_date is None:
-        cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
-        res = cursor.fetchone()
-        if res:
-            if pity_counter is None: pity_counter = res[0]
-            if current_day is None: current_day = res[1]
-            if last_claim_date is None: last_claim_date = res[2]
-        else:
-            pity_counter, current_day, last_claim_date = 0, 1, ""
-
     cursor.execute("""
-        UPDATE users 
-        SET items = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ?, 
-            pity_counter = ?, current_day = ?, last_claim_date = ? 
+        UPDATE users
+        SET inventory = ?, balance = ?, total_opens = ?, duplicates = ?, bet_count = ?,
+            pity_counter = ?, current_day = ?, last_claim_date = ?
         WHERE user_id = ?
     """, (items_str, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date, uid))
     conn.commit()
