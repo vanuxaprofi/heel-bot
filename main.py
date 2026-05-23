@@ -383,9 +383,9 @@ else:
             triggered = True
             cursor.execute(f"UPDATE user_quests SET {col} = 1 WHERE user_id = ?", (uid,))
             conn.commit()
-            
+
             await asyncio.sleep(0.5)
-            
+
             # Пробуем отправить в ЛС, если бот заблокирован — кидаем в группу
             try:
                 if col in ["global_100", "dup_100", "win_10"]:
@@ -397,6 +397,7 @@ else:
                     await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
                 else:
                     await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
+
 
     if triggered:
         cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
