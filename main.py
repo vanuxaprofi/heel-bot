@@ -161,6 +161,22 @@ async def start_cmd(message: Message):
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
 
+# 1. Создание таблицы пользователей (которая пропала)
+cursor.execute('''CREATE TABLE IF NOT EXISTS users 
+(user_id INTEGER PRIMARY KEY, 
+ name TEXT, 
+ username TEXT, 
+ inventory TEXT DEFAULT '', 
+ balance INTEGER DEFAULT 100, 
+ total_opens INTEGER DEFAULT 0, 
+ duplicates INTEGER DEFAULT 0, 
+ bet_count INTEGER DEFAULT 0, 
+ pity_counter INTEGER DEFAULT 0, 
+ current_day INTEGER DEFAULT 1, 
+ last_claim_date TEXT DEFAULT '')''')
+conn.commit()
+
+# 2. Создание таблицы квестов
 cursor.execute("CREATE TABLE IF NOT EXISTS user_quests (user_id INTEGER PRIMARY KEY, common_10 INTEGER DEFAULT 0, uncommon_10 INTEGER DEFAULT 0, rare_10 INTEGER DEFAULT 0, epic_10 INTEGER DEFAULT 0, mythic_10 INTEGER DEFAULT 0, legend_3 INTEGER DEFAULT 0, perfect_2 INTEGER DEFAULT 0, global_10 INTEGER DEFAULT 0, global_50 INTEGER DEFAULT 0, global_100 INTEGER DEFAULT 0, dup_10 INTEGER DEFAULT 0, dup_50 INTEGER DEFAULT 0, dup_100 INTEGER DEFAULT 0)")
 conn.commit()
 
