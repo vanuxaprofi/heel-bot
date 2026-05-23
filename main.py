@@ -306,6 +306,9 @@ async def check_and_grant_quests(message, uid, inv, balance):
     cursor.execute("SELECT duplicates FROM users WHERE user_id = ?", (uid,))
     user_row = cursor.fetchone()
     user_duplicates = user_row[0] if user_row else 0
+        cursor.execute("SELECT bet_count, duel_wins FROM users WHERE user_id = ?", (uid,))
+    u_row = cursor.fetchone()
+    user_duels, user_wins = u_row if u_row else (0, 0)
 
     # Вытаскиваем маркеры покупок сундуков
     cursor.execute("SELECT inventory FROM users WHERE user_id = ?", (uid,))
@@ -330,7 +333,7 @@ async def check_and_grant_quests(message, uid, inv, balance):
         "common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2", 
         "global_10", "global_50", "global_100", 
         "jackpot_hunter", "optovik", "chest_baron", "legend_start", "chest_magnat", 
-        "dup_10", "dup_50", "dup_100"
+        "dup_10", "dup_50", "dup_100", "duel_1", "duel_5", "duel_10", "win_1", "win_5", "win_10"
     ]
     q_status = {col: q[i+1] for i, col in enumerate(columns)}
     
@@ -366,6 +369,16 @@ async def check_and_grant_quests(message, uid, inv, balance):
         ("dup_10", user_duplicates, 10, 1500, "Ты собрал 10 повторок! 🔁\nТвоя награда: 1 500 монет 💰"),
         ("dup_50", user_duplicates, 50, 5000, "В твоем рюкзаке осело уже 50 повторных пяток! 🎒\nТвоя награда: 5 000 монет 💰"),
         ("dup_100", user_duplicates, 100, 15000, "Это безумие! 100 ПОВТОРНЫХ ПЯТОК! 👑\nТвоя награда: 15 000 монет 💰")
+        
+        # ⚔️ КВЕСТЫ НА УЧАСТИЕ В ДУЭЛЯХ (Урезанный баланс без КД)
+        ("duel_1", user_duels, 1, 50, "Ты принял вызов и сыграл свою [1] дуэль в группе! ⚔️\nТвоя награда: [50] монет 💰\n\n✨ Первый шаг в бой сделан. Победы придут с опытом! ✨"),
+        ("duel_5", user_duels, 5, 150, "Ты прошел через [5] пяточных дуэлей в чатах! 🛡️\nТвоя награда: [150] монет 💰\n\n✨ Твоя сталь закалилась в боях. В группах тебя уже начинают уважать! ✨"),
+        ("duel_10", user_duels, 10, 300, "За твоими плечами уже [10] жестоких анатомических баттлов! 🎪\nТвоя награда: [300] монет 💰\n\n✨ Настоящий ветеран арены. Ты готов биться при любых ставках! ✨"),
+        
+        # ⚔️ КВЕСТЫ НА ПОБЕДЫ В ДУЭЛЯХ (Урезанный баланс без КД)
+        ("win_1", user_wins, 1, 100, "Твоя нога вырастила больше пальцев! Ты одержал свою [1] победу в дуэли! ⚔️\nТвоя награда: [100] монет 💰\n\n✨ Вкус победы сладок. Твой соперник повержен, а весь банк у тебя в кармане! ✨"),
+        ("win_5", user_wins, 5, 300, "Невероятная анатомическая доминация! На твоем счету уже [5] побед в дуэлях! 🌪️\nТвоя награда: [300] монет 💰\n\n✨ Игроки в чате трижды подумают и пересчитают свои пальцы, прежде чем принимать твои ставки! ✨"),
+        ("win_10", user_wins, 10, 600, "Ты — настоящий король мутантов! Одержано [10] чистых побед в пяточных дуэлях! 👑\nТвоя награда: [600] монет 💰\n\n✨ Твоя удача безупречна, а стопы идеальны. Ты — абсолютный чемпион групповых баттлов! ✨")
     ]
 
     for col, current, target, reward, success_text in QUESTS_LOGIC:
