@@ -1448,7 +1448,7 @@ async def show_quests_list(message: Message):
     # 5. Сборка текстового шаблона с подстроками прогресса
     text = (
         f"📜 **КВЕСТЫ ИГРОКА: {message.from_user.first_name}**\n"
-        f"📊 Всего выполнено: **{total_completed}/18**\n"
+        f"📊 Всего выполнено: **{total_completed}/19**\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"💎 **ПО РЕДКОСТЯМ:**\n"
         f"• Обычные (10 шт): {fmt_title('common_10')}\n"
