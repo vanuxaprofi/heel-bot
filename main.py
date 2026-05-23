@@ -1780,7 +1780,7 @@ async def accept_duel_callback(call: CallbackQuery):
                 f"🏆 Победитель: **[{opponent_name}]**!\n"
                 f"💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
             )
-        else:
+               else:
             # Абсолютная ничья — возврат монет строго по скриншоту ТЗ
             cr_balance += bet
             op_balance += bet
@@ -1788,7 +1788,10 @@ async def accept_duel_callback(call: CallbackQuery):
             update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
             result_text += (
                 f"🏆 Победитель: **[Ничья!]**\n"
-
+                f"🤝 У обоих игроков выросло одинаковое количество пальцев и размер коллекции.\n"
+                f"🔄 Ставки в размере **[{bet}]** монет полностью возвращены обоим участникам!"
+            )
+        
 async def main():
     # Добавляем новые колонки в базу для старых игроков, если их еще нет
     try: cursor.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 0")
