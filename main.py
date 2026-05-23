@@ -230,8 +230,7 @@ def update_user_stats(uid, items, balance, total_opens, duplicates, bet_count, p
 
 def get_user_data(uid, n, un):
     cursor.execute("""
-        SELECT inventory, balance, total_opens, duplicates, bet_count,
-               pity_counter, current_day, last_claim_date
+        SELECT inventory, balance, total_opens, duplicates, bet_count
         FROM users WHERE user_id = ?
     """, (uid,))
     r = cursor.fetchone()
@@ -246,8 +245,8 @@ def get_user_data(uid, n, un):
         return items, r[1], r[2], r[3], r[4]
         
     cursor.execute("""
-        INSERT INTO users (user_id, name, username, inventory, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
-        VALUES (?, ?, ?, '', 100, 0, 0, 0, 0, 1, '')
+        INSERT INTO users (user_id, name, username, inventory, balance, total_opens, duplicates, bet_count)
+        VALUES (?, ?, ?, '', 100, 0, 0, 0)
     """, (uid, n, un))
     conn.commit()
     return {}, 100, 0, 0, 0
@@ -462,8 +461,10 @@ async def show_inventory(message: types.Message):
     user_id = message.from_user.id
     
     # 1. Запрашиваем инвентарь игрока из базы данных
-    cursor.execute("SELECT items FROM users WHERE user_id = ?", (user_id,))
+    # ИСПРАВЛЕНО: Заменили items на inventory, а также r[0] на r[0]
+    cursor.execute("SELECT inventory FROM users WHERE user_id = ?", (user_id,))
     r = cursor.fetchone()
+    raw_list = r[0].split(",") if r and r[0] else []
     raw_list = r[0].split(",") if r and r[0] else []
     inv = {name: raw_list.count(name) for name in set(raw_list) if name}
 
@@ -1144,40 +1145,44 @@ async def limit_choose_bet(message: Message, state: FSMContext):
     await message.answer(text, reply_markup=get_limit_inline_kb(), parse_mode="Markdown")
 
 # 3. Обработка инлайн-кнопок (Меньше / Больше)
+# 3. Обработка инлайн-кнопок (Меньше / Больше)
 @dp.callback_query(LimitState.playing, F.data.startswith("limit_"))
 async def process_limit_choice(call: CallbackQuery, state: FSMContext):
     user_id = call.from_user.id
     choice = call.data.replace("limit_", "")
     current_time = time.time()
     
+    # Берем данные игрока
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
         user_id, call.from_user.full_name, call.from_user.username
     )
     pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
     
-    # Достаем данные раунда из памяти
+    # Достаем данные текущей сессии игры
     user_data = await state.get_data()
     bet = user_data.get("current_bet", 100)
     old_number = user_data.get("current_number")
     
     if not old_number:
         await state.clear()
-        return await call.message.answer("⚠️ Сессия игры устарела. Нажмите «🎲 Лимит» снова.")
+        return await call.message.answer("⚠️ Сессия игры устарела. Нажмите «🎲 Лимит» снова.", reply_markup=get_kb())
         
     if balance < bet:
         await state.clear()
-        return await call.answer("❌ У вас резко уменьшился баланс!", show_alert=True)
+        return await call.answer("❌ Недостаточно монет на балансе!", show_alert=True)
         
-    # Списываем монеты и прибавляем попытку за игру
+    # Списываем монеты за ставку и прибавляем попытку в КД
     balance -= bet
     bet_count += 1
     
-    # Если это была 3-я попытка — включаем таймер КД на 9 часов
+    # Если это 3-я попытка за цикл — включаем КД на 9 часов
     if bet_count >= 3:
         last_limit_time[user_id] = current_time
         
+    # Генерируем следующее число от 1 до 100
     new_number = random.randint(1, 100)
     
+    # Проверка выигрыша
     is_win = False
     if choice == "more" and new_number > old_number:
         is_win = True
@@ -1203,10 +1208,10 @@ async def process_limit_choice(call: CallbackQuery, state: FSMContext):
             f"Осталось попыток до КД: **[{max(0, 3 - bet_count)}]**"
         )
         
-    # Сохраняем новые данные в SQLite
+    # Записываем статы в базу
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
     
-    # Сбрасываем стейт, возвращаем обычную клавиатуру главного меню
+    # Выводим результат и очищаем стейт
     await call.message.edit_text(result_text, parse_mode="Markdown")
     await call.message.answer("Вы вернулись в меню. Можете сыграть еще раз или выбрать другую вкладку.", reply_markup=get_kb())
     await state.clear()
