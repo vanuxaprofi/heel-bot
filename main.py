@@ -1597,7 +1597,16 @@ DUEL_STATUSES = {
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text.lower().startswith("дуэль"))
 async def create_duel_cmd(message: Message):
-    user_id = message.from_user.id
+    # ЗАЩИТА ОТ АНОНИМНОСТИ / АДМИН ПРАВ ГРУППЫ:
+    # Если пользователь скрыт или пишет от лица группы, берем данные реального человека
+    if message.sender_chat:
+        # Если пишет владелец/анонимный админ, берем его ID из чата, но имя выставим красивое
+        user_id = message.from_user.id if message.from_user else message.sender_chat.id
+        creator_name = message.from_user.full_name if message.from_user and message.from_user.full_name != "Group" else "Анонимный Босс 👤"
+    else:
+        user_id = message.from_user.id
+        creator_name = message.from_user.full_name
+
     parts = message.text.split()
     
     # 1. Проверяем корректность ввода команды
@@ -1613,9 +1622,8 @@ async def create_duel_cmd(message: Message):
         return await message.reply("❌ Ставка должна быть больше 0!")
 
     # 2. Получаем АКТУАЛЬНЫЕ данные создателя дуэли из базы данных
-    # Принудительно передаем пустые строки, чтобы get_user_data не затирала баланс дефолтными 100 монетами
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
-        user_id, message.from_user.full_name, ""
+        user_id, creator_name, ""
     )
     pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
     
@@ -1631,8 +1639,6 @@ async def create_duel_cmd(message: Message):
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🛒 Принять вызов ([{bet}] 💰)", callback_data=f"accept_duel_{bet}")]
     ])
-    
-    creator_name = message.from_user.full_name
     
     # Сообщение с брошенным вызовом по скриншоту ТЗ
     text_create = (
@@ -1782,15 +1788,6 @@ async def accept_duel_callback(call: CallbackQuery):
             update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
             result_text += (
                 f"🏆 Победитель: **[Ничья!]**\n"
-                f"🤝 У обоих игроков выросло одинаковое количество пальцев и размер коллекции.\n"
-                f"🔄 Ставки в размере **[{bet}]** монет полностью возвращены обоим участникам!"
-            )
-
-    # Удаляем запись дуэли из оперативной памяти
-    del active_duels[msg_id]
-    
-    # Редактируем сообщение, выводя финальный результат поединка
-    await call.message.edit_text(result_text, parse_mode="Markdown")
 
 async def main():
     # Добавляем новые колонки в базу для старых игроков, если их еще нет
