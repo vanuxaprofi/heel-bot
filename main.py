@@ -161,19 +161,23 @@ async def start_cmd(message: Message):
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Обновленная таблица пользователей (добавили pity_counter, current_day, last_claim_date)
-cursor.execute('''CREATE TABLE IF NOT EXISTS users
+# Новая таблица для отслеживания выполненных квестов
+cursor.execute('''CREATE TABLE IF NOT EXISTS user_quests
 (user_id INTEGER PRIMARY KEY,
-name TEXT,
-username TEXT,
-items TEXT,
-balance INTEGER DEFAULT 0,
-total_opens INTEGER DEFAULT 0,
-duplicates INTEGER DEFAULT 0,
-bet_count INTEGER DEFAULT 0,
-pity_counter INTEGER DEFAULT 0,
-current_day INTEGER DEFAULT 1,
-last_claim_date TEXT DEFAULT '')''')
+common_10 INTEGER DEFAULT 0,
+uncommon_10 INTEGER DEFAULT 0,
+rare_10 INTEGER DEFAULT 0,
+epic_10 INTEGER DEFAULT 0,
+mythic_10 INTEGER DEFAULT 0,
+legend_3 INTEGER DEFAULT 0,
+perfect_2 INTEGER DEFAULT 0,
+global_10 INTEGER DEFAULT 0,
+global_50 INTEGER DEFAULT 0,
+global_100 INTEGER DEFAULT 0,
+dup_10 INTEGER DEFAULT 0,
+dup_50 INTEGER DEFAULT 0,
+dup_100 INTEGER DEFAULT 0)''') # Проверь, чтобы после global_100 стояла запятая!
+conn.commit()
 
 # Новая таблица для отслеживания выполненных квестов (0 - не выполнен, 1 - выполнен)
 cursor.execute('''CREATE TABLE IF NOT EXISTS user_quests
