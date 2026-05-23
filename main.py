@@ -166,17 +166,17 @@ conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
 
 # 1. Создание таблицы пользователей
-cursor.execute('''CREATE TABLE IF NOT EXISTS users 
-(user_id INTEGER PRIMARY KEY, 
- name TEXT, 
- username TEXT, 
- inventory TEXT DEFAULT '', 
- balance INTEGER DEFAULT 100, 
- total_opens INTEGER DEFAULT 0, 
- duplicates INTEGER DEFAULT 0, 
- bet_count INTEGER DEFAULT 0, 
- pity_counter INTEGER DEFAULT 0, 
- current_day INTEGER DEFAULT 1, 
+cursor.execute('''CREATE TABLE IF NOT EXISTS users
+(user_id INTEGER PRIMARY KEY,
+ name TEXT,
+ username TEXT,
+ inventory TEXT DEFAULT '',
+ balance INTEGER DEFAULT 100,
+ total_opens INTEGER DEFAULT 0,
+ duplicates INTEGER DEFAULT 0,
+ bet_count INTEGER DEFAULT 0,
+ pity_counter INTEGER DEFAULT 0,
+ current_day INTEGER DEFAULT 1,
  last_claim_date TEXT DEFAULT '')''')
 conn.commit()
 
@@ -1232,11 +1232,6 @@ async def show_user_quests(message: Message):
                     counts[rarity] += 1
     total_unique = sum(counts.values())
 
-    # Вытаскиваем раздельные счетчики покупок сундуков из базы users
-    cursor.execute("SELECT opened_epic, opened_mythic, opened_legend FROM users WHERE user_id = ?", (user_id,))
-    c_row = cursor.fetchone()
-    opened_epic, opened_mythic, opened_legend = c_row if c_row else (0, 0, 0)
-
     # Вытягиваем все 18 статусов квестов из одной таблицы
     cursor.execute("""
         SELECT common_10, uncommon_10, rare_10, epic_10, mythic_10, legend_3, perfect_2, 
@@ -1250,12 +1245,19 @@ async def show_user_quests(message: Message):
     if not q_row:
         cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (user_id,))
         conn.commit()
-        q_row = (0,) * 18
+        cursor.execute("""
+            SELECT common_10, uncommon_10, rare_10, epic_10, mythic_10, legend_3, perfect_2, 
+                   global_10, global_50, global_100, 
+                   jackpot_hunter, optovik, chest_baron, legend_start, chest_magnat, 
+                   dup_10, dup_50, dup_100 
+            FROM user_quests WHERE user_id = ?
+        """, (user_id,))
+        q_row = cursor.fetchone()
         
     def get_icon(status): return "✅" if status == 1 else "⏳"
 
-    # НОВАЯ ФИЧА: Считаем общее количество выполненных квестов (сколько единиц в кортеже)
-    completed_quests_count = q_row.count(1)
+    # Считаем общее количество выполненных квестов
+    completed_quests_count = q_row.count(1) if q_row else 0
 
     c_common = counts.get('⚪ ОБЫЧНАЯ (45%)', 0)
     c_uncommon = counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0)
@@ -1287,20 +1289,20 @@ async def show_user_quests(message: Message):
         
         f"🛍 **🛍 МАГАЗИННЫЕ КВЕСТЫ**\n"
         f"{get_icon(q_row[11])} **Оптовик** (10 Эпик сундуков) — 2 500 💰\n"
-        f"└ Прогресс: {generate_progress_bar(opened_epic, 10)} ({opened_epic}/10)\n\n"
+        f"└ Прогресс: {generate_progress_bar(c_epic, 10)} ({c_epic}/10)\n\n"
         f"{get_icon(q_row[12])} **Сундучный Барон** (5 Мифик сундуков) — 6 000 💰\n"
-        f"└ Прогресс: {generate_progress_bar(opened_mythic, 5)} ({opened_mythic}/5)\n\n"
+        f"└ Прогресс: {generate_progress_bar(c_mythic, 5)} ({c_mythic}/5)\n\n"
         f"{get_icon(q_row[13])} **Легендарный Старт** (1 Легенда сундук) — 5 000 💰\n"
-        f"└ Прогресс: {generate_progress_bar(opened_legend, 1)} ({opened_legend}/1)\n\n"
+        f"└ Прогресс: {generate_progress_bar(c_legend, 1)} ({c_legend}/1)\n\n"
         f"{get_icon(q_row[14])} **Сундучный Магнат** (Потратить 20k) — 3 000 💰\n"
         f"└ Прогресс: {generate_progress_bar(0, 20000)} (0/20000)\n\n"
         
         f"🔄 **🔄 КВЕСТЫ НА ПОВТОРКИ**\n"
-        f"♻️ {get_icon(q_row[15])} **Начало дежавю** (10 повторок) — 1 500 💰\n"
+        f"{get_icon(q_row[15])} **Начало дежавю** (10 повторок) — 1 500 💰\n"
         f"└ Прогресс: {generate_progress_bar(duplicates, 10)} ({min(duplicates, 10)}/10)\n\n"
-        f"🔄 {get_icon(q_row[16])} **Коллекционер дублей** (50 повторок) — 5 000 💰\n"
+        f"{get_icon(q_row[16])} **Коллекционер дублей** (50 повторок) — 5 000 💰\n"
         f"└ Прогресс: {generate_progress_bar(duplicates, 50)} ({min(duplicates, 50)}/50)\n\n"
-        f"🌀 {get_icon(q_row[17])} **Временная петля** (100 повторок) — 15 000 💰\n"
+        f"{get_icon(q_row[17])} **Временная петля** (100 повторок) — 15 000 💰\n"
         f"└ Прогресс: {generate_progress_bar(duplicates, 100)} ({min(duplicates, 100)}/100)\n\n"
         
         f"🌍 **🌍 ГЛОБАЛЬНАЯ КОЛЛЕКЦИЯ**\n"
