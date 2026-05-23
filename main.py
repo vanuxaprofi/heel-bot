@@ -156,12 +156,16 @@ last_random_time = {}
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
     await message.answer("Жми на кнопки ниже!", reply_markup=get_kb())
-
+    
 # БАЗА ДАННЫХ
+import os
+if os.path.exists("game_db.db"):
+    os.remove("game_db.db")
+
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Создание таблицы для новых квестов со скриншотов
+# 1. Создание таблицы для новых квестов со скриншотов
 cursor.execute('''CREATE TABLE IF NOT EXISTS user_new_quests
 (user_id INTEGER PRIMARY KEY,
  jackpot_hunter INTEGER DEFAULT 0,
@@ -174,10 +178,25 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS user_new_quests
  dup_100 INTEGER DEFAULT 0)''')
 conn.commit()
 
-# Новая таблица для отслеживания выполненных квестов (0 - не выполнен, 1 - выполнен)
+# 2. ВОЗВРАЩАЕМ ГЛАВНУЮ ТАБЛИЦУ ПОЛЬЗОВАТЕЛЕЙ (ОБЯЗАТЕЛЬНО!)
+cursor.execute('''CREATE TABLE IF NOT EXISTS users 
+(user_id INTEGER PRIMARY KEY, 
+ name TEXT, 
+ username TEXT, 
+ inventory TEXT DEFAULT '', 
+ balance INTEGER DEFAULT 100, 
+ total_opens INTEGER DEFAULT 0, 
+ duplicates INTEGER DEFAULT 0, 
+ bet_count INTEGER DEFAULT 0, 
+ pity_counter INTEGER DEFAULT 0, 
+ current_day INTEGER DEFAULT 1, 
+ last_claim_date TEXT DEFAULT '')''')
+conn.commit()
+
+# 3. Новая таблица для отслеживания выполненных квестов (старая версия)
 cursor.execute('''CREATE TABLE IF NOT EXISTS user_quests
 (user_id INTEGER PRIMARY KEY,
-common_10 INTEGER DEFAULT 0,
+ common_10 INTEGER DEFAULT 0,
 uncommon_10 INTEGER DEFAULT 0,
 rare_10 INTEGER DEFAULT 0,
 epic_10 INTEGER DEFAULT 0,
