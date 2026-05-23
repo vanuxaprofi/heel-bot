@@ -632,18 +632,19 @@ async def buy_chest(call: types.CallbackQuery):
     base_reward = MONEY_REWARDS.get(rarity, 0)
     photo_id = DATA[rarity][item_name]
     
-    # 3. Перевірка на повторку (працюємо зі словником inv)
+    # ИСПРАВЛЕНИЕ ДИСБАЛАНСА: Монеты из сундуков магазина НЕ выдаются вообще!
     if not is_new:
         duplicates += 1
-        reward = base_reward * 2 # Бонус за повторку х2
-        status = f"♻ **Повторка!**\nЗачислено: +{reward} 💰 (х2 бонус за повторку!)"
+        reward = 0  # 0 монет за повторку
+        status = "♻ **Повторка!**\nКарточка добавлена в рюкзак. За дубликаты из магазинных сундуков монеты не начисляются! 📦"
         inv[item_name] = inv.get(item_name, 0) + 1
     else:
-        reward = base_reward
-        status = f"✨ **НОВАЯ ПЯТКА!**\nДобавлена в твою коллекцию! (+{reward} 💰)"
+        reward = 0  # 0 монет за НОВУЮ карту
+        status = "✨ **НОВАЯ ПЯТКА!**\nУспешно добавлена в твою коллекцию! 📑"
         inv[item_name] = inv.get(item_name, 0) + 1
-        
-    balance += reward
+
+    # Баланс игрока больше не увеличивается при открытии сундука
+    balance += reward 
     
     # 4. Збереження в базу
         # Определяем маркер в зависимости от того, какой сундук куплен
