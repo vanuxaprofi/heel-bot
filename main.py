@@ -508,42 +508,31 @@ async def show_inventory(message: types.Message):
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
-    # ИСПРАВЛЕНО: Заменили items на inventory в запросе к базе данных
-    cursor.execute("SELECT name, inventory FROM users") 
+    cursor.execute("SELECT name, inventory FROM users")
     rows = cursor.fetchall()
-    if not rows: 
+    if not rows:
         return await message.answer("Топ пока пуст!")
         
     users_list = []
-    
     for r in rows:
         name_val = str(r[0]) if r[0] else "Игрок"
-            # ИСПРАВЛЕНО: r[1] теперь берет inventory
-    items_str = str(r[1]) if r[1] else ""
-        
+        items_str = str(r[1]) if r[1] else ""
         if items_str and items_str.strip():
-            # 1. Сначала разбиваем строку на список всех карточек игрока
             all_items = [item.strip() for item in items_str.split(",") if item.strip()]
-            # 2. ИСПРАВЛЕНИЕ: Оставляем только уникальные (новые) карты с помощью set()
             count = len(set(all_items))
         else:
             count = 0
-            
         users_list.append({"n": name_val, "c": count})
         
-    # Сортируем лидеров по количеству именно уникальных карт
     sorted_u = sorted(users_list, key=lambda x: x["c"], reverse=True)
-    
     txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ (ПО УНИКАЛЬНЫМ КАРТАМ):**\n\n"
     for i, u in enumerate(sorted_u[:10], 1):
-        # Чистим имя от символов, ломающих разметку Markdown
         safe_name = u['n'].replace("*", "").replace("_", " ").replace("[", "").replace("`", "")
         txt += f"{i}. {safe_name} — {u['c']}/{TOTAL_CARDS} 📑\n"
         
     try:
         await message.answer(txt, parse_mode="Markdown")
     except:
-        # Резервный вариант без Markdown-тегов при ошибке
         await message.answer(txt.replace("**", ""))
 
 @dp.message(F.text == "🏪 Магазин")
