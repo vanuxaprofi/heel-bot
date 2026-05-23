@@ -1743,8 +1743,7 @@ async def show_group_calendar(message: Message):
 # 🛑 6. ЗАГЛУШКА НА СЛОЖНЫЕ ИГРОВЫЕ И МАГАЗИННЫЕ КОМАНДЫ
 @dp.message(
     F.chat.type != "private", 
-    F.text.lower().startswith(("ставки", "лимит", "промокод", "магазин", "рандомайзер", "лавк", "кейс", "сундук")),
-    ~F.text.lower().startswith("дуэль")  # ИСПРАВЛЕНО: Жестко запрещаем заглушке трогать слово "дуэль"!
+    F.text.lower().startswith(("ставки", "лимит", "промокод", "магазин", "рандомайзер", "лавк", "кейс", "сундук"))
 )
 async def group_game_blocker(message: Message):
     txt = (
