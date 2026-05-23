@@ -1597,8 +1597,17 @@ DUEL_STATUSES = {
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text.lower().startswith("дуэль"))
 async def create_duel_cmd(message: Message):
-    user_id = message.from_user.id
-    creator_name = message.from_user.full_name if message.from_user else "Игрок"
+    # УМНАЯ ЗАЩИТА ОТ АНОНИМНОСТИ ГРУППЫ
+    if message.sender_chat and message.from_user:
+        user_id = message.from_user.id
+        creator_name = message.from_user.full_name if message.from_user.full_name != "Group" else "Анонимный Админ 👑"
+    elif message.from_user:
+        user_id = message.from_user.id
+        creator_name = message.from_user.full_name
+    else:
+        user_id = message.sender_chat.id if message.sender_chat else message.chat.id
+        creator_name = message.sender_chat.title if message.sender_chat else "Игрок"
+
     parts = message.text.split()
     
     if len(parts) < 2:
