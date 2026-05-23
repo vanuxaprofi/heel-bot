@@ -384,7 +384,7 @@ else:
             cursor.execute(f"UPDATE user_quests SET {col} = 1 WHERE user_id = ?", (uid,))
             conn.commit()
 
-            await asyncio.sleep(0.5)
+        await asyncio.sleep(0.5)
 
             # Пробуем отправить в ЛС, если бот заблокирован — кидаем в группу
             try:
