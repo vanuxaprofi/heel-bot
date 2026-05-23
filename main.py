@@ -1608,7 +1608,7 @@ DUEL_STATUSES = {
     10: "«АБСОЛЮТНЫЙ ДЖЕКПОТ! Две полноценные ноги на одной лодыжке! 👑»"
 }
 
-@dp.message(F.chat.type.in_({"group", "supergroup"}), F.text.lower().startswith("дуэль"))
+@dp.message(F.chat.type != "private", F.text.lower().startswith("дуэль"))
 async def create_duel_cmd(message: Message):
     # УМНАЯ ЗАЩИТА ОТ АНОНИМНОСТИ ГРУППЫ: вычисляем ID реального человека, а не чата
     if message.sender_chat and message.from_user:
