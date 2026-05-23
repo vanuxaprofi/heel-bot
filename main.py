@@ -661,10 +661,7 @@ async def buy_chest(call: types.CallbackQuery):
         inv[chest_marker] = inv.get(chest_marker, 0) + 1
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
     
-    # Автоматично перевіряємо квести після відкриття сундука
-    balance = await check_and_grant_quests(call.message, user_id, inv, balance)
-    
-    # 5. Відправка повідомлення
+        # 5. Відправка повідомлення
     caption = (
         f"🎁 **ОТКРЫТИЕ СУНДУКА: {chest_name}**\n\n"
         f"Вам выпала • **{item_name}**\n"
@@ -672,12 +669,18 @@ async def buy_chest(call: types.CallbackQuery):
         f"{status}\n"
         f"💰 Остаток: **{balance}** монет"
     )
-    
+
     try:
         await call.message.answer_photo(photo=photo_id, caption=caption, parse_mode="Markdown")
     except Exception as e:
         await call.message.answer(f"Ошибка при отправке photo: {e}\n\n{caption}")
-        
+
+    # Краткая пауза в полсекунды, чтобы карточка успела дойти первой
+    await asyncio.sleep(0.5)
+
+    # Проверяем квесты ТЕПЕРЬ СТРОГО ПОСЛЕ отправки фото и паузы!
+    balance = await check_and_grant_quests(call.message, user_id, inv, balance)
+
     await call.answer()
 
 LIMIT_COOLDOWN = 32400
