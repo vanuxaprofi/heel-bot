@@ -251,6 +251,13 @@ def get_user_data(uid, n, un):
     """, (uid, n, un))
     conn.commit()
     return {}, 100, 0, 0, 0
+    
+def get_user_game_features(uid):
+    cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
+    r = cursor.fetchone()
+    if r:
+        return r[0], r[1], r[2]
+    return 0, 1, ""
 
 async def check_and_grant_quests(message, uid, inv, balance):
     # 1. Считаем уникальные карты по каждой редкости (точно так же, как в меню квестов!)
