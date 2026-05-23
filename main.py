@@ -298,37 +298,25 @@ async def check_and_grant_quests(message, uid, inv, balance):
     for rarity in RARITIES:
         if rarity in DATA:
             for card in DATA[rarity].keys():
-                if card in inv:
+                if card in inv and inv[card] > 0:
                     counts[rarity] += 1
     total_unique = sum(counts.values())
 
-    # Получаем количество повторок из базы
-    cursor.execute("SELECT duplicates FROM users WHERE user_id = ?", (uid,))
+    # Считываем данные пользователя из базы напрямую
+    cursor.execute("SELECT duplicates, total_opens, duel_wins, inventory FROM users WHERE user_id = ?", (uid,))
     user_row = cursor.fetchone()
-    user_duplicates = user_row[0] if user_row else 0
-    cursor.execute("SELECT duel_1, duel_5, duel_10, win_1, win_5, win_10 FROM user_quests WHERE user_id = ?", (uid,))
-    q_row = cursor.fetchone()
-    # Если записей о дуэлях еще нет, ставим 0, иначе берем текущий статус из квестов
-    cursor.execute("SELECT duel_wins FROM users WHERE user_id = ?", (uid,))
-    w_row = cursor.fetchone()
-    user_wins = w_row[0] if w_row else 0
-    
-    # Для отображения прогресса участия используем сумму выполненных или внутренний счетчик из логики вашей дуэли
-    # Чтобы бот не путал ставки в казино (bet_count) и дуэли, временно берем количество дуэлей из обновляемой вами переменной в чате
-    cursor.execute("SELECT total_opens FROM users WHERE user_id = ?", (uid,)) # Или любая свободная колонка, если вы еще не создали duel_count
-    # Но самый правильный вариант — подтянуть duel_wins для побед, а для участия мы настроим инкремент на следующем шаге.
-    user_duels = user_wins # Пока приравняем, либо на следующем шаге добавим полноценную команду "Дуэль"
+    if user_row:
+        user_duplicates = user_row[0]
+        total_opens = user_row[1]
+        user_wins = user_row[2]
+        raw_inventory = user_row[3] if user_row[3] else ""
+    else:
+        user_duplicates, total_opens, user_wins, raw_inventory = 0, 0, 0, ""
 
-    # Вытаскиваем маркеры покупок сундуков
-    cursor.execute("SELECT inventory FROM users WHERE user_id = ?", (uid,))
-    inv_row = cursor.fetchone()
-    raw_inventory = inv_row[0] if inv_row and inv_row[0] else ""
+    # Привязываем дуэли к счетчику игр
+    user_duels = user_wins
 
-    opened_epic = raw_inventory.count("⚙_epic_opened")
-    opened_mythic = raw_inventory.count("⚙_mythic_opened")
-    opened_legend = raw_inventory.count("⚙_legend_opened")
-
-    # 2. Получаем текущие статусы квестов из базы
+    # 2. Получаем статусы выполнения квестов из таблицы
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
     if not q:
@@ -337,25 +325,24 @@ async def check_and_grant_quests(message, uid, inv, balance):
         cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
         q = cursor.fetchone()
 
-    # ИСПРАВЛЕНИЕ СМЕЩЕНИЯ: Все 18 колонок строго в том порядке, как они создаются в базе!
+    # Строгий порядок колонок для устранения смещения индексов в БД
     columns = [
-        "common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2", 
-        "global_10", "global_50", "global_100", 
-        "jackpot_hunter", "optovik", "chest_baron", "legend_start", "chest_magnat", 
+        "common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2",
+        "global_10", "global_50", "global_100",
+        "jackpot_hunter", "optovik", "chest_baron", "legend_start", "chest_magnat",
         "dup_10", "dup_50", "dup_100", "duel_1", "duel_5", "duel_10", "win_1", "win_5", "win_10"
     ]
     q_status = {col: q[i+1] for i, col in enumerate(columns)}
-    
+
     new_balance = balance
     triggered = False
 
-    # Переменные количества новых карт для проверки условий
     c_epic = counts.get("🟣 ЭПИЧЕСКАЯ (8%)", 0)
     c_mythic = counts.get("🔴 МИФИЧЕСКАЯ (4%)", 0)
     c_legend = counts.get("🟡 ЛЕГЕНДАРНАЯ (2%)", 0)
 
+    # Логика автоматической проверки условий выполнения
     QUESTS_LOGIC = [
-        # --- Одиночные квесты по редкостям ---
         ("common_10", counts.get("⚪ ОБЫЧНАЯ (45%)", 0), 10, 300, "Ты собрал 10 обычных карточек!\n Твоя награда: 300 монет 💰"),
         ("uncommon_10", counts.get("🟢 НЕОБЫЧНАЯ (25%)", 0), 10, 600, "Ты собрал 10 необычных карточек!\n Твоя награда: 600 монет 💰"),
         ("rare_10", counts.get("🔵 РЕДКАЯ (15%)", 0), 10, 1200, "Ты собрал 10 редких карточек!\n Твоя награда: 1 200 монет 💰"),
@@ -364,46 +351,32 @@ async def check_and_grant_quests(message, uid, inv, balance):
         ("legend_3", c_legend, 3, 15000, "Ты собрал 3 легендарных карточки!\n Твоя награда: 15 000 монет 💰"),
         ("perfect_2", counts.get("👑 ИДЕАЛЬНАЯ (1%)", 0), 2, 25000, "Ты собрал 2 идеальных карточки!\n Твоя награда: 25 000 монет 💰"),
 
-        # --- Глобальные одиночные квесты ---
         ("global_10", total_unique, 10, 1500, "Ты собрал 10 уникальных пяток!\n Награда: 1 500 монет 💰"),
         ("global_50", total_unique, 50, 10000, "Ты собрал 50 уникальных пяток!\n Награда: 10 000 монет 💰"),
         ("global_100", total_unique, 100, 35000, "ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ! 100 ПЯТОК! 👑\n Награда: 35 000 монет 💰"),
 
-        # --- Магазинные сундуки ---
-        ("optovik", opened_epic, 10, 2500, "Ты купил 10 Эпических сундуков в магазине! 🛍\n Твоя награда: 2 500 монет 💰"),
-        ("chest_baron", opened_mythic, 5, 6000, "Ты открыл 5 Мифических сундуков! 🔮\n Твоя награда: 6 000 монет 💰"),
-        ("legend_start", opened_legend, 1, 5000, "Ты приобрёл свой первый Легендарный сундук! 👑\n Твоя награда: 5 000 монет 💰"),
-
-        # --- Повторки ---
         ("dup_10", user_duplicates, 10, 1500, "Ты собрал 10 повторок! 🔁\n Твоя награда: 1 500 монет 💰"),
         ("dup_50", user_duplicates, 50, 5000, "В твоем рюкзаке осело уже 50 повторных пяток! 🎒\n Твоя награда: 5 000 монет 💰"),
         ("dup_100", user_duplicates, 100, 15000, "Это безумие! 100 ПОВТОРНЫХ ПЯТОК! 👑\n Твоя награда: 15 000 монет 💰"),
 
-        # --- ГРУППОВЫЕ КВЕСТЫ (Дуэли в чатах) ---
         ("duel_1", user_duels, 1, 50, "Ты сыграл свою 1-ю дуэль в группе! ⚔\n Награда: 50 монет 💰"),
         ("duel_5", user_duels, 5, 150, "Ты сыграл 5 пяточных дуэлей в чатах! 🛡\n Награда: 150 монет 💰"),
         ("duel_10", user_duels, 10, 300, "За твоими плечами уже 10 дуэльных баттлов! 🎪\n Награда: 300 монет 💰"),
 
-        # --- ГРУППОВЫЕ КВЕСТЫ (Победы в дуэлях) ---
         ("win_1", user_wins, 1, 100, "Ты одержал свою 1-ю победу в дуэли! ⚔\n Награда: 100 монет 💰"),
         ("win_5", user_wins, 5, 300, "На твоем счету уже 5 побед в дуэлях! 🌪\n Награда: 300 монет 💰"),
         ("win_10", user_wins, 10, 600, "Ты — настоящий король мутантов! Одержано 10 побед! 👑\n Награда: 600 монет 💰")
-   ]
-
+    ]
 
     for col, current, target, reward, success_text in QUESTS_LOGIC:
-        if col in ["jackpot_hunter", "chest_magnat"]:
-            continue
-        if q_status[col] == 0 and current >= target:
+        if q_status.get(col, 0) == 0 and current >= target:
             new_balance += reward
             triggered = True
             cursor.execute(f"UPDATE user_quests SET {col} = 1 WHERE user_id = ?", (uid,))
             conn.commit()
             
-            # Пауза в полсекунды перед каждым сообщением
             await asyncio.sleep(0.5)
-            
-            if col == "dup_100" or col == "global_100":
+            if col in ["global_100", "dup_100", "win_10"]:
                 await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
             else:
                 await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
@@ -411,8 +384,9 @@ async def check_and_grant_quests(message, uid, inv, balance):
     if triggered:
         cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
         conn.commit()
-    return new_balance
-    triggered = False
+        return new_balance
+
+    return balance
 
     # Сетка условий: (имя_колонки, текущее_значение, цель, награда, текст)
     QUESTS_LOGIC = [
