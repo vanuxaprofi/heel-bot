@@ -508,7 +508,8 @@ async def show_inventory(message: types.Message):
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
-    cursor.execute("SELECT name, items FROM users") 
+    # ИСПРАВЛЕНО: Заменили items на inventory в запросе к базе данных
+    cursor.execute("SELECT name, inventory FROM users") 
     rows = cursor.fetchall()
     if not rows: 
         return await message.answer("Топ пока пуст!")
@@ -517,7 +518,8 @@ async def show_top(message: Message):
     
     for r in rows:
         name_val = str(r[0]) if r[0] else "Игрок"
-        items_str = str(r[1]) if r[1] else ""
+            # ИСПРАВЛЕНО: r[1] теперь берет inventory
+    items_str = str(r[1]) if r[1] else ""
         
         if items_str and items_str.strip():
             # 1. Сначала разбиваем строку на список всех карточек игрока
