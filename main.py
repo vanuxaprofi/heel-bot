@@ -502,7 +502,6 @@ async def open_case(message: types.Message, state: FSMContext):
         pity_counter += 1  # Если выпал ширпотреб — прибавляем +1 к гаранту
 
     base_reward = MONEY_REWARDS.get(rarity, 0)
-    total_opens += 1
 
     if not is_new:
         duplicates += 1
