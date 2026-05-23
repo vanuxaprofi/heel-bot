@@ -1597,10 +1597,8 @@ DUEL_STATUSES = {
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text.lower().startswith("дуэль"))
 async def create_duel_cmd(message: Message):
-    # ЗАЩИТА ОТ АНОНИМНОСТИ / АДМИН ПРАВ ГРУППЫ:
-    # Если пользователь скрыт или пишет от лица группы, берем данные реального человека
+    # ЗАЩИТА ОТ АНОНИМНОСТИ: берем твой настоящий человеческий ID и ник
     if message.sender_chat:
-        # Если пишет владелец/анонимный админ, берем его ID из чата, но имя выставим красивое
         user_id = message.from_user.id if message.from_user else message.sender_chat.id
         creator_name = message.from_user.full_name if message.from_user and message.from_user.full_name != "Group" else "Анонимный Босс 👤"
     else:
@@ -1621,26 +1619,24 @@ async def create_duel_cmd(message: Message):
     if bet <= 0:
         return await message.reply("❌ Ставка должна быть больше 0!")
 
-    # 2. Получаем АКТУАЛЬНЫЕ данные создателя дуэли из базы данных
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(
-        user_id, creator_name, ""
-    )
+    # 2. Получаем АКТУАЛЬНЫЕ данные создателя из базы
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, creator_name, "")
     pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
     
     # 3. Проверяем, хватает ли монет на указанную ставку
     if balance < bet:
         return await message.reply(f"❌ Недостаточно монет! Твой текущий баланс: **{balance}** 💰", parse_mode="Markdown")
         
-    # Списываем монеты за ставку с баланса создателя
+    # Списываем монеты за ставку
     balance -= bet
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
     
-    # Создаем инлайн-кнопку принятия вызова строго по дизайну
+    # Инлайн-кнопка по твоему новому дизайну
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🛒 Принять вызов ([{bet}] 💰)", callback_data=f"accept_duel_{bet}")]
     ])
     
-    # Сообщение с брошенным вызовом по скриншоту ТЗ
+    # Текст создания вызова со скриншота ТЗ
     text_create = (
         f"⚔️ **ПЯТОЧНАЯ ДУЭЛЬ!**\n"
         f"━━━━━━━━━━━━━━━━━━\n"
@@ -1651,7 +1647,6 @@ async def create_duel_cmd(message: Message):
     
     duel_msg = await message.answer(text_create, reply_markup=ikb, parse_mode="Markdown")
     
-    # Сохраняем дуэль в оперативную память бота
     active_duels[duel_msg.message_id] = {
         "creator_id": user_id,
         "creator_name": creator_name,
@@ -1659,11 +1654,10 @@ async def create_duel_cmd(message: Message):
         "is_active": True
     }
 
-    # 4. ТЗ: Авто-отмена дуэли через 5 минут (300 секунд), если никто не принял вызов
+    # 4. ТЗ: Авто-отмена дуэли через 5 минут
     await asyncio.sleep(300)
     
     if duel_msg.message_id in active_duels and active_duels[duel_msg.message_id]["is_active"]:
-        # Возвращаем монеты создателю на баланс
         cr_inv, cr_balance, cr_opens, cr_dups, cr_bets = get_user_data(user_id, creator_name, "")
         cr_pity, cr_day, cr_claim = get_user_game_features(user_id)
         
@@ -1688,7 +1682,6 @@ async def accept_duel_callback(call: CallbackQuery):
     opponent_id = call.from_user.id
     opponent_name = call.from_user.full_name
     
-    # Проверяем валидность сессии дуэли
     if msg_id not in active_duels:
         return await call.answer("❌ Время вызова истекло или дуэль уже завершена!", show_alert=True)
         
@@ -1697,35 +1690,27 @@ async def accept_duel_callback(call: CallbackQuery):
     creator_name = duel_data["creator_name"]
     bet = duel_data["bet_amount"]
     
-    # Защита: нельзя играть против самого себя
     if opponent_id == creator_id:
         return await call.answer("❌ Ты не можешь принять собственный вызов!", show_alert=True)
         
-    # Загружаем актуальные данные оппонента (кто принял вызов)
-    op_inv, op_balance, op_opens, op_dups, op_bets = get_user_data(
-        opponent_id, call.from_user.full_name, ""
-    )
+    op_inv, op_balance, op_opens, op_dups, op_bets = get_user_data(opponent_id, call.from_user.full_name, "")
     op_pity, op_day, op_claim = get_user_game_features(opponent_id)
     
-    # Проверяем баланс оппонента
     if op_balance < bet:
         return await call.answer("❌ Недостаточно монет, чтобы принять дуэль!", show_alert=True)
         
-    # Списываем монеты за ставку у оппонента
     op_balance -= bet
     update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
     
-    # Деактивируем дуэль, чтобы таймер авто-отмены её случайно не стёр
     active_duels[msg_id]["is_active"] = False
     
-    # Механика «Пальцы на ноге» (Генерация случайного числа от 1 до 10)
     creator_fingers = random.randint(1, 10)
     opponent_fingers = random.randint(1, 10)
     
     status_creator = DUEL_STATUSES.get(creator_fingers, "")
     status_opponent = DUEL_STATUSES.get(opponent_fingers, "")
     
-    # Шапка начала дуэли по скриншоту
+    # Шапка начала дуэли со скриншота ТЗ
     result_text = (
         f"⚔️ **ДУЭЛЬ НАЧАЛАСЬ!**\n"
         f"**[{creator_name}]** 🆚 **[{opponent_name}]**\n"
@@ -1737,17 +1722,14 @@ async def accept_duel_callback(call: CallbackQuery):
         f"━━━━━━━━━━━━━━━━━━\n"
     )
     
-    # Загружаем актуальные данные создателя дуэли для начисления приза
     cr_inv, cr_balance, cr_opens, cr_dups, cr_bets = get_user_data(creator_id, creator_name, "")
     cr_pity, cr_day, cr_claim = get_user_game_features(creator_id)
     
-    # Подсчитываем размер коллекции карт у каждого (для решения спорных ситуаций при ничьей)
     creator_unique = len(cr_inv.keys()) if isinstance(cr_inv, dict) else 0
     opponent_unique = len(op_inv.keys()) if isinstance(op_inv, dict) else 0
     
     prize = bet * 2
     
-    # Определение исхода поединка
     if creator_fingers > opponent_fingers:
         cr_balance += prize
         update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
@@ -1763,7 +1745,7 @@ async def accept_duel_callback(call: CallbackQuery):
             f"💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
         )
     else:
-        # ТЗ: Механика «Дроп в ничью» (Поддержка новичков по уникальным картам)
+        # Механика «Дроп в ничью» по ТЗ (выигрывает тот, у кого коллекция карт меньше)
         if creator_unique < opponent_unique:
             cr_balance += prize
             update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
@@ -1780,8 +1762,8 @@ async def accept_duel_callback(call: CallbackQuery):
                 f"🏆 Победитель: **[{opponent_name}]**!\n"
                 f"💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
             )
-               else:
-            # Абсолютная ничья — возврат монет строго по скриншоту ТЗ
+        else:
+            # Абсолютная чистая ничья строго по скриншоту
             cr_balance += bet
             op_balance += bet
             update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
@@ -1791,6 +1773,12 @@ async def accept_duel_callback(call: CallbackQuery):
                 f"🤝 У обоих игроков выросло одинаковое количество пальцев и размер коллекции.\n"
                 f"🔄 Ставки в размере **[{bet}]** монет полностью возвращены обоим участникам!"
             )
+
+    if msg_id in active_duels:
+        del active_duels[msg_id]
+    
+    await call.message.edit_text(result_text, parse_mode="Markdown")
+    await call.answer()
         
 async def main():
     # Добавляем новые колонки в базу для старых игроков, если их еще нет
