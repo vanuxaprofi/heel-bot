@@ -485,8 +485,21 @@ async def open_case(message: types.Message, state: FSMContext):
     rarity = res_list[0]
 
     # Крутим наш Умный Рандом!
-    item_name, is_new, new_pity = get_smart_random_card(user_id, inv, rarity, pity_counter)
-    pity_counter = new_pity
+     # Проверяем гарант (если 30 неудач подряд — 100% Легендарная!)
+    if pity_counter >= 30:
+        rarity = "🟡 ЛЕГЕНДАРНАЯ (2%)"
+        pity_counter = 0  # Сбрасываем гарант после выдачи топа
+    
+    # Крутим обычный рандом карточек из выбранной редкости
+    available_cards = list(DATA[rarity].keys())
+    item_name = random.choice(available_cards)
+    is_new = item_name not in inv
+
+    # Логика изменения счетчика гаранта
+    if rarity in ["🟡 ЛЕГЕНДАРНАЯ (2%)", "👑 ИДЕАЛЬНАЯ (1%)"]:
+        pity_counter = 0  # Если выпал топ сам по себе — сброс
+    else:
+        pity_counter += 1  # Если выпал ширпотреб — прибавляем +1 к гаранту
 
     base_reward = MONEY_REWARDS.get(rarity, 0)
     total_opens += 1
@@ -1594,7 +1607,7 @@ async def show_group_profile(message: Message):
         f"🔄 Всего повторок выбито: **{duplicates}** шт.\n"
         f"📦 Открыто сундуков: **{total_opens}** раз\n"
         f"🎰 Сыграно ставок за цикл: **{bet_count}/3**\n"
-        f"🔮 Гарант (Pity): **{pity_counter}/50**\n"
+        f"🔮 Гарант (Pity): **{pity_counter}/30**\n"
         f"📅 Ежедневный цикл (День): **{current_day}**\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"👉 Чтобы посмотреть свои карты, напиши: `Инвентарь`"
