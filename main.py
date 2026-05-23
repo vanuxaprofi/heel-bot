@@ -652,31 +652,38 @@ async def show_shop(message: types.Message):
 
 # ВСТАВЛЯЙ СЮДА:
 @dp.message(F.text == "💰 Профиль")
-async def show_profile(message: types.Message):
+async def show_profile(message: Message):
     user_id = message.from_user.id
-    # ... остальной код профиля ...
-    inv, balance, total_opens, duplicates, bet_coun = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     
-    progress = round((len(inv) / TOTAL_CARDS) * 100, 1) if TOTAL_CARDS > 0 else 0
-    
-    text = (
-        f"👤 **ПРОФИЛЬ ИГРОКА**\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"📝 **Имя:** {message.from_user.full_name}\n"
-        f"💰 **Баланс:** {balance} монет\n"
-        f"📊 **Прогресс:** {len(inv)}/{TOTAL_CARDS} ({progress}%)\n"
-        f"🔄 **Всего открытий:** {total_opens}\n"
-        f"♻️ **Повторок выпало:** {duplicates}\n"
-        f"━━━━━━━━━━━━━━━"
+    # Получаем актуальные данные игрока из базы
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, message.from_user.full_name, message.from_user.username
     )
+    pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
 
+    # Формируем аккуратный текст профиля без лишнего мусора
+    text = (
+        f"💰 **ЛИЧНЫЙ ПРОФИЛЬ: {message.from_user.full_name}** 💰\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        f"💸 Баланс: **{balance}** монет\n"
+        f"📅 Серия дней в календаре: **{current_day}**-й день 🔥\n"
+        f"🔮 Гарант легенды (Pity): **[{pity_counter}/30]** 🪐\n"
+        f"📦 Открыто сундуков в лавке: **{total_opens}** шт.\n"
+        f"🔄 Выбито повторок за всё время: **{duplicates}** шт.\n\n"
+        f"━━━━━━━━━━━━━━━━━━"
+    )
+    
     try:
-        photos = await message.from_user.get_profile_photos(limit=1)
-        if photos.total_count > 0:
-            await message.answer_photo(photo=photos.photos[0][-1].file_id, caption=text, parse_mode="Markdown")
+        # Автоматически подтягиваем аватарку игрока из Telegram
+        user_photos = await message.from_user.get_profile_photos(limit=1)
+        
+        if user_photos.total_count > 0:
+            photo_id = user_photos.photos[0][0].file_id
+            await message.answer_photo(photo=photo_id, caption=text, parse_mode="Markdown")
         else:
             await message.answer(text, parse_mode="Markdown")
-    except:
+    except Exception:
+        # Безопасный откат на обычный текст, если аватарка скрыта приватностью
         await message.answer(text, parse_mode="Markdown")
 
 @dp.callback_query(F.data.startswith("buy_"))
