@@ -1363,7 +1363,7 @@ def generate_progress_bar(current, target):
     empty_blocks = 5 - filled_blocks
     return "▚" * filled_blocks + "░" * empty_blocks
 
-@dp.message(F.text == "📜 Квесты")
+@dp.message((F.text == "📜 Квесты") | (F.text.lower() == "квесты"))
 async def show_quests_list(message: Message):
     user_id = message.from_user.id
     
@@ -1653,10 +1653,6 @@ async def check_and_grant_quests(message, uid, inv, balance):
         cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
         conn.commit()
     return new_balance
-
-# =================================================================
-#             ТЕКСТОВЫЕ ВЕРСИИ КОМАНД ДЛЯ БЕСЕД (ГРУПП)
-# =================================================================
 
 # =================================================================
 #             ТЕКСТОВЫЕ ВЕРСИИ КОМАНД И ДУЭЛИ ДЛЯ БЕСЕД (ГРУПП)
