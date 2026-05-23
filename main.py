@@ -311,7 +311,7 @@ async def check_and_grant_quests(message, uid, inv, balance):
     total_unique = sum(counts.values())
 
     # 2. Загружаем дуэли, победы и повторки напрямую из базы данных
-        cursor.execute("SELECT bet_count, duel_wins, inventory, duplicates, balance FROM users WHERE user_id = ?", (uid,))
+    cursor.execute("SELECT bet_count, duel_wins, inventory, duplicates, balance FROM users WHERE user_id = ?", (uid,))
     u_row = cursor.fetchone()
     if u_row:
         user_duels = u_row[0] if u_row[0] is not None else 0
