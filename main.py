@@ -306,7 +306,7 @@ async def check_and_grant_quests(message, uid, inv, balance):
     cursor.execute("SELECT duplicates FROM users WHERE user_id = ?", (uid,))
     user_row = cursor.fetchone()
     user_duplicates = user_row[0] if user_row else 0
-        cursor.execute("SELECT bet_count, duel_wins FROM users WHERE user_id = ?", (uid,))
+    cursor.execute("SELECT bet_count, duel_wins FROM users WHERE user_id = ?", (uid,))
     u_row = cursor.fetchone()
     user_duels, user_wins = u_row if u_row else (0, 0)
 
