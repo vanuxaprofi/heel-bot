@@ -302,21 +302,26 @@ async def check_and_grant_quests(message, uid, inv, balance):
                     counts[rarity] += 1
     total_unique = sum(counts.values())
 
-    # Считываем данные пользователя из базы напрямую
+    # ИСПРАВЛЕНО: Четко разбиваем полученную строку на отдельные переменные числа
     cursor.execute("SELECT duplicates, total_opens, duel_wins, inventory FROM users WHERE user_id = ?", (uid,))
     user_row = cursor.fetchone()
     if user_row:
-        user_duplicates = user_row[0]
-        total_opens = user_row[1]
-        user_wins = user_row[2]
+        user_duplicates = int(user_row[0]) if user_row[0] is not None else 0
+        total_opens = int(user_row[1]) if user_row[1] is not None else 0
+        user_wins = int(user_row[2]) if user_row[2] is not None else 0
         raw_inventory = user_row[3] if user_row[3] else ""
     else:
         user_duplicates, total_opens, user_wins, raw_inventory = 0, 0, 0, ""
 
-    # Привязываем дуэли к счетчику игр
+    # Привязываем сыгранные дуэли к счетчику побед/активности
     user_duels = user_wins
 
-    # 2. Получаем статусы выполнения квестов из таблицы
+    # Маркеры магазинных сундуков
+    opened_epic = raw_inventory.count("⚙_epic_opened")
+    opened_mythic = raw_inventory.count("⚙_mythic_opened")
+    opened_legend = raw_inventory.count("⚙_legend_opened")
+
+    # 2. Получаем текущие статусы квестов из таблицы
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
     if not q:
@@ -325,7 +330,7 @@ async def check_and_grant_quests(message, uid, inv, balance):
         cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
         q = cursor.fetchone()
 
-    # Строгий порядок колонок для устранения смещения индексов в БД
+    # Точный порядок колонок для устранения смещения индексов в БД
     columns = [
         "common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2",
         "global_10", "global_50", "global_100",
