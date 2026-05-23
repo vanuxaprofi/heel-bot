@@ -313,14 +313,13 @@ async def check_and_grant_quests(message, uid, inv, balance):
     # 2. Загружаем дуэли и повторки напрямую из актуальной строки игрока в БД
     cursor.execute("SELECT bet_count, duel_wins, inventory, duplicates FROM users WHERE user_id = ?", (uid,))
     u_row = cursor.fetchone()
-    if u_row:
-        user_wins = u_row[1] if u_row[1] is not None else 0
-        raw_inventory = u_row[2] if u_row[2] else ""
-        duplicates = u_row[3] if u_row[3] is not None else 0
-    else:
-        user_wins, raw_inventory, duplicates = 0, "", 0
-        
-    user_duels = user_wins 
+if u_row:
+    user_duels = u_row[0] if u_row[0] is not None else 0
+    user_wins = u_row[1] if u_row[1] is not None else 0
+    raw_inventory = u_row[2] if u_row[2] else ""
+    duplicates = u_row[3] if u_row[3] is not None else 0
+else:
+    user_duels, user_wins, raw_inventory, duplicates = 0, 0, "", 0
 
     # Подсчет сундуков из инвентаря
     db_list = raw_inventory.split(",") if raw_inventory else []
