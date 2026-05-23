@@ -499,32 +499,40 @@ async def show_inventory(message: types.Message):
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def show_top(message: Message):
-    cursor.execute("SELECT name, items FROM users") # Убрали запрос username
+    cursor.execute("SELECT name, items FROM users") 
     rows = cursor.fetchall()
-    if not rows: return await message.answer("Топ пока пуст!")
-    
+    if not rows: 
+        return await message.answer("Топ пока пуст!")
+        
     users_list = []
+    
     for r in rows:
         name_val = str(r[0]) if r[0] else "Игрок"
         items_str = str(r[1]) if r[1] else ""
         
-        # Считаем количество только если есть хоть одна пятка
-        count = len(items_str.split(",")) if (items_str and items_str.strip()) else 0
+        if items_str and items_str.strip():
+            # 1. Сначала разбиваем строку на список всех карточек игрока
+            all_items = [item.strip() for item in items_str.split(",") if item.strip()]
+            # 2. ИСПРАВЛЕНИЕ: Оставляем только уникальные (новые) карты с помощью set()
+            count = len(set(all_items))
+        else:
+            count = 0
+            
         users_list.append({"n": name_val, "c": count})
-    
-    # Сортируем лидеров
+        
+    # Сортируем лидеров по количеству именно уникальных карт
     sorted_u = sorted(users_list, key=lambda x: x["c"], reverse=True)
     
-    txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ:**\n\n"
+    txt = "🏆 **ТОП КОЛЛЕКЦИОНЕРОВ (ПО УНИКАЛЬНЫМ КАРТАМ):**\n\n"
     for i, u in enumerate(sorted_u[:10], 1):
-        # Чистим имя от символов, которые ломают Markdown (звездочки, подчеркивания)
+        # Чистим имя от символов, ломающих разметку Markdown
         safe_name = u['n'].replace("*", "").replace("_", " ").replace("[", "").replace("`", "")
-        txt += f"{i}. {safe_name} — {u['c']}/{TOTAL_CARDS}\n"
-    
+        txt += f"{i}. {safe_name} — {u['c']}/{TOTAL_CARDS} 📑\n"
+        
     try:
         await message.answer(txt, parse_mode="Markdown")
     except:
-        # Если всё равно ошибка — шлем без жирного шрифта
+        # Резервный вариант без Markdown-тегов при ошибке
         await message.answer(txt.replace("**", ""))
 
 @dp.message(F.text == "🏪 Магазин")
