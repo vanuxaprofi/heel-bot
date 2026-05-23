@@ -1383,15 +1383,19 @@ def generate_progress_bar(current, target):
 async def show_quests_list(message: Message):
     user_id = message.from_user.id
     
+    # 1. Загрузка данных
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
         user_id, message.from_user.full_name, message.from_user.username
     )
-    pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
     
-    cursor.execute("SELECT bet_count, duel_wins, inventory FROM users WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT duel_wins, inventory FROM users WHERE user_id = ?", (user_id,))
     u_row = cursor.fetchone()
-    user_duels, user_wins, raw_inventory = u_row if u_row else (0, 0, "")
+    user_wins, raw_inventory = u_row if u_row else (0, "")
     
+    # Считаем сыгранные дуэли напрямую по статусам или по победам
+    user_duels = user_wins 
+
+    # 2. Подсчет карточек
     counts = {r: 0 for r in RARITIES}
     raw_list = raw_inventory.split(",") if raw_inventory else []
     user_inv_set = set([x.strip() for x in raw_list if x.strip()])
@@ -1401,12 +1405,13 @@ async def show_quests_list(message: Message):
             for card in DATA[rarity].keys():
                 if card in user_inv_set:
                     counts[rarity] += 1
+                    
     total_unique = sum(counts.values())
+    c_epic = counts.get("🟣 ЭПИЧЕСКАЯ (8%)", 0)
+    c_mythic = counts.get("🔴 МИФИЧЕСКАЯ (4%)", 0)
+    c_legend = counts.get("🟡 ЛЕГЕНДАРНАЯ (2%)", 0)
 
-    opened_epic = raw_list.count("⚙_epic_opened")
-    opened_mythic = raw_list.count("⚙_mythic_opened")
-    opened_legend = raw_list.count("⚙_legend_opened")
-
+    # 3. Статусы выполнения квестов из БД
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (user_id,))
     q = cursor.fetchone()
     if not q:
@@ -1423,46 +1428,67 @@ async def show_quests_list(message: Message):
     ]
     q_status = {col: q[i+1] for i, col in enumerate(columns)}
 
-    def get_ico(col_name):
-        return "✅ Выполнен" if q_status.get(col_name, 0) == 1 else "❌ В процессе"
+    # Квесты, которые реально отслеживаются (ровно 18 штук для счетчика всего)
+    tracked_keys = [
+        "common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2",
+        "global_10", "global_50", "global_100",
+        "dup_10", "dup_50", "dup_100",
+        "duel_1", "duel_5", "duel_10", "win_1", "win_5", "win_10"
+    ]
+    total_completed = sum(1 for k in tracked_keys if q_status.get(k, 0) == 1)
 
+    # Вспомогательные функции форматирования
+    def fmt(col_name, current, target):
+        if q_status.get(col_name, 0) == 1:
+            return f"✅ Выполнен ({target}/{target})"
+        return f"⏳ В процессе ({current}/{target})"
+
+    def make_bar(current, target):
+        current = min(current, target)
+        filled = int((current / target) * 5)
+        empty = 5 - filled
+        return "▚" * filled + "░" * empty
+
+    # 4. Сборка текстового шаблона
     text = (
-        f"📜 **ЗАДАНИЯ И КВЕСТЫ ИГРОКА** 📜\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🏃 **ОБЫЧНЫЕ КВЕСТЫ (ОДИНОЧНЫЕ):**\n"
-        f"• ⚪ 10 обычных карт: ({counts.get('⚪ ОБЫЧНАЯ (45%)', 0)}/10) — *{get_ico('common_10')}*\n"
-        f"• 🟢 10 необычных карт: ({counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0)}/10) — *{get_ico('uncommon_10')}*\n"
-        f"• 🔵 10 редких карт: ({counts.get('🔵 РЕДКАЯ (15%)', 0)}/10) — *{get_ico('rare_10')}*\n"
-        f"• 🟣 10 эпических карт: ({counts.get('🟣 ЭПИЧЕСКАЯ (8%)', 0)}/10) — *{get_ico('epic_10')}*\n"
-        f"• 🔴 10 мифических карт: ({counts.get('🔴 МИФИЧЕСКАЯ (4%)', 0)}/10) — *{get_ico('mythic_10')}*\n"
-        f"• 🟡 3 легендарных карты: ({counts.get('🟡 ЛЕГЕНДАРНАЯ (2%)', 0)}/3) — *{get_ico('legend_3')}*\n"
-        f"• 👑 2 идеальных карты: ({counts.get('👑 ИДЕАЛЬНАЯ (1%)', 0)}/2) — *{get_ico('perfect_2')}*\n\n"
-        
-        f"🎒 **ГЛОБАЛЬНЫЙ ПРОГРЕСС АЛЬБОМА:**\n"
-        f"• Собрать 10 уникальных пяток: ({total_unique}/10) — *{get_ico('global_10')}*\n"
-        f"• Собрать 50 уникальных пяток: ({total_unique}/50) — *{get_ico('global_50')}*\n"
-        f"• Собрать 100 уникальных пяток: ({total_unique}/100) — *{get_ico('global_100')}*\n\n"
+        f"📜 **КВЕСТЫ ИГРОКА: {message.from_user.first_name}**\n"
+        f"📊 Всего выполнено: **{total_completed}/18**\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"💎 **ПО РЕДКОСТЯМ:**\n"
+        f"• Обычные (10 шт): {fmt('common_10', counts.get('⚪ ОБЫЧНАЯ (45%)', 0), 10)}\n"
+        f"• Необычные (10 шт): {fmt('uncommon_10', counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0), 10)}\n"
+        f"• Редкие (10 шт): {fmt('rare_10', counts.get('🔵 РЕДКАЯ (15%)', 0), 10)}\n"
+        f"• Эпические (10 шт): {fmt('epic_10', c_epic, 10)}\n"
+        f"• Мифические (10 шт): {fmt('mythic_10', c_mythic, 10)}\n"
+        f"• Легендарные (3 шт): {fmt('legend_3', c_legend, 3)}\n"
+        f"• Идеальные (2 шт): {fmt('perfect_2', counts.get('👑 ИДЕАЛЬНАЯ (1%)', 0), 2)}\n\n"
 
-        f"🛒 **АКТИВНОСТЬ В МАГАЗИНЕ СУНДУКОВ:**\n"
-        f"• Купить 10 Эпик сундуков: ({opened_epic}/10) — *{get_ico('optovik')}*\n"
-        f"• Открыть 5 Мифик сундуков: ({opened_mythic}/5) — *{get_ico('chest_baron')}*\n"
-        f"• Купить 1-й Легендарный сундук: ({opened_legend}/1) — *{get_ico('legend_start')}*\n\n"
+        f"🌍 **ГЛОБАЛЬНАЯ КОЛЛЕКЦИЯ:**\n"
+        f"• Собрать 10 пяток: {fmt('global_10', total_unique, 10)}\n"
+        f"• Собрать 50 пяток: {fmt('global_50', total_unique, 50)}\n"
+        f"• Собрать 100 пяток: {fmt('global_100', total_unique, 100)}\n\n"
 
-        f"🔁 **ОХОТА ЗА ПОВТОРКАМИ:**\n"
-        f"• Накопить 10 повторок: ({duplicates}/10) — *{get_ico('dup_10')}*\n"
-        f"• Накопить 50 повторок: ({duplicates}/50) — *{get_ico('dup_50')}*\n"
-        f"• Накопить 100 повторок: ({duplicates}/100) — *{get_ico('dup_100')}*\n\n"
+        f"🔄 **ПОВТОРКИ И КАЗИНО:**\n"
+        f"• Начало дежавю (10 повт): {fmt('dup_10', duplicates, 10)}\n"
+        f"• Коллекционер дублей (50 повт): {fmt('dup_50', duplicates, 50)}\n"
+        f"• Временная петля (100 повт): {fmt('dup_100', duplicates, 100)}\n\n"
 
-        f"⚔ **КВЕСТЫ В ГРУППЕ (ДУЭЛИ В ЧАТАХ):**\n"
-        f"• Сыграть 1 дуэль в группе: ({user_duels}/1) — *{get_ico('duel_1')}*\n"
-        f"• Сыграть 5 дуэлей в группах: ({user_duels}/5) — *{get_ico('duel_5')}*\n"
-        f"• Провести 10 дуэльных боев: ({user_duels}/10) — *{get_ico('duel_10')}*\n\n"
+        f"⚔ **ЛИНИЯ СРАЖЕНИЙ В ГРУППЕ:**\n"
+        f"• Участие в бою (1 дуэль) — 50 💰\n"
+        f"└ Прогресс: {make_bar(user_duels, 1)} ({min(user_duels, 1)}/1) — *{'✅' if q_status.get('duel_1')==1 else '⏳'}*\n"
+        f"• Разминка на арене (5 дуэлей) — 150 💰\n"
+        f"└ Прогресс: {make_bar(user_duels, 5)} ({min(user_duels, 5)}/5) — *{'✅' if q_status.get('duel_5')==1 else '⏳'}*\n"
+        f"• Гладиатор чатов (10 дуэлей) — 300 💰\n"
+        f"└ Прогресс: {make_bar(user_duels, 10)} ({min(user_duels, 10)}/10) — *{'✅' if q_status.get('duel_10')==1 else '⏳'}*\n\n"
 
-        f"🏆 **БОЕВЫЕ ПОБЕДЫ В ГРУППАХ:**\n"
-        f"• Одержать 1 победу на арене: ({user_wins}/1) — *{get_ico('win_1')}*\n"
-        f"• Одержать 5 чистых побед: ({user_wins}/5) — *{get_ico('win_5')}*\n"
-        f"• Ветеран дуэлей (10 побед): ({user_wins}/10) — *{get_ico('win_10')}*\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━"
+        f"🏆 **ЛИНИЯ ПОБЕД В ГРУППЕ:**\n"
+        f"• Первая кровь (1 победа) — 100 💰\n"
+        f"└ Прогресс: {make_bar(user_wins, 1)} ({min(user_wins, 1)}/1) — *{'✅' if q_status.get('win_1')==1 else '⏳'}*\n"
+        f"• Пяточный доминатор (5 побед) — 300 💰\n"
+        f"└ Прогресс: {make_bar(user_wins, 5)} ({min(user_wins, 5)}/5) — *{'✅' if q_status.get('win_5')==1 else '⏳'}*\n"
+        f"• Король мутантов (10 побед) — 600 💰\n"
+        f"└ Прогресс: {make_bar(user_wins, 10)} ({min(user_wins, 10)}/10) — *{'✅' if q_status.get('win_10')==1 else '⏳'}*\n"
+        f"━━━━━━━━━━━━━━━━━━"
     )
     
     await message.answer(text, parse_mode="Markdown")
