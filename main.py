@@ -1591,137 +1591,61 @@ async def check_and_grant_quests(message, uid, inv, balance):
 #             ТЕКСТОВЫЕ ВЕРСИИ КОМАНД ДЛЯ БЕСЕД (ГРУПП)
 # =================================================================
 
-# 1. ТЕКСТОВЫЙ ПРОФИЛЬ
-@dp.message(F.chat.type.in_({"group", "supergroup"}), F.text.lower().startswith("дуэль"))
-async def create_duel_cmd(message: Message):
+# 1. ТЕКСТОВЫЙ ПРОФИЛЬ В ГРУППЕ
+@dp.message(F.chat.type != "private", F.text.lower().startswith("профиль"))
+async def show_group_profile(message: Message):
     user_id = message.from_user.id
-    creator_name = message.from_user.full_name if message.from_user else "Игрок"
-    parts = message.text.split()
-    
-    if len(parts) < 2:
-        return await message.reply("❌ Пропиши ставку! Пример: `Дуэль 500`", parse_mode="Markdown")
-        
-    try:
-        bet = int(parts[1])
-    except:
-        return await message.reply("❌ Ставка должна быть числом! Пример: `Дуэль 500`", parse_mode="Markdown")
-        
-    if bet <= 0:
-        return await message.reply("❌ Ставка должна быть больше 0!")
-
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, creator_name, "")
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, "")
     pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
+    unique_count = len(inv.keys()) if isinstance(inv, dict) else 0
     
-    if balance < bet:
-        return await message.reply(f"❌ Недостаточно монет! Твой баланс: **{balance}** 💰", parse_mode="Markdown")
-        
-    balance -= bet
-    update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
-    
-    ikb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🛒 Принять вызов ([{bet}] 💰)", callback_data=f"accept_duel_{bet}")]
-    ])
-    
-    text_create = (
-        f"⚔️ **ПЯТОЧНАЯ ДУЭЛЬ!**\n"
+    txt = (
+        f"👤 **ПРОФИЛЬ ИГРОКА: {message.from_user.full_name}**\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"Игрок **[{creator_name}]** бросает вызов на ставку в **[{bet}]** 💰!\n"
-        f"Кто готов разуться, посчитать пальцы и забрать весь куш? 🦶\n"
-        f"━━━━━━━━━━━━━━━━━━"
+        f"💰 Баланс: **{balance}** монет\n"
+        f"🎒 Коллекция: **{unique_count}/{TOTAL_CARDS}** уникальных пяток\n"
+        f"🔄 Всего повторок выбито: **{duplicates}** шт.\n"
+        f"📦 Открыто сундуков: **{total_opens}** раз\n"
+        f"🎰 Сыграно ставок за цикл: **{bet_count}/3**\n"
+        f"🔮 Гарант (Pity): **{pity_counter}/30**\n"
+        f"📅 Ежедневный цикл (День): **{current_day}**\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"👉 Чтобы посмотреть свои карты, напиши: `Инвентарь`"
     )
-    
-    duel_msg = await message.answer(text_create, reply_markup=ikb, parse_mode="Markdown")
-    active_duels[duel_msg.message_id] = {
-        "creator_id": user_id,
-        "creator_name": creator_name,
-        "bet_amount": bet,
-        "is_active": True
-    }
+    await message.reply(txt, parse_mode="Markdown")
 
 
-@dp.callback_query(F.data.startswith("accept_duel_"))
-async def accept_duel_callback(call: CallbackQuery):
-    msg_id = call.message.message_id
-    opponent_id = call.from_user.id
-    opponent_name = call.from_user.full_name
-    
-    if msg_id not in active_duels:
-        return await call.answer("❌ Дуэль уже завершена!", show_alert=True)
+# 2. ТЕКСТОВЫЙ ИНВЕНТАРЬ В ГРУППЕ (Ловит кнопку со смайликом рюкзака)
+@dp.message(F.chat.type != "private", F.text.lower().contains("инвентарь"))
+async def show_group_inventory(message: Message):
+    user_id = message.from_user.id
+    try:
+        cursor.execute("SELECT inventory FROM users WHERE user_id = ?", (user_id,))
+        res = cursor.fetchone()
         
-    duel_data = active_duels[msg_id]
-    creator_id = duel_data["creator_id"]
-    creator_name = duel_data["creator_name"]
-    bet = duel_data["bet_amount"]
-    
-    if opponent_id == creator_id:
-        return await call.answer("🛑 Нельзя соревноваться сам с собой! Дождись другого игрока. 🦶", show_alert=True)
+        if not res or not res[0] or not res[0].strip():
+            return await message.reply("🎒 Твой рюкзак пока пуст! Пиши боту в ЛС, чтобы выбить свою первую пятку.")
+            
+        items_str = res[0]
+        all_items = [item.strip() for item in items_str.split(",") if item.strip() and "⚙" not in item and "⚙️" not in item]
         
-    op_inv, op_balance, op_opens, op_dups, op_bets = get_user_data(opponent_id, opponent_name, "")
-    op_pity, op_day, op_claim = get_user_game_features(opponent_id)
-    
-    if op_balance < bet:
-        return await call.answer(f"❌ Недостаточно монет! Твой баланс: {op_balance} 💰", show_alert=True)
+        if not all_items:
+            return await message.reply("🎒 Твой рюкзак пока пуст!")
+            
+        inventory_dict = {name: all_items.count(name) for name in set(all_items)}
         
-    op_balance -= bet
-    update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-    
-    active_duels[msg_id]["is_active"] = False
-    
-    creator_fingers = random.randint(1, 10)
-    opponent_fingers = random.randint(1, 10)
-    
-    status_creator = DUEL_STATUSES.get(creator_fingers, "")
-    status_opponent = DUEL_STATUSES.get(opponent_fingers, "")
-    
-    result_text = (
-        f"⚔️ **ДУЭЛЬ НАЧАЛАСЬ!**\n"
-        f"**[{creator_name}]** 🆚 **[{opponent_name}]**\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🦶 **[{creator_name}]** показывает ногу...\n"
-        f"Бот насчитал: **{creator_fingers}** пальцев! *{status_creator}*\n\n"
-        f"🦶 **[{opponent_name}]** показывает ногу...\n"
-        f"Бот насчитал: **{opponent_fingers}** пальцев! *{status_opponent}*\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-    )
-    
-    cr_inv, cr_balance, cr_opens, cr_dups, cr_bets = get_user_data(creator_id, creator_name, "")
-    cr_pity, cr_day, cr_claim = get_user_game_features(creator_id)
-    
-    creator_unique = len(cr_inv.keys()) if isinstance(cr_inv, dict) else 0
-    opponent_unique = len(op_inv.keys()) if isinstance(op_inv, dict) else 0
-    prize = bet * 2
-    
-    if creator_fingers > opponent_fingers:
-        cr_balance += prize
-        update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-        result_text += f"🏆 Победитель: **[{creator_name}]**!\n💰 Выигрыш: **[{prize}]** монет зачислен!"
-    elif opponent_fingers > creator_fingers:
-        op_balance += prize
-        update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-        result_text += f"🏆 Победитель: **[{opponent_name}]**!\n💰 Выигрыш: **[{prize}]** монет зачислен!"
-    else:
-        if creator_unique < opponent_unique:
-            cr_balance += prize
-            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-            result_text += f"🏆 Ничья по пальцам! Но у игрока **{creator_name}** меньше коллекция карточек.\n🏆 Победитель: **[{creator_name}]**! Банк **{prize}** 💰 отправлен ему!"
-        elif opponent_unique < creator_unique:
-            op_balance += prize
-            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-            result_text += f"🏆 Ничья по пальцам! Но у игрока **{opponent_name}** меньше коллекция карточек.\n🏆 Победитель: **[{opponent_name}]**! Банк **{prize}** 💰 отправлен ему!"
-        else:
-            cr_balance += bet
-            op_balance += bet
-            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-            result_text += f"🤝 **Ничья по всем параметрам!** Ставки в размере **[{bet}]** монет возвращены обоим участникам."
+        txt = f"🎒 **ИНВЕНТАРЬ ИГРОКА: {message.from_user.full_name}**\n"
+        txt += f"Всего карт: {len(all_items)} шт. | Уникальных: {len(inventory_dict.keys())}\n"
+        txt += "━━━━━━━━━━━━━━━━━━\n"
+        for item, count in inventory_dict.items():
+            txt += f"• **{item}** — {count} шт.\n"
+        txt += "━━━━━━━━━━━━━━━━━━"
+        await message.reply(txt, parse_mode="Markdown")
+    except Exception as e:
+        await message.reply("⚠️ Не удалось загрузить инвентарь. Проверьте свой профиль в ЛС.")
 
-    if msg_id in active_duels:
-        del active_duels[msg_id]
-    
-    await call.message.edit_text(result_text, parse_mode="Markdown")
-    await call.answer()
 
-# 3. ТЕКСТОВЫЙ ТОП ИГРОКОВ
+# 3. ТЕКСТОВЫЙ ТОП ИГРОКОВ В ГРУППЕ
 @dp.message(F.chat.type != "private", F.text.lower().startswith("топ"))
 async def show_group_top(message: Message):
     cursor.execute("SELECT name, inventory FROM users")
@@ -1734,7 +1658,7 @@ async def show_group_top(message: Message):
         name_val = str(r[0]) if r and r[0] else "Игрок"
         items_str = str(r[1]) if r and r[1] else ""
         if items_str.strip():
-            all_items = [item.strip() for item in items_str.split(",") if item.strip() and "⚙️" not in item and "⚙" not in item]
+            all_items = [item.strip() for item in items_str.split(",") if item.strip() and "⚙" not in item and "⚙️" not in item]
             count = len(set(all_items))
         else: 
             count = 0
@@ -1749,7 +1673,7 @@ async def show_group_top(message: Message):
     await message.reply(txt, parse_mode="Markdown")
 
 
-# 4. ТЕКСТОВЫЕ КВЕСТЫ
+# 4. ТЕКСТОВЫЕ КВЕСТЫ В ГРУППЕ
 @dp.message(F.chat.type != "private", F.text.lower().startswith("квесты"))
 async def show_group_quests(message: Message):
     user_id = message.from_user.id
@@ -1800,7 +1724,7 @@ async def show_group_quests(message: Message):
     await message.reply(txt, parse_mode="Markdown")
 
 
-# 5. ТЕКСТОВЫЙ КАЛЕНДАРЬ
+# 5. ТЕКСТОВЫЙ КАЛЕНДАРЬ В ГРУППЕ
 @dp.message(F.chat.type != "private", F.text.lower().startswith("календарь"))
 async def show_group_calendar(message: Message):
     user_id = message.from_user.id
