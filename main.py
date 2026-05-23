@@ -293,11 +293,13 @@ def get_user_game_features(uid):
     return 0, 1, ""
 
 async def check_and_grant_quests(message, uid, inv, balance):
+    # 1. Корректно преобразуем инвентарь в список, если пришла строка
     if isinstance(inv, str):
         raw_list = [x.strip() for x in inv.split(",") if x.strip()]
     else:
         raw_list = [x.strip() for x in inv if str(x).strip()]
 
+    # Считаем уникальные карты по каждой редкости
     counts = {r: 0 for r in RARITIES}
     user_inv_set = set(raw_list)
     
@@ -308,21 +310,17 @@ async def check_and_grant_quests(message, uid, inv, balance):
                     counts[rarity] += 1
     total_unique = sum(counts.values())
 
-    cursor.execute("SELECT bet_count, duel_wins, inventory, duplicates FROM users WHERE user_id = ?", (uid,))
+    # 2. Загружаем дуэли, победы и повторки напрямую из базы данных
+    cursor.execute("SELECT duel_wins, inventory, duplicates FROM users WHERE user_id = ?", (uid,))
     u_row = cursor.fetchone()
     if u_row:
-        user_duels = u_row[0] if u_row[0] is not None else 0
-        user_wins = u_row[1] if u_row[1] is not None else 0
-        raw_inventory = u_row[2] if u_row[2] else ""
-        duplicates = u_row[3] if u_row[3] is not None else 0
+        user_wins = u_row[0] if u_row[0] is not None else 0
+        raw_inventory = u_row[1] if u_row[1] else ""
+        duplicates = u_row[2] if u_row[2] is not None else 0
     else:
-        user_duels, user_wins, raw_inventory, duplicates = 0, 0, "", 0
+        user_wins, raw_inventory, duplicates = 0, "", 0
 
-    db_list = raw_inventory.split(",") if raw_inventory else []
-    opened_epic = db_list.count("⚙_epic_opened")
-    opened_mythic = db_list.count("⚙_mythic_opened")
-    opened_legend = db_list.count("⚙_legend_opened")
-
+    # 3. Загружаем квесты
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
     if not q:
@@ -338,6 +336,19 @@ async def check_and_grant_quests(message, uid, inv, balance):
         "dup_10", "dup_50", "dup_100", "duel_1", "duel_5", "duel_10", "win_1", "win_5", "win_10"
     ]
     q_status = {col: q[i+1] for i, col in enumerate(columns)}
+
+    # ИСПРАВЛЕНО: Чтобы считались и проигрыши, и выигрыши,
+    # мы увеличиваем счетчик сыгранных игр на следующем шаге, а здесь берем актуальное значение
+    cursor.execute("SELECT COALESCE(SUM(duel_1 + duel_5 + duel_10), 0) FROM user_quests WHERE user_id = ?", (uid,))
+    games_row = cursor.fetchone()
+    # Если квесты еще не выполнялись, используем победы как отправную точку, иначе берем внутренний прогресс
+    user_duels = max(user_wins, games_row[0] if games_row else 0)
+
+    # Подсчет сундуков из инвентаря
+    db_list = raw_inventory.split(",") if raw_inventory else []
+    opened_epic = db_list.count("⚙_epic_opened")
+    opened_mythic = db_list.count("⚙_mythic_opened")
+    opened_legend = db_list.count("⚙_legend_opened")
 
     new_balance = balance
     triggered = False
@@ -372,6 +383,9 @@ async def check_and_grant_quests(message, uid, inv, balance):
         ("win_10", user_wins, 10, 600, "Ты — настоящий король мутантов! Одержано 10 побед! 👑\n Награда: 600 монет 💰")
     ]
 
+    # Получаем имя для красивого тега в чате
+    user_mention = f"⚠️ [Игрок](tg://user?id={uid})"
+
     for col, current, target, reward, success_text in QUESTS_LOGIC:
         if q_status.get(col, 0) == 0 and current >= target:
             new_balance += reward
@@ -379,17 +393,13 @@ async def check_and_grant_quests(message, uid, inv, balance):
             cursor.execute(f"UPDATE user_quests SET {col} = 1 WHERE user_id = ?", (uid,))
             conn.commit()
             
-            await asyncio.sleep(0.5)
-            try:
-                if col in ["global_100", "dup_100", "win_10"]:
-                    await message.bot.send_message(uid, f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
-                else:
-                    await message.bot.send_message(uid, f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
-            except Exception:
-                if col in ["global_100", "dup_100", "win_10"]:
-                    await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
-                else:
-                    await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
+            await asyncio.sleep(0.3)
+            
+            # ИСПРАВЛЕНО: Пишем строго в саму группу с упоминанием игрока
+            if col in ["global_100", "dup_100", "win_10"]:
+                await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{user_mention}, {success_text}", parse_mode="Markdown")
+            else:
+                await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{user_mention}, {success_text}", parse_mode="Markdown")
 
     if triggered:
         cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
@@ -1988,52 +1998,133 @@ async def show_group_top(message: Message):
 @dp.message(F.chat.type != "private", F.text.lower().startswith("квесты"))
 async def show_group_quests(message: Message):
     user_id = message.from_user.id
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, "")
     
+    # 1. Загружаем базовые данные
+    inv, balance, total_opens, duplicates, bet_count = get_user_data(
+        user_id, message.from_user.full_name, ""
+    )
+    
+    # 2. Загружаем дуэли
+    cursor.execute("SELECT bet_count, duel_wins, inventory FROM users WHERE user_id = ?", (user_id,))
+    u_row = cursor.fetchone()
+    if u_row:
+        user_duels = u_row if u_row is not None else 0  # Привязали к bet_count из Шага 31
+        user_wins = u_row if u_row is not None else 0
+        raw_inventory = u_row if u_row else ""
+    else:
+        user_duels, user_wins, raw_inventory = 0, 0, ""
+
+    # 3. Считаем карточки по редкостям
     counts = {r: 0 for r in RARITIES}
+    raw_list = raw_inventory.split(",") if raw_inventory else []
+    user_inv_set = set([x.strip() for x in raw_list if x.strip()])
+    
     for rarity in RARITIES:
         if rarity in DATA:
             for card in DATA[rarity].keys():
-                if card in inv: counts[rarity] += 1
+                if card in user_inv_set:
+                    counts[rarity] += 1
+                    
     total_unique = sum(counts.values())
 
-    cursor.execute("""
-        SELECT common_10, uncommon_10, rare_10, epic_10, mythic_10, legend_3, perfect_2, 
-               global_10, global_50, global_100, jackpot_hunter, optovik, chest_baron, 
-               legend_start, chest_magnat, dup_10, dup_50, dup_100 
-        FROM user_quests WHERE user_id = ?
-    """, (user_id,))
-    q_row = cursor.fetchone()
-    if not q_row: q_row = (0,) * 18
-        
-    completed = q_row.count(1)
-    def get_st(status): return "✅ Выполнен" if status == 1 else "⏳ В процессе"
+    c_common = counts.get("⚪ ОБЫЧНАЯ (45%)", 0)
+    c_uncommon = counts.get("🟢 НЕОБЫЧНАЯ (25%)", 0)
+    c_rare = counts.get("🔵 РЕДКАЯ (15%)", 0)
+    c_epic = counts.get("🟣 ЭПИЧЕСКАЯ (8%)", 0)
+    c_mythic = counts.get("🔴 МИФИЧЕСКАЯ (4%)", 0)
+    c_legend = counts.get("🟡 ЛЕГЕНДАРНАЯ (2%)", 0)
+    c_perfect = counts.get("👑 ИДЕАЛЬНАЯ (1%)", 0)
 
-    txt = (
-        f"📜 **КВЕСТЫ ИГРОКА: {message.from_user.full_name}**\n"
-        f"📊 Всего выполнено: **[{completed}/18]**\n"
+    # 4. Считываем статусы квестов из базы данных
+    cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (user_id,))
+    q = cursor.fetchone()
+    if not q:
+        cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (user_id,))
+        conn.commit()
+        cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (user_id,))
+        q = cursor.fetchone()
+
+    columns = [
+        "common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2",
+        "global_10", "global_50", "global_100",
+        "jackpot_hunter", "optovik", "chest_baron", "legend_start", "chest_magnat",
+        "dup_10", "dup_50", "dup_100", "duel_1", "duel_5", "duel_10", "win_1", "win_5", "win_10"
+    ]
+    q_status = {col: q[i+1] for i, col in enumerate(columns)}
+
+    tracked_keys = [
+        "common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2",
+        "global_10", "global_50", "global_100",
+        "dup_10", "dup_50", "dup_100",
+        "duel_1", "duel_5", "duel_10", "win_1", "win_5", "win_10"
+    ]
+    total_completed = sum(1 for k in tracked_keys if q_status.get(k, 0) == 1)
+
+    # Генератор пиксельной полоски прогресса
+    def make_bar(current, target):
+        current = min(current, target)
+        filled = int((current / target) * 5)
+        empty = 5 - filled
+        return "▚" * filled + "░" * empty
+
+    # Функция форматирования заголовка квеста
+    def fmt_title(col_name):
+        return "✅ Выполнен" if q_status.get(col_name, 0) == 1 else "⏳ В процессе"
+
+    # 5. Сборка красивого шаблона для отправки в группу
+    text = (
+        f"📜 **КВЕСТЫ ИГРОКА: {message.from_user.first_name}**\n"
+        f"📊 Всего выполнено: **{total_completed}/19**\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"💎 **ПО РЕДКОСТЯМ:**\n"
-        f"• Обычные (10 шт): {get_st(q_row[0])} ({counts.get('⚪ ОБЫЧНАЯ (45%)', 0)}/10)\n"
-        f"• Необычные (10 шт): {get_st(q_row[1])} ({counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0)}/10)\n"
-        f"• Редкие (10 шт): {get_st(q_row[2])} ({counts.get('🔵 РЕДКАЯ (15%)', 0)}/10)\n"
-        f"• Эпические (10 шт): {get_st(q_row[3])} ({counts.get('🟣 ЭПИЧЕСКАЯ (8%)', 0)}/10)\n"
-        f"• Мифические (10 шт): {get_st(q_row[4])} ({counts.get('🔴 МИФИЧЕСКАЯ (4%)', 0)}/10)\n"
-        f"• Легендарные (3 шт): {get_st(q_row[5])} ({counts.get('🟡 ЛЕГЕНДАРНАЯ (2%)', 0)}/3)\n"
-        f"• Идеальные (2 шт): {get_st(q_row[6])} ({counts.get('👑 ИДЕАЛЬНАЯ (1%)', 0)}/2)\n\n"
+        f"• Обычные (10 шт): {fmt_title('common_10')}\n"
+        f"└ Прогресс: {make_bar(c_common, 10)} ({c_common}/10) — 300 💰\n"
+        f"• Необычные (10 шт): {fmt_title('uncommon_10')}\n"
+        f"└ Прогресс: {make_bar(c_uncommon, 10)} ({c_uncommon}/10) — 600 💰\n"
+        f"• Редкие (10 шт): {fmt_title('rare_10')}\n"
+        f"└ Прогресс: {make_bar(c_rare, 10)} ({c_rare}/10) — 1200 💰\n"
+        f"• Эпические (10 шт): {fmt_title('epic_10')}\n"
+        f"└ Прогресс: {make_bar(c_epic, 10)} ({c_epic}/10) — 2500 💰\n"
+        f"• Мифические (10 шт): {fmt_title('mythic_10')}\n"
+        f"└ Прогресс: {make_bar(c_mythic, 10)} ({c_mythic}/10) — 7500 💰\n"
+        f"• Легендарные (3 шт): {fmt_title('legend_3')}\n"
+        f"└ Прогресс: {make_bar(c_legend, 3)} ({c_legend}/3) — 15000 💰\n"
+        f"• Идеальные (2 шт): {fmt_title('perfect_2')}\n"
+        f"└ Прогресс: {make_bar(c_perfect, 2)} ({c_perfect}/2) — 25000 💰\n\n"
+
         f"🌍 **ГЛОБАЛЬНАЯ КОЛЛЕКЦИЯ:**\n"
-        f"• Собрать 10 пяток: {get_st(q_row[7])} ({total_unique}/10)\n"
-        f"• Собрать 50 пяток: {get_st(q_row[8])} ({total_unique}/50)\n"
-        f"• Собрать 100 пяток: {get_st(q_row[9])} ({total_unique}/100)\n\n"
+        f"• Собрать 10 пяток: {fmt_title('global_10')}\n"
+        f"└ Прогресс: {make_bar(total_unique, 10)} ({total_unique}/10) — 1500 💰\n"
+        f"• Собрать 50 пяток: {fmt_title('global_50')}\n"
+        f"└ Прогресс: {make_bar(total_unique, 50)} ({total_unique}/50) — 10000 💰\n"
+        f"• Собрать 100 пяток: {fmt_title('global_100')}\n"
+        f"└ Прогресс: {make_bar(total_unique, 100)} ({total_unique}/100) — 35000 💰\n\n"
+
         f"🔄 **ПОВТОРКИ И КАЗИНО:**\n"
-        f"• Начало дежавю (10 повт): {get_st(q_row[15])} ({duplicates}/10)\n"
-        f"• Коллекционер дублей (50 повт): {get_st(q_row[16])} ({duplicates}/50)\n"
-        f"• Временная петля (100 повт): {get_st(q_row[17])} ({duplicates}/100)\n"
-        f"• Охотник за Джекпотом: {get_st(q_row[10])}\n"
+        f"• Начало дежавю (10 повт): {fmt_title('dup_10')}\n"
+        f"└ Прогресс: {make_bar(duplicates, 10)} ({duplicates}/10) — 1500 💰\n"
+        f"• Коллекционер дублей (50 повт): {fmt_title('dup_50')}\n"
+        f"└ Прогресс: {make_bar(duplicates, 50)} ({duplicates}/50) — 5000 💰\n"
+        f"• Временная петля (100 повт): {fmt_title('dup_100')}\n"
+        f"└ Прогресс: {make_bar(duplicates, 100)} ({duplicates}/100) — 15000 💰\n\n"
+
+        f"⚔ **КВЕСТЫ В ГРУППЕ:**\n"
+        f"• Сыграть 1 дуэль: {fmt_title('duel_1')}\n"
+        f"└ Прогресс: {make_bar(user_duels, 1)} ({user_duels}/1) — 50 💰\n"
+        f"• Сыграть 5 дуэлей: {fmt_title('duel_5')}\n"
+        f"└ Прогресс: {make_bar(user_duels, 5)} ({user_duels}/5) — 150 💰\n"
+        f"• Сыграть 10 дуэлей: {fmt_title('duel_10')}\n"
+        f"└ Прогресс: {make_bar(user_duels, 10)} ({user_duels}/10) — 300 💰\n"
+        f"• 1 победа в дуэли: {fmt_title('win_1')}\n"
+        f"└ Прогресс: {make_bar(user_wins, 1)} ({user_wins}/1) — 100 💰\n"
+        f"• 5 побед в дуэлях: {fmt_title('win_5')}\n"
+        f"└ Прогресс: {make_bar(user_wins, 5)} ({user_wins}/5) — 300 💰\n"
+        f"• 10 побед в дуэлях: {fmt_title('win_10')}\n"
+        f"└ Прогресс: {make_bar(user_wins, 10)} ({user_wins}/10) — 600 💰\n"
         f"━━━━━━━━━━━━━━━━━━"
     )
-    await message.reply(txt, parse_mode="Markdown")
-
+    
+    await message.reply(text, parse_mode="Markdown")
 
 # 5. ТЕКСТОВЫЙ КАЛЕНДАРЬ В ГРУППЕ
 @dp.message(F.chat.type != "private", F.text.lower().startswith("календарь"))
