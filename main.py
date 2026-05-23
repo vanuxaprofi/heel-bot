@@ -293,32 +293,42 @@ def get_user_game_features(uid):
     return 0, 1, ""
 
 async def check_and_grant_quests(message, uid, inv, balance):
+    # 1. Корректно преобразуем инвентарь в список, если пришла строка
+    if isinstance(inv, str):
+        raw_list = [x.strip() for x in inv.split(",") if x.strip()]
+    else:
+        raw_list = [x.strip() for x in inv if str(x).strip()]
+
+    # Считаем уникальные карты по каждой редкости
     counts = {r: 0 for r in RARITIES}
+    user_inv_set = set(raw_list)
+    
     for rarity in RARITIES:
         if rarity in DATA:
             for card in DATA[rarity].keys():
-                if card in inv and inv[card] > 0:
+                if card in user_inv_set:
                     counts[rarity] += 1
     total_unique = sum(counts.values())
 
-    # Получаем базовые данные игрока
-    inv_str, bal, total_opens, duplicates, bet_count = get_user_data(
-        uid, message.from_user.full_name, message.from_user.username
-    )
-
-    # Получаем данные дуэлей из базы данных
-    cursor.execute("SELECT bet_count, duel_wins, inventory FROM users WHERE user_id = ?", (uid,))
+    # 2. Загружаем дуэли и повторки напрямую из актуальной строки игрока в БД
+    cursor.execute("SELECT bet_count, duel_wins, inventory, duplicates FROM users WHERE user_id = ?", (uid,))
     u_row = cursor.fetchone()
-    user_duels, user_wins, raw_inventory = u_row if u_row else (0, 0, "")
-    
-    # Временная синхронизация дуэлей и побед для проверки
+    if u_row:
+        user_wins = u_row[1] if u_row[1] is not None else 0
+        raw_inventory = u_row[2] if u_row[2] else ""
+        duplicates = u_row[3] if u_row[3] is not None else 0
+    else:
+        user_wins, raw_inventory, duplicates = 0, "", 0
+        
     user_duels = user_wins 
 
-    raw_list = raw_inventory.split(",") if raw_inventory else []
-    opened_epic = raw_list.count("⚙_epic_opened")
-    opened_mythic = raw_list.count("⚙_mythic_opened")
-    opened_legend = raw_list.count("⚙_legend_opened")
+    # Подсчет сундуков из инвентаря
+    db_list = raw_inventory.split(",") if raw_inventory else []
+    opened_epic = db_list.count("⚙_epic_opened")
+    opened_mythic = db_list.count("⚙_mythic_opened")
+    opened_legend = db_list.count("⚙_legend_opened")
 
+    # 3. Загружаем квесты
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
     if not q:
@@ -376,10 +386,18 @@ async def check_and_grant_quests(message, uid, inv, balance):
             conn.commit()
             
             await asyncio.sleep(0.5)
-            if col in ["global_100", "dup_100", "win_10"]:
-                await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
-            else:
-                await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
+            
+            # Пробуем отправить в ЛС, если бот заблокирован — кидаем в группу
+            try:
+                if col in ["global_100", "dup_100", "win_10"]:
+                    await message.bot.send_message(uid, f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
+                else:
+                    await message.bot.send_message(uid, f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
+            except Exception:
+                if col in ["global_100", "dup_100", "win_10"]:
+                    await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
+                else:
+                    await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
 
     if triggered:
         cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
