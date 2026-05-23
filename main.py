@@ -165,20 +165,7 @@ if os.path.exists("game_db.db"):
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# 1. Создание таблицы для новых квестов со скриншотов
-cursor.execute('''CREATE TABLE IF NOT EXISTS user_new_quests
-(user_id INTEGER PRIMARY KEY,
- jackpot_hunter INTEGER DEFAULT 0,
- optovik INTEGER DEFAULT 0,
- chest_baron INTEGER DEFAULT 0,
- legend_start INTEGER DEFAULT 0,
- chest_magnat INTEGER DEFAULT 0,
- dup_10 INTEGER DEFAULT 0,
- dup_50 INTEGER DEFAULT 0,
- dup_100 INTEGER DEFAULT 0)''')
-conn.commit()
-
-# 2. ВОЗВРАЩАЕМ ГЛАВНУЮ ТАБЛИЦУ ПОЛЬЗОВАТЕЛЕЙ (ОБЯЗАТЕЛЬНО!)
+# 1. Создание таблицы пользователей
 cursor.execute('''CREATE TABLE IF NOT EXISTS users 
 (user_id INTEGER PRIMARY KEY, 
  name TEXT, 
@@ -193,20 +180,27 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users
  last_claim_date TEXT DEFAULT '')''')
 conn.commit()
 
-# 3. Новая таблица для отслеживания выполненных квестов (старая версия)
+# 2. Одна общая таблица квестов (все квесты вместе!)
 cursor.execute('''CREATE TABLE IF NOT EXISTS user_quests
 (user_id INTEGER PRIMARY KEY,
  common_10 INTEGER DEFAULT 0,
-uncommon_10 INTEGER DEFAULT 0,
-rare_10 INTEGER DEFAULT 0,
-epic_10 INTEGER DEFAULT 0,
-mythic_10 INTEGER DEFAULT 0,
-legend_3 INTEGER DEFAULT 0,
-perfect_2 INTEGER DEFAULT 0,
-global_10 INTEGER DEFAULT 0,
-global_50 INTEGER DEFAULT 0,
-global_100 INTEGER DEFAULT 0)''')
-
+ uncommon_10 INTEGER DEFAULT 0,
+ rare_10 INTEGER DEFAULT 0,
+ epic_10 INTEGER DEFAULT 0,
+ mythic_10 INTEGER DEFAULT 0,
+ legend_3 INTEGER DEFAULT 0,
+ perfect_2 INTEGER DEFAULT 0,
+ global_10 INTEGER DEFAULT 0,
+ global_50 INTEGER DEFAULT 0,
+ global_100 INTEGER DEFAULT 0,
+ jackpot_hunter INTEGER DEFAULT 0,
+ optovik INTEGER DEFAULT 0,
+ chest_baron INTEGER DEFAULT 0,
+ legend_start INTEGER DEFAULT 0,
+ chest_magnat INTEGER DEFAULT 0,
+ dup_10 INTEGER DEFAULT 0,
+ dup_50 INTEGER DEFAULT 0,
+ dup_100 INTEGER DEFAULT 0)''')
 conn.commit()
 
 def get_user_data(uid, n, un):
@@ -1232,63 +1226,94 @@ def generate_progress_bar(current, target):
 async def show_user_quests(message: Message):
     user_id = message.from_user.id
     
+    # Загружаем статы игрока
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
         user_id, message.from_user.full_name, message.from_user.username
     )
     
-    cursor.execute("SELECT jackpot_hunter, optovik, chest_baron, legend_start, chest_magnat, dup_10, dup_50, dup_100 FROM user_new_quests WHERE user_id = ?", (user_id,))
+    # Считаем количество карточек по редкостям
+    counts = {r: 0 for r in RARITIES}
+    for rarity in RARITIES:
+        if rarity in DATA:
+            for card in DATA[rarity].keys():
+                if card in inv:
+                    counts[rarity] += 1
+    total_unique = sum(counts.values())
+
+    # Вытягиваем все статусы квестов из базы
+    cursor.execute("""
+        SELECT common_10, uncommon_10, rare_10, epic_10, mythic_10, legend_3, perfect_2, 
+               global_10, global_50, global_100, 
+               jackpot_hunter, optovik, chest_baron, legend_start, chest_magnat, 
+               dup_10, dup_50, dup_100 
+        FROM user_quests WHERE user_id = ?
+    """, (user_id,))
     q_row = cursor.fetchone()
     
     if not q_row:
-        cursor.execute("INSERT OR IGNORE INTO user_new_quests (user_id) VALUES (?)", (user_id,))
+        cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (user_id,))
         conn.commit()
-        q_row = (0, 0, 0, 0, 0, 0, 0, 0)
+        q_row = [0] * 18
         
-    j_jack, j_opt, j_baron, j_leg, j_magnat, d_10, d_50, d_100 = q_row
-    
-    # Иконки выполнения
     def get_icon(status): return "✅" if status == 1 else "⏳"
 
-    # Считаем бары (пока для сундуков поставим 0, если у тебя нет под них отдельных счетчиков в БД, либо они завязаны на total_opens)
-    bar_jack = "▚▚▚▚▚" if j_jack else "░░░░░"
-    bar_opt = generate_progress_bar(0, 10) if not j_opt else "▚▚▚▚▚"
-    bar_baron = generate_progress_bar(0, 5) if not j_baron else "▚▚▚▚▚"
-    bar_leg = generate_progress_bar(0, 1) if not j_leg else "▚▚▚▚▚"
-    bar_magnat = generate_progress_bar(0, 20000) if not j_magnat else "▚▚▚▚▚"
-    
-    bar_10 = generate_progress_bar(duplicates, 10)
-    bar_50 = generate_progress_bar(duplicates, 50)
-    bar_100 = generate_progress_bar(duplicates, 100)
-    
+    # Переменные для редкостей
+    c_common = counts.get('⚪ ОБЫЧНАЯ (45%)', 0)
+    c_uncommon = counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0)
+    c_rare = counts.get('🔵 РЕДКАЯ (15%)', 0)
+    c_epic = counts.get('🟣 ЭПИЧЕСКАЯ (8%)', 0)
+    c_mythic = counts.get('🔴 МИФИЧЕСКАЯ (4%)', 0)
+    c_legend = counts.get('🟡 ЛЕГЕНДАРНАЯ (2%)', 0)
+    c_perfect = counts.get('👑 ИДЕАЛЬНАЯ (1%)', 0)
+
     text = (
         f"📜 **СПИСОК ДОСТУПНЫХ КВЕСТОВ**\n\n"
         
-        f"{get_icon(j_jack)} **Охотник за Джекпотом** (x10 на ставке 100) — 14 000 💰\n"
-        f"└ Прогресс: {bar_jack} ({1 if j_jack else 0}/1)\n\n"
+        f"💎 **💎 КВЕСТЫ ПО РЕДКОСТЯМ**\n"
+        f"{get_icon(q_row[0])} **Обычные карточки** (10 штук) — 300 💰\n"
+        f"└ Прогресс: {generate_progress_bar(c_common, 10)} ({c_common}/10)\n\n"
+        f"{get_icon(q_row[1])} **Необычные карточки** (10 штук) — 600 💰\n"
+        f"└ Прогресс: {generate_progress_bar(c_uncommon, 10)} ({c_uncommon}/10)\n\n"
+        f"{get_icon(q_row[2])} **Редкие карточки** (10 штук) — 1 200 💰\n"
+        f"└ Прогресс: {generate_progress_bar(c_rare, 10)} ({c_rare}/10)\n\n"
+        f"{get_icon(q_row[3])} **Эпические карточки** (10 штук) — 2 500 💰\n"
+        f"└ Прогресс: {generate_progress_bar(c_epic, 10)} ({c_epic}/10)\n\n"
+        f"{get_icon(q_row[4])} **Мифические карточки** (10 штук) — 7 500 💰\n"
+        f"└ Прогресс: {generate_progress_bar(c_mythic, 10)} ({c_mythic}/10)\n\n"
+        f"{get_icon(q_row[5])} **Легендарные карточки** (3 штуки) — 15 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(c_legend, 3)} ({c_legend}/3)\n\n"
+        f"{get_icon(q_row[6])} **Идельные карточки** (2 штуки) — 25 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(c_perfect, 2)} ({c_perfect}/2)\n\n"
         
-        f"{get_icon(j_opt)} **Оптовик** (Купить 10 Эпик сундуков) — 2 500 💰\n"
-        f"└ Прогресс: {bar_opt} ({10 if j_opt else 0}/10)\n\n"
+        f"🛍 **🛍 МАГАЗИННЫЕ КВЕСТЫ**\n"
+        f"{get_icon(q_row[11])} **Оптовик** (10 Эпик сундуков) — 2 500 💰\n"
+        f"└ Прогресс: {generate_progress_bar(total_opens, 10) if not q_row[11] else '▚▚▚▚▚'} ({total_opens if not q_row[11] else 10}/10)\n\n"
+        f"{get_icon(q_row[12])} **Сундучный Барон** (5 Мифик сундуков) — 6 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(total_opens, 5) if not q_row[12] else '▚▚▚▚▚'} ({total_opens if not q_row[12] else 5}/5)\n\n"
+        f"{get_icon(q_row[13])} **Легендарный Старт** (1 Легенда сундук) — 5 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(total_opens, 1) if not q_row[13] else '▚▚▚▚▚'} ({total_opens if not q_row[13] else 1}/1)\n\n"
+        f"{get_icon(q_row[14])} **Сундучный Магнат** (Потратить 20k) — 3 000 💰\n"
+        f"└ Прогресс: {'▚▚▚▚▚' if q_row[14] else '░░░░░'} ({20000 if q_row[14] else 0}/20000)\n\n"
         
-        f"{get_icon(j_baron)} **Сундучный Барон** (Купить 5 Мифик сундуков) — 6 000 💰\n"
-        f"└ Прогресс: {bar_baron} ({5 if j_baron else 0}/5)\n\n"
+        f"🔄 **🔄 КВЕСТЫ НА ПОВТОРКИ**\n"
+        f"♻️ {get_icon(q_row[15])} **Начало дежавю** (10 повторок) — 1 500 💰\n"
+        f"└ Прогресс: {generate_progress_bar(duplicates, 10)} ({min(duplicates, 10)}/10)\n\n"
+        f"🔄 {get_icon(q_row[16])} **Коллекционер дублей** (50 повторок) — 5 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(duplicates, 50)} ({min(duplicates, 50)}/50)\n\n"
+        f"🌀 {get_icon(q_row[17])} **Временная петля** (100 повторок) — 15 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(duplicates, 100)} ({min(duplicates, 100)}/100)\n\n"
         
-        f"{get_icon(j_leg)} **Легендарный Старт** (Купить 1 Легенду) — 5 000 💰\n"
-        f"└ Прогресс: {bar_leg} ({1 if j_leg else 0}/1)\n\n"
+        f"🌍 **🌍 ГЛОБАЛЬНАЯ КОЛЛЕКЦИЯ**\n"
+        f"{get_icon(q_row[7])} **Собрать 10 уникальных пяток** — 1 500 💰\n"
+        f"└ Прогресс: {generate_progress_bar(total_unique, 10)} ({total_unique}/10)\n\n"
+        f"{get_icon(q_row[8])} **Собрать 50 уникальных пяток** — 10 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(total_unique, 50)} ({total_unique}/50)\n\n"
+        f"{get_icon(q_row[9])} **Собрать 100 уникальных пяток** — 35 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(total_unique, 100)} ({total_unique}/100)\n\n"
         
-        f"{get_icon(j_magnat)} **Сундучный Магнат** (Потратить 20k в магазине) — 3 000 💰\n"
-        f"└ Прогресс: {bar_magnat} ({20000 if j_magnat else 0}/20000)\n\n"
-        
-        f"--- **КВЕСТЫ НА ПОВТОРКИ** ---\n"
-        f"Выпало повторок всего: **[{duplicates}]** 🔁\n\n"
-        
-        f"♻️ {get_icon(d_10)} **Начало дежавю** (10 повторок) — 1 500 💰\n"
-        f"└ Прогресс: {bar_10} ({min(duplicates, 10)}/10)\n\n"
-        
-        f"🔄 {get_icon(d_50)} **Коллекционер дублей** (50 повторок) — 5 000 💰\n"
-        f"└ Прогресс: {bar_50} ({min(duplicates, 50)}/50)\n\n"
-        
-        f"🌀 {get_icon(d_100)} **Временная петля** (100 повторок) — 15 000 💰\n"
-        f"└ Прогресс: {bar_100} ({min(duplicates, 100)}/100)\n"
+        f"🎰 **🎰 КВЕСТЫ КАЗИНО**\n"
+        f"{get_icon(q_row[10])} **Охотник за Джекпотом** — 14 000 💰\n"
+        f"└ Прогресс: {'▚▚▚▚▚' if q_row[10] else '░░░░░'} ({1 if q_row[10] else 0}/1)\n"
     )
     
     await message.answer(text, parse_mode="Markdown")
@@ -1371,132 +1396,90 @@ async def show_calendar_cmd(message: Message):
     except Exception as error:
         await message.answer(f"❌ Ошибка в календаре:\n`{str(error)}`", parse_mode="Markdown")
 
-async def check_new_quests(message, user_id, action_type, value=1):
-    """
-    action_type может быть:
-    - 'jackpot': проверяем, если поймал х10 на ставке 100
-    - 'buy_epic': купил эпический сундук (value = сколько купил)
-    - 'buy_mythic': купил мифический сундук
-    - 'buy_legend': купил легендарный сундук
-    - 'spend': потратил монеты в магазине (value = сколько потратил)
-    - 'duplicate': получил повторку (value = сколько ВСЕГО повторок у юзера)
-    """
-    # Получаем текущий баланс и статы для обновления
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(
-        user_id, message.from_user.full_name, message.from_user.username
-    )
-    
-    # Проверяем, есть ли запись в новых квестах
-    cursor.execute("SELECT * FROM user_new_quests WHERE user_id = ?", (user_id,))
+async def check_and_grant_quests(message, uid, inv, balance):
+    counts = {r: 0 for r in RARITIES}
+    for rarity in RARITIES:
+        if rarity in DATA:
+            for card in DATA[rarity].keys():
+                if card in inv:
+                    counts[rarity] += 1
+    total_unique = sum(counts.values())
+
+    # Берем данные игрока для проверки условий
+    cursor.execute("SELECT total_opens, duplicates FROM users WHERE user_id = ?", (uid,))
+    user_row = cursor.fetchone()
+    total_opens = user_row[0] if user_row else 0
+    user_duplicates = user_row[1] if user_row else 0
+
+    cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
     if not q:
-        cursor.execute("INSERT OR IGNORE INTO user_new_quests (user_id) VALUES (?)", (user_id,))
+        cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
         conn.commit()
-        cursor.execute("SELECT * FROM user_new_quests WHERE user_id = ?", (user_id,))
+        cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
         q = cursor.fetchone()
 
-    # Маппинг статусов (индексы: 1-jackpot, 2-optovik, 3-chest_baron, 4-legend_start, 5-chest_magnat, 6-dup_10, 7-dup_50, 8-dup_100)
-    status = {
-        "jackpot": q[1], "optovik": q[2], "chest_baron": q[3], 
-        "legend_start": q[4], "chest_magnat": q[5],
-        "dup_10": q[6], "dup_50": q[7], "dup_100": q[8]
-    }
-
+    # Массив колонок (ровно 18 квестов)
+    columns = [
+        "common_10", "uncommon_10", "rare_10", "epic_10", "mythic_10", "legend_3", "perfect_2", 
+        "global_10", "global_50", "global_100", 
+        "jackpot_hunter", "optovik", "chest_baron", "legend_start", "chest_magnat", 
+        "dup_10", "dup_50", "dup_100"
+    ]
+    q_status = {col: q[i+1] for i, col in enumerate(columns)}
+    
     new_balance = balance
     triggered = False
-    
-    # Вспомогательная функция для обновления квеста в БД
-    def complete_quest(column, reward):
-        nonlocal new_balance, triggered
-        new_balance += reward
-        triggered = True
-        cursor.execute(f"UPDATE user_new_quests SET {column} = 1 WHERE user_id = ?", (user_id,))
-        conn.commit()
 
-    # 1. Охотник за Джекпотом
-    if action_type == "jackpot" and status["jackpot"] == 0:
-        complete_quest("jackpot_hunter", 14000)
-        await message.answer(
-            "🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-            "Разгон от новичка до мажора! Ты поймал Джекпот x10 на минимальной ставке в [100] монет! 🎰\n"
-            "Твоя награда: **[14 000]** монет 💰 *(Суммарно вышло ровно [15 000]!)*\n\n"
-            "✨ Риск оправдался на все сто. Пора заглянуть в магазин за Легендарным сундуком! ✨", parse_mode="Markdown"
-        )
+    # ПОЛНАЯ СЕТКА ВСЕХ КВЕСТОВ (Старые + Все новые со скриншотов)
+    QUESTS_LOGIC = [
+        # Старые квесты по редкостям
+        ("common_10", counts.get("⚪ ОБЫЧНАЯ (45%)", 0), 10, 300, "Ты собрал 10 обычных карточек!\nНаграда: 300 монет 💰"),
+        ("uncommon_10", counts.get("🟢 НЕОБЫЧНАЯ (25%)", 0), 10, 600, "Ты собрал 10 необычных карточек!\nНаграда: 600 монет 💰"),
+        ("rare_10", counts.get("🔵 РЕДКАЯ (15%)", 0), 10, 1200, "Ты собрал 10 редких карточек!\nНаграда: 1 200 монет 💰"),
+        ("epic_10", counts.get("🟣 ЭПИЧЕСКАЯ (8%)", 0), 10, 2500, "Ты собрал 10 эпических карточек!\nНаграда: 2 500 монет 💰"),
+        ("mythic_10", counts.get("🔴 МИФИЧЕСКАЯ (4%)", 0), 10, 7500, "Ты собрал 10 мифических карточек!\nНаграда: 7 500 монет 💰"),
+        ("legend_3", counts.get("🟡 ЛЕГЕНДАРНАЯ (2%)", 0), 3, 15000, "Ты собрал 3 легендарных карточки!\nНаграда: 15 000 монет 💰"),
+        ("perfect_2", counts.get("👑 ИДЕАЛЬНАЯ (1%)", 0), 2, 25000, "Ты собрал 2 идеальных карточки!\nНаграда: 25 000 монет 💰"),
+        
+        # Старые глобальные квесты
+        ("global_10", total_unique, 10, 1500, "ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН!\nТы собрал 10 уникальных пяток!\nНаграда: 1 500 монет 💰"),
+        ("global_50", total_unique, 50, 10000, "ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН!\nТы собрал 50 уникальных пяток!\nНаграда: 10 000 монет 💰"),
+        ("global_100", total_unique, 100, 35000, "ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!\nТы сделал это! 100 ПЯТОК! 👑\nНаграда: 35 000 монет 💰"),
+        
+        # НОВЫЕ КВЕСТЫ ИЗ ТВОИХ СКРИНШОТОВ
+        ("jackpot_hunter", 0, 1, 14000, "Разгон от новичка до мажора! Ты поймал Джекпот x10 на минимальной ставке в [100] монет! 🎰\nТвоя награда: [14 000] монет 💰 *(Суммарно вышло ровно [15 000]!)*\n\n✨ Риск оправдался на все сто. Пора заглянуть в магазин за Легендарным сундуком! ✨"),
+        ("optovik", total_opens, 10, 2500, "Ты купил [10] Эпических сундуков в магазине! 🛍\nТвоя награда: [2 500] монет 💰\n\n✨ Отличный оборот капитала. Количество обязательно перерастёт в качество! ✨"),
+        ("chest_baron", total_opens, 5, 6000, "Ты открыл [5] Мифических сундуков! 🔮\nТвоя награда: [6 000] монет 💰\n\n✨ Твой изысканный вкус к кейсам вознагражден. Коллекция становится всё элитнее! ✨"),
+        ("legend_start", total_opens, 1, 5000, "Ты приобрёл свой первый [1] Легендарный сундук! 👑\nТвоя награда: [5 000] монет 💰\n\n✨ Серьезный шаг в высшую лигу коллекционеров. Твои инвестиции начинают окупаться! ✨"),
+        ("chest_magnat", 0, 20000, 3000, "«Сундучный Магнат»: Потратить в магазине суммарно 20k! 💳\nТвоя награда: [3 000] монет 💰"),
+        
+        # Квесты на повторки
+        ("dup_10", user_duplicates, 10, 1500, "Ты собрал [10] повторок в режиме выбивания пяток! 🔁\nЗа каждую из них ты уже получил х2 монет, но лавка ценит твое упорство!\nТвоя награда: [1 500] монет 💰\n\n✨ Не расстраивайся из-за дубликатов, с таким кэшбэком ты быстро накопишь на сундук! ✨"),
+        ("dup_50", user_duplicates, 50, 5000, "В твоем рюкзаке осело уже [50] повторных пяток! 🎒\nТвой баланс знатно разросся на х2 бонусах, но держи еще один крупный куш!\nТвоя награда: [5 000] монет 💰\n\n✨ Настоящий ветеран повторного дропа. Удача точно скоро тебе улыбнется! ✨"),
+        ("dup_100", user_duplicates, 100, 15000, "Это безумие! [100] ПОВТОРНЫХ ПЯТОК! 👑\nТы собрал целую армию дубликатов и поднял миллионы на х2 монетах! За твое титаническое терпение лавка выдает королевский грант.\nТвоя награда: [15 000] монет 💰\n\n✨ Ты — абсолютная легенда повторок. Твоему везению (или невезению) можно только позавидовать! ✨")
+    ]
 
-    # 2. Оптовик (Нужно сохранять где-то общее число покупок, либо мы проверяем по факту)
-    # Для простоты: если передаем сколько ВСЕГО купил за всё время
-    if action_type == "buy_epic" and status["optovik"] == 0 and value >= 10:
-        complete_quest("optovik", 2500)
-        await message.answer(
-            "🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-            "Ты купил [10] Эпических сундуков в магазине! 🛍\n"
-            "Твоя награда: **[2 500]** монет 💰\n\n"
-            "✨ Отличный оборот капитала. Количество обязательно перерастёт в качество! ✨", parse_mode="Markdown"
-        )
-
-    # 3. Сундучный Барон
-    if action_type == "buy_mythic" and status["chest_baron"] == 0 and value >= 5:
-        complete_quest("chest_baron", 6000)
-        await message.answer(
-            "🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-            "Ты открыл [5] Мифических сундуков! 🔮\n"
-            "Твоя награда: **[6 000]** монет 💰\n\n"
-            "✨ Твой изысканный вкус к кейсам вознагражден. Коллекция становится всё элитнее! ✨", parse_mode="Markdown"
-        )
-
-    # 4. Легендарный Старт
-    if action_type == "buy_legend" and status["legend_start"] == 0 and value >= 1:
-        complete_quest("legend_start", 5000)
-        await message.answer(
-            "🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-            "Ты приобрёл свой первый [1] Легендарный сундук! 👑\n"
-            "Твоя награда: **[5 000]** монет 💰\n\n"
-            "✨ Серьезный шаг в высшую лигу коллекционеров. Твои инвестиции начинают окупаться! ✨", parse_mode="Markdown"
-        )
-
-    # 5. Сундучный Магнат (Потратить 20к)
-    if action_type == "spend" and status["chest_magnat"] == 0 and value >= 20000:
-        complete_quest("chest_magnat", 3000)
-        await message.answer(
-            "🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-            "«Сундучный магнат»: Потратить в магазине суммарно 20 000 монет! 💳\n"
-            "Твоя награда: **[3 000]** монет 💰", parse_mode="Markdown"
-        )
-
-    # 6. Квесты на повторки
-    if action_type == "duplicate":
-        if value >= 10 and status["dup_10"] == 0:
-            complete_quest("dup_10", 1500)
-            await message.answer(
-                "🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-                "Ты собрал [10] повторок в режиме выбивания пяток! 🔁\n"
-                "За каждую из них ты уже получил х2 монет, но лавка ценит твое упорство!\n"
-                "Твоя награда: **[1 500]** монет 💰\n\n"
-                "✨ Не расстраивайся из-за дубликатов, с таким кэшбэком ты быстро накопишь на сундук! ✨", parse_mode="Markdown"
-            )
-        if value >= 50 and status["dup_50"] == 0:
-            complete_quest("dup_50", 5000)
-            await message.answer(
-                "🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n"
-                "В твоем рюкзаке осело уже [50] повторных пяток! 🎒\n"
-                "Твой баланс знатно разросся на х2 бонусах, но держи еще один крупный куш!\n"
-                "Твоя награда: **[5 000]** монет 💰\n\n"
-                "✨ Настоящий ветеран повторного дропа. Удача точно скоро тебе улыбнется! ✨", parse_mode="Markdown"
-            )
-        if value >= 100 and status["dup_100"] == 0:
-            complete_quest("dup_100", 15000)
-            await message.answer(
-                "🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n"
-                "Это безумие! [100] ПОВТОРНЫХ ПЯТОК! 👑\n"
-                "Ты собрал целую армию дубликатов и поднял миллионы на х2 монетах! За твое титаническое терпение лавка выдает королевский грант.\n"
-                "Твоя награда: **[15 000]** монет 💰\n\n"
-                "✨ Ты — абсолютная легенда повторок. Твоему везению (или невезению) можно только позавидовать! ✨", parse_mode="Markdown"
-            )
+    for col, current, target, reward, success_text in QUESTS_LOGIC:
+        # Для джекпота и магната проверка идет вручную в коде, здесь пропускаем автоматику
+        if col in ["jackpot_hunter", "chest_magnat"]:
+            continue
+            
+        if q_status[col] == 0 and current >= target:
+            new_balance += reward
+            triggered = True
+            cursor.execute(f"UPDATE user_quests SET {col} = 1 WHERE user_id = ?", (uid,))
+            conn.commit()
+            
+            if col == "dup_100":
+                await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{success_text}", parse_mode="Markdown")
+            else:
+                await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{success_text}", parse_mode="Markdown")
 
     if triggered:
-        # Обновляем баланс в базе через твой существующий метод или прямой апдейт
-        cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, user_id))
+        cursor.execute("UPDATE users SET balance = ? WHERE user_id = ?", (new_balance, uid))
         conn.commit()
+    return new_balance
 
 async def main():
     # Добавляем новые колонки в базу для старых игроков, если их еще нет
