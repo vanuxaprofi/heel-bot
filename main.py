@@ -1223,6 +1223,7 @@ async def show_user_quests(message: Message):
         user_id, message.from_user.full_name, message.from_user.username
     )
     
+    # Считаем карточки по редкостям
     counts = {r: 0 for r in RARITIES}
     for rarity in RARITIES:
         if rarity in DATA:
@@ -1231,9 +1232,12 @@ async def show_user_quests(message: Message):
                     counts[rarity] += 1
     total_unique = sum(counts.values())
 
-    # Вычисляем чистые сундуки из магазина
-    shop_chests = max(0, total_opens - duplicates)
+    # Вытаскиваем раздельные счетчики покупок сундуков из базы users
+    cursor.execute("SELECT opened_epic, opened_mythic, opened_legend FROM users WHERE user_id = ?", (user_id,))
+    c_row = cursor.fetchone()
+    opened_epic, opened_mythic, opened_legend = c_row if c_row else (0, 0, 0)
 
+    # Вытягиваем все 18 статусов квестов из одной таблицы
     cursor.execute("""
         SELECT common_10, uncommon_10, rare_10, epic_10, mythic_10, legend_3, perfect_2, 
                global_10, global_50, global_100, 
@@ -1250,6 +1254,9 @@ async def show_user_quests(message: Message):
         
     def get_icon(status): return "✅" if status == 1 else "⏳"
 
+    # НОВАЯ ФИЧА: Считаем общее количество выполненных квестов (сколько единиц в кортеже)
+    completed_quests_count = q_row.count(1)
+
     c_common = counts.get('⚪ ОБЫЧНАЯ (45%)', 0)
     c_uncommon = counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0)
     c_rare = counts.get('🔵 РЕДКАЯ (15%)', 0)
@@ -1259,7 +1266,8 @@ async def show_user_quests(message: Message):
     c_perfect = counts.get('👑 ИДЕАЛЬНАЯ (1%)', 0)
 
     text = (
-        f"📜 **СПИСОК ДОСТУПНЫХ КВЕСТОВ**\n\n"
+        f"🏆 **ВЫПОЛНЕНО КВЕСТОВ:** **[{completed_quests_count}/18]** 📊\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
         
         f"💎 **💎 КВЕСТЫ ПО РЕДКОСТЯМ**\n"
         f"{get_icon(q_row[0])} **Обычные карточки** (10 штук) — 300 💰\n"
@@ -1278,12 +1286,12 @@ async def show_user_quests(message: Message):
         f"└ Прогресс: {generate_progress_bar(c_perfect, 2)} ({c_perfect}/2)\n\n"
         
         f"🛍 **🛍 МАГАЗИННЫЕ КВЕСТЫ**\n"
-        f"{get_icon(q_row[11])} **Оптовик** (10 сундуков) — 2 500 💰\n"
-        f"└ Прогресс: {generate_progress_bar(shop_chests, 10)} ({shop_chests}/10)\n\n"
-        f"{get_icon(q_row[12])} **Сундучный Барон** (5 сундуков) — 6 000 💰\n"
-        f"└ Прогресс: {generate_progress_bar(shop_chests, 5)} ({shop_chests}/5)\n\n"
-        f"{get_icon(q_row[13])} **Легендарный Старт** (1 сундук) — 5 000 💰\n"
-        f"└ Прогресс: {generate_progress_bar(shop_chests, 1)} ({shop_chests}/1)\n\n"
+        f"{get_icon(q_row[11])} **Оптовик** (10 Эпик сундуков) — 2 500 💰\n"
+        f"└ Прогресс: {generate_progress_bar(opened_epic, 10)} ({opened_epic}/10)\n\n"
+        f"{get_icon(q_row[12])} **Сундучный Барон** (5 Мифик сундуков) — 6 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(opened_mythic, 5)} ({opened_mythic}/5)\n\n"
+        f"{get_icon(q_row[13])} **Легендарный Старт** (1 Легенда сундук) — 5 000 💰\n"
+        f"└ Прогресс: {generate_progress_bar(opened_legend, 1)} ({opened_legend}/1)\n\n"
         f"{get_icon(q_row[14])} **Сундучный Магнат** (Потратить 20k) — 3 000 💰\n"
         f"└ Прогресс: {generate_progress_bar(0, 20000)} (0/20000)\n\n"
         
