@@ -210,7 +210,7 @@ global_100 INTEGER DEFAULT 0)''')
 conn.commit()
 
 def get_user_data(uid, n, un):
-    # ИСПРАВЛЕНО: заменили items на inventory в SELECT
+    # Достаем inventory вместо items, чтобы имя совпадало с таблицей users
     cursor.execute("""
         SELECT inventory, balance, total_opens, duplicates, bet_count,
                pity_counter, current_day, last_claim_date
@@ -221,23 +221,21 @@ def get_user_data(uid, n, un):
     if r:
         raw_str = r[0] if r[0] else ""
         raw_list = [name.strip() for name in raw_str.split(",") if name.strip()]
+        # Для совместимости с остальным кодом (если где-то ниже используется словарь items)
         items = {name: raw_list.count(name) for name in set(raw_list)}
         
-        cursor.execute("SELECT user_id FROM user_quests WHERE user_id = ?", (uid,))
-        if not cursor.fetchone():
-            cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
-            conn.commit()
-            
-        return items, r[1], r[2], r[3], r[4]
-    
+        # Обновляем имя и юзернейм, если они изменились
+        cursor.execute("UPDATE users SET name = ?, username = ? WHERE user_id = ?", (n, un, uid))
+        conn.commit()
+        return r[0], r[1], r[2], r[3], r[4]
+        
+    # Если пользователя нет в базе — создаем его с дефолтными значениями
     cursor.execute("""
-        INSERT OR IGNORE INTO users 
-        (user_id, name, username, items, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date) 
-        VALUES (?, ?, ?, '', 0, 0, 0, 0, 0, 1, '')
+        INSERT INTO users (user_id, name, username, inventory, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
+        VALUES (?, ?, ?, '', 100, 0, 0, 0, 0, 1, '')
     """, (uid, n, un))
-    cursor.execute("INSERT OR IGNORE INTO user_quests (user_id) VALUES (?)", (uid,))
     conn.commit()
-    return {}, 0, 0, 0, 0
+    return '', 100, 0, 0, 0
 
 def get_user_game_features(uid):
     cursor.execute("SELECT pity_counter, current_day, last_claim_date FROM users WHERE user_id = ?", (uid,))
