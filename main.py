@@ -191,9 +191,10 @@ global_100 INTEGER DEFAULT 0)''')
 conn.commit()
 
 def get_user_data(uid, n, un):
+    # ИСПРАВЛЕНО: заменили items на inventory в SELECT
     cursor.execute("""
-        SELECT items, balance, total_opens, duplicates, bet_count, 
-               pity_counter, current_day, last_claim_date 
+        SELECT inventory, balance, total_opens, duplicates, bet_count,
+               pity_counter, current_day, last_claim_date
         FROM users WHERE user_id = ?
     """, (uid,))
     r = cursor.fetchone()
