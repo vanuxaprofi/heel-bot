@@ -161,41 +161,7 @@ async def start_cmd(message: Message):
 conn = sqlite3.connect("game_db.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Новая таблица для отслеживания выполненных квестов
-cursor.execute('''CREATE TABLE IF NOT EXISTS user_quests
-(user_id INTEGER PRIMARY KEY,
-common_10 INTEGER DEFAULT 0,
-uncommon_10 INTEGER DEFAULT 0,
-rare_10 INTEGER DEFAULT 0,
-epic_10 INTEGER DEFAULT 0,
-mythic_10 INTEGER DEFAULT 0,
-legend_3 INTEGER DEFAULT 0,
-perfect_2 INTEGER DEFAULT 0,
-global_10 INTEGER DEFAULT 0,
-global_50 INTEGER DEFAULT 0,
-global_100 INTEGER DEFAULT 0,
-dup_10 INTEGER DEFAULT 0,
-dup_50 INTEGER DEFAULT 0,
-dup_100 INTEGER DEFAULT 0)''') # Проверь, чтобы после global_100 стояла запятая!
-conn.commit()
-
-# Новая таблица для отслеживания выполненных квестов (0 - не выполнен, 1 - выполнен)
-cursor.execute('''CREATE TABLE IF NOT EXISTS user_quests
-(user_id INTEGER PRIMARY KEY,
-common_10 INTEGER DEFAULT 0,
-uncommon_10 INTEGER DEFAULT 0,
-rare_10 INTEGER DEFAULT 0,
-epic_10 INTEGER DEFAULT 0,
-mythic_10 INTEGER DEFAULT 0,
-legend_3 INTEGER DEFAULT 0,
-perfect_2 INTEGER DEFAULT 0,
-global_10 INTEGER DEFAULT 0,
-global_50 INTEGER DEFAULT 0,
-global_100 INTEGER DEFAULT 0.
-dup_10 INTEGER DEFAULT 0,
-dup_50 INTEGER DEFAULT 0,
-dup_100 INTEGER DEFAULT 0)''')
-
+cursor.execute("CREATE TABLE IF NOT EXISTS user_quests (user_id INTEGER PRIMARY KEY, common_10 INTEGER DEFAULT 0, uncommon_10 INTEGER DEFAULT 0, rare_10 INTEGER DEFAULT 0, epic_10 INTEGER DEFAULT 0, mythic_10 INTEGER DEFAULT 0, legend_3 INTEGER DEFAULT 0, perfect_2 INTEGER DEFAULT 0, global_10 INTEGER DEFAULT 0, global_50 INTEGER DEFAULT 0, global_100 INTEGER DEFAULT 0, dup_10 INTEGER DEFAULT 0, dup_50 INTEGER DEFAULT 0, dup_100 INTEGER DEFAULT 0)")
 conn.commit()
 
 def get_user_data(uid, n, un):
