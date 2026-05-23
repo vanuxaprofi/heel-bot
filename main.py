@@ -1671,30 +1671,35 @@ async def create_duel_cmd(message: Message):
         "is_active": True
     }
 
-    await asyncio.sleep(300)
-    
-    if duel_msg.message_id in active_duels and active_duels[duel_msg.message_id]["is_active"]:
-        cursor.execute("SELECT inventory, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (user_id,))
-        u_row = cursor.fetchone()
-        if u_row:
-            r_str, cr_balance, cr_opens, cr_dups, cr_bets = u_row
-            cr_balance += bet
-            r_list = [name.strip() for name in r_str.split(",") if name.strip()] if r_str else []
-            cr_inv = {name: r_list.count(name) for name in set(r_list)}
-            cr_pity, cr_day, cr_claim = get_user_game_features(user_id)
-            update_user_stats(user_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-        
-        del active_duels[duel_msg.message_id]
-        try:
-            await duel_msg.edit_text(
-                f"⏳ **Дуэль отменена!**\nЗа 5 минут вызов игрока **{creator_name}** никто не принял. "
-                f"Ставка в размере **[{bet}]** монет полностью возвращена создателю.",
-                reply_markup=None,
-                parse_mode="Markdown"
-            )
-        except:
-            pass
+    # ВНУТРЕННИЙ ТАЙМЕР АВТО-ОТМЕНЫ (Фоновый, бот больше не будет зависать!)
+    async def auto_cancel():
+        await asyncio.sleep(300)
+        if duel_msg.message_id in active_duels and active_duels[duel_msg.message_id]["is_active"]:
+            cursor.execute("SELECT inventory, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (user_id,))
+            u_row = cursor.fetchone()
+            if u_row:
+                r_str, cr_balance, cr_opens, cr_dups, cr_bets = u_row
+                cr_balance += bet
+                r_list = [name.strip() for name in r_str.split(",") if name.strip()] if r_str else []
+                cr_inv = {name: r_list.count(name) for name in set(r_list)}
+                cr_pity, cr_day, cr_claim = get_user_game_features(user_id)
+                update_user_stats(user_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+            
+            if duel_msg.message_id in active_duels:
+                del active_duels[duel_msg.message_id]
+                
+            try:
+                await duel_msg.edit_text(
+                    f"⏳ **Дуэль отменена!**\nЗа 5 минут вызов игрока **{creator_name}** никто не принял. "
+                    f"Ставка в размере **[{bet}]** монет полностью возвращена создателю.",
+                    reply_markup=None,
+                    parse_mode="Markdown"
+                )
+            except: 
+                pass
 
+    # Запускаем задачу в фоне, чтобы бот не уходил в игнор
+    asyncio.create_task(auto_cancel())
 
 @dp.callback_query(F.data.startswith("accept_duel_"))
 async def accept_duel_callback(call: CallbackQuery):
