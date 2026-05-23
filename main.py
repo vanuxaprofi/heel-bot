@@ -1804,33 +1804,74 @@ async def accept_duel_callback(call: CallbackQuery):
     opponent_unique = len(op_inv.keys())
     prize = bet * 2
     
+    # Получаем текущие фичи участников для корректного апдейта stats
+    cr_pity, cr_day, cr_claim = get_user_game_features(creator_id)
+    op_pity, op_day, op_claim = get_user_game_features(opponent_id)
+
+    # Вытаскиваем из базы текущие победы, чтобы прибавить +1 победителям
+    cursor.execute("SELECT duel_wins FROM users WHERE user_id = ?", (creator_id,))
+    cr_w_row = cursor.fetchone()
+    cr_wins = cr_w_row[0] if cr_w_row and cr_w_row[0] is not None else 0
+
+    cursor.execute("SELECT duel_wins FROM users WHERE user_id = ?", (opponent_id,))
+    op_w_row = cursor.fetchone()
+    op_wins = op_w_row[0] if op_w_row and op_w_row[0] is not None else 0
+
+    # Обоим игрокам честно засчитываем участие в дуэли
+    cr_bets += 1
+    op_bets += 1
+
     if creator_fingers > opponent_fingers:
         cr_balance += prize
+        cr_wins += 1
         update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+        update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+        
+        cursor.execute("UPDATE users SET duel_wins = ? WHERE user_id = ?", (cr_wins, creator_id))
+        conn.commit()
+        
         result_text += f"🏆 Победитель: **[{creator_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
+        
     elif opponent_fingers > creator_fingers:
         op_balance += prize
+        op_wins += 1
+        update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
         update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+        
+        cursor.execute("UPDATE users SET duel_wins = ? WHERE user_id = ?", (op_wins, opponent_id))
+        conn.commit()
+        
         result_text += f"🏆 Победитель: **[{opponent_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
+        
     else:
+        # Ничья по пальцам — решаем по уникальным картам
         if creator_unique < opponent_unique:
             cr_balance += prize
+            cr_wins += 1
             update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-            result_text += f"🏆 Ничья по пальцам! Но у игрока **{creator_name}** меньше коллекция карточек ({creator_unique} против {opponent_unique}).\n🏆 Победитель: **[{creator_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
+            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+            cursor.execute("UPDATE users SET duel_wins = ? WHERE user_id = ?", (cr_wins, creator_id))
+            conn.commit()
+            result_text += f"🏆 Ничья по пальцам! Но у игрока **{creator_name}** меньше коллекция карточек.\n🏆 Победитель: **[{creator_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен!"
         elif opponent_unique < creator_unique:
             op_balance += prize
+            op_wins += 1
+            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
             update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-            result_text += f"🏆 Ничья по пальцам! Но у игрока **{opponent_name}** меньше коллекция карточек ({opponent_unique} против {creator_unique}).\n🏆 Победитель: **[{opponent_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
+            cursor.execute("UPDATE users SET duel_wins = ? WHERE user_id = ?", (op_wins, opponent_id))
+            conn.commit()
+            result_text += f"🏆 Ничья по пальцам! Но у игрока **{opponent_name}** меньше коллекция карточек.\n🏆 Победитель: **[{opponent_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен!"
         else:
+            # Абсолютная ничья — просто возвращаем монеты
             cr_balance += bet
             op_balance += bet
             update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
             update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-            result_text += (
-                f"🏆 Победитель: **[Ничья!]**\n"
-                f"🤝 У обоих игроков выросло одинаковое количество пальцев и размер коллекции.\n"
-                f"🔄 Ставки в размере **[{bet}]** монет полностью возвращены обоим участникам!"
-            )
+            result_text += f"🏆 Победитель: **[Ничья!]**\n🤝 Ставки в размере **[{bet}]** монет полностью возвращены обоим участникам!"
+
+    # Запускаем проверку квестов для обоих игроков сразу после боя
+    await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
+    await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
 
     if msg_id in active_duels:
         del active_duels[msg_id]
