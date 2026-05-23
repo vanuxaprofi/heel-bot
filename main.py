@@ -292,14 +292,18 @@ def get_user_game_features(uid):
         return r[0], r[1], r[2]
     return 0, 1, ""
 
-async def check_and_grant_quests(message, uid, inv, balance):
-    # 1. Корректно преобразуем инвентарь в список, если пришла строка
+async def check_and_grant_quests(event, uid, inv, balance):
+    # Разруливаем: пришло сообщение или нажатие на кнопку (callback)
+    if hasattr(event, "message") and event.message:
+        message = event.message
+    else:
+        message = event
+
     if isinstance(inv, str):
         raw_list = [x.strip() for x in inv.split(",") if x.strip()]
     else:
         raw_list = [x.strip() for x in inv if str(x).strip()]
 
-    # Считаем уникальные карты по каждой редкости
     counts = {r: 0 for r in RARITIES}
     user_inv_set = set(raw_list)
     
@@ -310,17 +314,17 @@ async def check_and_grant_quests(message, uid, inv, balance):
                     counts[rarity] += 1
     total_unique = sum(counts.values())
 
-    # 2. Загружаем дуэли, победы и повторки напрямую из базы данных
-    cursor.execute("SELECT bet_count, duel_wins, inventory, duplicates, balance FROM users WHERE user_id = ?", (uid,))
-    u_row = cursor.fetchone()
-    if u_row:
-        user_duels = u_row[0] if u_row[0] is not None else 0
-        user_wins = u_row[1] if u_row[1] is not None else 0
-        raw_inventory = u_row[2] if u_row[2] else ""
-        duplicates = u_row[3] if u_row[3] is not None else 0
-        balance = u_row[4] if u_row[4] is not None else balance
-    else:
-        user_duels, user_wins, raw_inventory, duplicates = 0, 0, "", 0
+    # Извлекаем данные игрока стандартным методом без ломающих базу запросов
+    raw_inventory, _, total_opens, duplicates, bet_count = get_user_data(
+        uid, message.from_user.full_name if (message and message.from_user) else "Игрок", ""
+    )
+    
+    cursor.execute("SELECT duel_wins FROM users WHERE user_id = ?", (uid,))
+    w_row = cursor.fetchone()
+    user_wins = w_row[0] if w_row else 0
+    
+    # Теперь дуэли привязаны к вашей колонке активности
+    user_duels = bet_count
 
     # 3. Загружаем квесты
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
@@ -1905,8 +1909,9 @@ async def accept_duel_callback(call: CallbackQuery):
             result_text += f"🏆 Победитель: **[Ничья!]**\n🤝 Ставки в размере **[{bet}]** монет полностью возвращены обоим участникам!"
 
     # Запускаем проверку квестов для обоих игроков сразу после боя
-    await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-    await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
+            # ИСПРАВЛЕНО: Передаем call вместо call.message
+        await check_and_grant_quests(call, creator_id, cr_inv, cr_balance)
+        await check_and_grant_quests(call, opponent_id, op_inv, op_balance)
 
     if msg_id in active_duels:
         del active_duels[msg_id]
