@@ -1597,17 +1597,10 @@ DUEL_STATUSES = {
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text.lower().startswith("дуэль"))
 async def create_duel_cmd(message: Message):
-    # ЗАЩИТА ОТ АНОНИМНОСТИ: берем твой настоящий человеческий ID и ник
-    if message.sender_chat:
-        user_id = message.from_user.id if message.from_user else message.sender_chat.id
-        creator_name = message.from_user.full_name if message.from_user and message.from_user.full_name != "Group" else "Анонимный Босс 👤"
-    else:
-        user_id = message.from_user.id
-        creator_name = message.from_user.full_name
-
+    user_id = message.from_user.id
+    creator_name = message.from_user.full_name if message.from_user else "Игрок"
     parts = message.text.split()
     
-    # 1. Проверяем корректность ввода команды
     if len(parts) < 2:
         return await message.reply("❌ Пропиши ставку! Пример: `Дуэль 500`", parse_mode="Markdown")
         
@@ -1619,24 +1612,27 @@ async def create_duel_cmd(message: Message):
     if bet <= 0:
         return await message.reply("❌ Ставка должна быть больше 0!")
 
-    # 2. Получаем АКТУАЛЬНЫЕ данные создателя из базы
-    inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, creator_name, "")
+    cursor.execute("SELECT inventory, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (user_id,))
+    user_row = cursor.fetchone()
+    
+    if not user_row:
+        return await message.reply("❌ Сначала напиши мне в личные сообщения, чтобы зарегистрировать профиль!")
+        
+    raw_str, balance, total_opens, duplicates, bet_count = user_row
+    raw_list = [name.strip() for name in raw_str.split(",") if name.strip()] if raw_str else []
+    inv = {name: raw_list.count(name) for name in set(raw_list)}
     pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
     
-    # 3. Проверяем, хватает ли монет на указанную ставку
     if balance < bet:
         return await message.reply(f"❌ Недостаточно монет! Твой текущий баланс: **{balance}** 💰", parse_mode="Markdown")
         
-    # Списываем монеты за ставку
     balance -= bet
     update_user_stats(user_id, inv, balance, total_opens, duplicates, bet_count, pity_counter, current_day, last_claim_date)
     
-    # Инлайн-кнопка по твоему новому дизайну
     ikb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🛒 Принять вызов ([{bet}] 💰)", callback_data=f"accept_duel_{bet}")]
     ])
     
-    # Текст создания вызова со скриншота ТЗ
     text_create = (
         f"⚔️ **ПЯТОЧНАЯ ДУЭЛЬ!**\n"
         f"━━━━━━━━━━━━━━━━━━\n"
@@ -1646,7 +1642,6 @@ async def create_duel_cmd(message: Message):
     )
     
     duel_msg = await message.answer(text_create, reply_markup=ikb, parse_mode="Markdown")
-    
     active_duels[duel_msg.message_id] = {
         "creator_id": user_id,
         "creator_name": creator_name,
@@ -1654,15 +1649,18 @@ async def create_duel_cmd(message: Message):
         "is_active": True
     }
 
-    # 4. ТЗ: Авто-отмена дуэли через 5 минут
     await asyncio.sleep(300)
     
     if duel_msg.message_id in active_duels and active_duels[duel_msg.message_id]["is_active"]:
-        cr_inv, cr_balance, cr_opens, cr_dups, cr_bets = get_user_data(user_id, creator_name, "")
-        cr_pity, cr_day, cr_claim = get_user_game_features(user_id)
-        
-        cr_balance += bet
-        update_user_stats(user_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+        cursor.execute("SELECT inventory, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (user_id,))
+        u_row = cursor.fetchone()
+        if u_row:
+            r_str, cr_balance, cr_opens, cr_dups, cr_bets = u_row
+            cr_balance += bet
+            r_list = [name.strip() for name in r_str.split(",") if name.strip()] if r_str else []
+            cr_inv = {name: r_list.count(name) for name in set(r_list)}
+            cr_pity, cr_day, cr_claim = get_user_game_features(user_id)
+            update_user_stats(user_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
         
         del active_duels[duel_msg.message_id]
         try:
@@ -1674,7 +1672,6 @@ async def create_duel_cmd(message: Message):
             )
         except:
             pass
-
 
 @dp.callback_query(F.data.startswith("accept_duel_"))
 async def accept_duel_callback(call: CallbackQuery):
@@ -1691,15 +1688,22 @@ async def accept_duel_callback(call: CallbackQuery):
     bet = duel_data["bet_amount"]
     
     if opponent_id == creator_id:
-        return await call.answer("❌ Ты не можешь принять собственный вызов!", show_alert=True)
+        return await call.answer("🛑 Нельзя соревноваться сам с собой! Дождись другого игрока. 🦶", show_alert=True)
         
-    op_inv, op_balance, op_opens, op_dups, op_bets = get_user_data(opponent_id, call.from_user.full_name, "")
-    op_pity, op_day, op_claim = get_user_game_features(opponent_id)
+    cursor.execute("SELECT inventory, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (opponent_id,))
+    op_row = cursor.fetchone()
     
+    if not op_row:
+        return await call.answer("❌ Сначала зарегистрируйся в ЛС у бота!", show_alert=True)
+        
+    o_str, op_balance, op_opens, op_dups, op_bets = op_row
     if op_balance < bet:
-        return await call.answer("❌ Недостаточно монет, чтобы принять дуэль!", show_alert=True)
+        return await call.answer(f"❌ Недостаточно монет! Твой текущий баланс: {op_balance} 💰", show_alert=True)
         
     op_balance -= bet
+    o_list = [name.strip() for name in o_str.split(",") if name.strip()] if o_str else []
+    op_inv = {name: o_list.count(name) for name in set(o_list)}
+    op_pity, op_day, op_claim = get_user_game_features(opponent_id)
     update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
     
     active_duels[msg_id]["is_active"] = False
@@ -1710,7 +1714,6 @@ async def accept_duel_callback(call: CallbackQuery):
     status_creator = DUEL_STATUSES.get(creator_fingers, "")
     status_opponent = DUEL_STATUSES.get(opponent_fingers, "")
     
-    # Шапка начала дуэли со скриншота ТЗ
     result_text = (
         f"⚔️ **ДУЭЛЬ НАЧАЛАСЬ!**\n"
         f"**[{creator_name}]** 🆚 **[{opponent_name}]**\n"
@@ -1722,12 +1725,15 @@ async def accept_duel_callback(call: CallbackQuery):
         f"━━━━━━━━━━━━━━━━━━\n"
     )
     
-    cr_inv, cr_balance, cr_opens, cr_dups, cr_bets = get_user_data(creator_id, creator_name, "")
+    cursor.execute("SELECT inventory, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (creator_id,))
+    cr_row = cursor.fetchone()
+    c_str, cr_balance, cr_opens, cr_dups, cr_bets = cr_row
+    c_list = [name.strip() for name in c_str.split(",") if name.strip()] if c_str else []
+    cr_inv = {name: c_list.count(name) for name in set(c_list)}
     cr_pity, cr_day, cr_claim = get_user_game_features(creator_id)
     
-    creator_unique = len(cr_inv.keys()) if isinstance(cr_inv, dict) else 0
-    opponent_unique = len(op_inv.keys()) if isinstance(op_inv, dict) else 0
-    
+    creator_unique = len(cr_inv.keys())
+    opponent_unique = len(op_inv.keys())
     prize = bet * 2
     
     if creator_fingers > opponent_fingers:
@@ -1745,7 +1751,6 @@ async def accept_duel_callback(call: CallbackQuery):
             f"💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
         )
     else:
-        # Механика «Дроп в ничью» по ТЗ (выигрывает тот, у кого коллекция карт меньше)
         if creator_unique < opponent_unique:
             cr_balance += prize
             update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
@@ -1763,7 +1768,6 @@ async def accept_duel_callback(call: CallbackQuery):
                 f"💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
             )
         else:
-            # Абсолютная чистая ничья строго по скриншоту
             cr_balance += bet
             op_balance += bet
             update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
