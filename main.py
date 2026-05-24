@@ -525,7 +525,7 @@ def get_smart_random_card(user_id, inv_dict, rarity, pity_counter):
         else:
             return random.choice(new_cards_in_rarity), True, 0
             
-@dp.message(F.text == "🦶 Выбить пятку")
+@dp.message((F.text == "🦶 Выбить пятку") | (F.text.lower() == "пятка"))
 async def open_case(message: types.Message, state: FSMContext):
     await state.clear()  # Принудительно выводит игрока из любого зависшего режима ставок/рандома!
     user_id = message.from_user.id
