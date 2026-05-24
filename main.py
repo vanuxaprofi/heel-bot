@@ -251,7 +251,7 @@ async def hit_boss_cmd(message: Message):
         return await message.answer(fail_text, parse_mode="Markdown")
 
     # 3. Проверяем лимит: 1 игрок = 1 удар за рейд
-    if user_id in boss["contributors"]:
+        if user_id in boss["contributors"] and user_id != ADMIN_ID:
         return await message.answer(
             f"❌ **{message.from_user.full_name}**, ты уже нанёс свой единственный урон в этом рейде! "
             f"Жди результатов битвы или зови друзей на помощь в чат! 🛡"
