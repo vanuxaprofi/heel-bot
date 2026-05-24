@@ -1885,50 +1885,45 @@ async def accept_duel_callback(call: CallbackQuery):
 
     else:
         # Ничья по пальцам — решаем по уникальным картам
-        if creator_unique < opponent_unique:
-            op_balance += prize
-            op_wins += 1
-            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-            
-            cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
-            cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (op_wins, op_bets, opponent_id))
-            conn.commit()
-            
-            await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-            await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-            
-            result_text = f"🖐 Ничья по пальцам! Но у игрока **{opponent_name}** больше коллекция уникальных карточек.\n🏆 Победитель: **{opponent_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен!"
+                    # Ничья по пальцам — решаем по уникальным картам
+            is_draw_processed = False
+
+            if creator_unique < opponent_unique and not is_draw_processed:
+                op_balance += prize
+                op_wins += 1
+                update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+                update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+                cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
+                cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (op_wins, op_bets, opponent_id))
+                conn.commit()
+                await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
+                await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
+                result_text = f"🖐 Ничья по пальцам! Но у игрока **{opponent_name}** больше коллекция уникальных карточек.\n🏆 Победитель: **{opponent_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен!"
+                is_draw_processed = True
                 
-            elif opponent_unique < creator_unique:
+            if opponent_unique < creator_unique and not is_draw_processed:
                 cr_balance += prize
                 cr_wins += 1
                 update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
                 update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-                
                 cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (cr_wins, cr_bets, creator_id))
                 cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (op_bets, opponent_id))
                 conn.commit()
-    
                 await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
                 await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-                
                 result_text = f"🖐 Ничья по пальцам! Но у игрока **{creator_name}** больше коллекция уникальных карточек.\n🏆 Победитель: **{creator_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен!"
+                is_draw_processed = True
                 
-            else:
-                # Абсолютная ничья — возвращаем ставки обратно игрокам
+            if not is_draw_processed:
                 cr_balance += bet
                 op_balance += bet
                 update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
                 update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-                
                 cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
                 cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (op_bets, opponent_id))
                 conn.commit()
-    
                 await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
                 await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-                
                 result_text = f"🤝 **ПОЛНАЯ НИЧЬЯ!** Количество пальцев и уникальных карточек совпало! Монеты возвращены обоим игрокам."
 
     if msg_id in active_duels:
