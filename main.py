@@ -1853,39 +1853,22 @@ async def accept_duel_callback(call: CallbackQuery):
     cr_bets += 1
     op_bets += 1
 
-    if creator_fingers > opponent_fingers:
-        cr_balance += prize
-        cr_wins += 1
-        update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-        update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-        
-        cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (cr_wins, cr_bets, creator_id))
-        cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (op_bets, opponent_id))
-        conn.commit()
+        if creator_fingers > opponent_fingers:
+            cr_balance += prize
+            cr_wins += 1
+            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+            
+            cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (cr_wins, cr_bets, creator_id))
+            cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (op_bets, opponent_id))
+            conn.commit()
+            
+            await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
+            await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
+            
+            result_text = f"🏆 Победитель: **{creator_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен на баланс!"
 
-        await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-        await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-        
-        result_text = f"🏆 Победитель: **{creator_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен на баланс!"
-
-    elif opponent_fingers > creator_fingers:
-        op_balance += prize
-        op_wins += 1
-        update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-        update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-        
-        cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
-        cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (op_wins, op_bets, opponent_id))
-        conn.commit()
-
-        await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-        await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-        
-        result_text = f"🏆 Победитель: **{opponent_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен на баланс!"
-
-    else:
-        # Ничья по пальцам — решаем по уникальным картам
-        if creator_unique < opponent_unique:
+        elif opponent_fingers > creator_fingers:
             op_balance += prize
             op_wins += 1
             update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
@@ -1894,7 +1877,24 @@ async def accept_duel_callback(call: CallbackQuery):
             cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
             cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (op_wins, op_bets, opponent_id))
             conn.commit()
+            
+            await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
+            await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
+            
+            result_text = f"🏆 Победитель: **{opponent_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен на баланс!"
 
+        else:
+            # Ничья по пальцам — решаем по уникальным картам
+            if creator_unique < opponent_unique:
+            op_balance += prize
+            op_wins += 1
+            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+            
+            cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
+            cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (op_wins, op_bets, opponent_id))
+            conn.commit()
+            
             await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
             await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
             
