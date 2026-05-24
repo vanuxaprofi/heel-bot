@@ -2,7 +2,7 @@ import asyncio
 import random
 import time
 import os
-import sqlite3
+import libsql_experimental as libsql
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
@@ -495,12 +495,10 @@ async def hit_boss_cmd(message: Message):
         ACTIVE_BOSSES[chat_id]["hp"] = 0  # Сбрасываем босса в этом чате
         await message.answer(reward_text, parse_mode="Markdown")
 
-# БАЗА ДАННЫХ
-import os
-if os.path.exists("game_db.db"):
-    os.remove("game_db.db")
-
-conn = sqlite3.connect("game_db.db", check_same_thread=False)
+# Прямое вечное подключение к облаку Turso
+conn = libsql.connect(
+    "libsql://heelbot-vanuxaprofi.aws-eu-west-1.turso.io"
+)
 cursor = conn.cursor()
 
 # 1. Создание таблицы пользователей (Добавили duel_wins)
