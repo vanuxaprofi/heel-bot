@@ -1433,6 +1433,13 @@ async def show_quests_list(message: Message):
         q_status.get("dup_100", 0)
     ])
 
+    # Внутренняя функция для генерации текстового прогресс-бара
+    def make_bar(current, target):
+        if current >= target:
+            return "██████████"
+        pct = int((current / target) * 10)
+        return "█" * pct + "░" * (10 - pct)
+
     def get_st(val):
         return "✅ Выполнено" if val == 1 else "⏳ В процессе"
 
@@ -1443,35 +1450,35 @@ async def show_quests_list(message: Message):
         
         f"💎 **ПО РЕДКОСТЯМ:**\n"
         f"• Обычные (10 шт): {get_st(q_status.get('common_10'))}\n"
-        f"  └ Прогресс: ({counts.get('⚪ ОБЫЧНАЯ (45%)', 0)}/10) — 300 💰\n"
+        f"  └ Прогресс: `{make_bar(counts.get('⚪ ОБЫЧНАЯ (45%)', 0), 10)}` ({counts.get('⚪ ОБЫЧНАЯ (45%)', 0)}/10) — 300 💰\n"
         f"• Необычные (10 шт): {get_st(q_status.get('uncommon_10'))}\n"
-        f"  └ Прогресс: ({counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0)}/10) — 600 💰\n"
+        f"  └ Прогресс: `{make_bar(counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0), 10)}` ({counts.get('🟢 НЕОБЫЧНАЯ (25%)', 0)}/10) — 600 💰\n"
         f"• Редкие (10 шт): {get_st(q_status.get('rare_10'))}\n"
-        f"  └ Прогресс: ({counts.get('🔵 РЕДКАЯ (15%)', 0)}/10) — 1200 💰\n"
+        f"  └ Прогресс: `{make_bar(counts.get('🔵 РЕДКАЯ (15%)', 0), 10)}` ({counts.get('🔵 РЕДКАЯ (15%)', 0)}/10) — 1200 💰\n"
         f"• Эпические (10 шт): {get_st(q_status.get('epic_10'))}\n"
-        f"  └ Прогресс: ({c_epic}/10) — 2500 💰\n"
+        f"  └ Прогресс: `{make_bar(c_epic, 10)}` ({c_epic}/10) — 2500 💰\n"
         f"• Мифические (10 шт): {get_st(q_status.get('mythic_10'))}\n"
-        f"  └ Прогресс: ({c_mythic}/10) — 7500 💰\n"
+        f"  └ Прогресс: `{make_bar(c_mythic, 10)}` ({c_mythic}/10) — 7500 💰\n"
         f"• Легендарные (3 шт): {get_st(q_status.get('legend_3'))}\n"
-        f"  └ Прогресс: ({c_legend}/3) — 15000 💰\n"
+        f"  └ Прогресс: `{make_bar(c_legend, 3)}` ({c_legend}/3) — 15000 💰\n"
         f"• Идеальные (2 шт): {get_st(q_status.get('perfect_2'))}\n"
-        f"  └ Прогресс: ({counts.get('👑 ИДЕАЛЬНАЯ (1%)', 0)}/2) — 25000 💰\n\n"
+        f"  └ Прогресс: `{make_bar(counts.get('👑 ИДЕАЛЬНАЯ (1%)', 0), 2)}` ({counts.get('👑 ИДЕАЛЬНАЯ (1%)', 0)}/2) — 25000 💰\n\n"
         
         f"🌍 **ГЛОБАЛЬНАЯ КОЛЛЕКЦИЯ:**\n"
         f"• Собрать 10 пяток: {get_st(q_status.get('global_10'))}\n"
-        f"  └ Прогресс: ({total_unique}/10) — 1500 💰\n"
+        f"  └ Прогресс: `{make_bar(total_unique, 10)}` ({total_unique}/10) — 1500 💰\n"
         f"• Собрать 50 пяток: {get_st(q_status.get('global_50'))}\n"
-        f"  └ Прогресс: ({total_unique}/50) — 10000 💰\n"
+        f"  └ Прогресс: `{make_bar(total_unique, 50)}` ({total_unique}/50) — 10000 💰\n"
         f"• Собрать 100 пяток: {get_st(q_status.get('global_100'))}\n"
-        f"  └ Прогресс: ({total_unique}/100) — 35000 💰\n\n"
+        f"  └ Прогресс: `{make_bar(total_unique, 100)}` ({total_unique}/100) — 35000 💰\n\n"
         
         f"🔄 **ПОВТОРКИ:**\n"
         f"• Начало дежавю (10 повт): {get_st(q_status.get('dup_10'))}\n"
-        f"  └ Прогресс: ({duplicates}/10) — 1500 💰\n"
+        f"  └ Прогресс: `{make_bar(duplicates, 10)}` ({duplicates}/10) — 1500 💰\n"
         f"• Коллекционер дублей (50 повт): {get_st(q_status.get('dup_50'))}\n"
-        f"  └ Прогресс: ({duplicates}/50) — 5000 💰\n"
+        f"  └ Прогресс: `{make_bar(duplicates, 50)}` ({duplicates}/50) — 5000 💰\n"
         f"• Временная петля (100 повт): {get_st(q_status.get('dup_100'))}\n"
-        f"  └ Прогресс: ({duplicates}/100) — 15000 💰"
+        f"  └ Прогресс: `{make_bar(duplicates, 100)}` ({duplicates}/100) — 15000 💰"
     )
     
     await message.answer(text, parse_mode="Markdown")
