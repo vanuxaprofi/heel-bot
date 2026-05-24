@@ -140,6 +140,12 @@ RARITIES = list(DATA.keys())
 WEIGHTS = [45, 25, 15, 8, 4, 2, 1]
 TOTAL_CARDS = sum(len(v) for v in DATA.values())
 
+# Переменная для хранения уникальных данных босса для каждого чата
+# Структура: {chat_id: {"hp": 500, "max_hp": 500, "spawn_time": время, "contributors": {}}}
+ACTIVE_BOSSES = {}
+
+# Твой личный ID администратора для управления спавном
+ADMIN_ID = 5008484060
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
