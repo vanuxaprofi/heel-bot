@@ -842,7 +842,7 @@ async def open_case(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     current_time = time.time()
 
-        if user_id in last_time and current_time - last_time[user_id] < 10800:
+    if user_id in last_time and current_time - last_time[user_id] < 10800:
         remaining_minutes = int((10800 - (current_time - last_time[user_id])) / 60)
         return await message.answer(
             f"⏳ **ОСТУДИ ПЯТКИ!** ⏳\n\n"
