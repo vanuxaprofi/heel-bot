@@ -378,7 +378,7 @@ async def hit_boss_cmd(message: Message):
     boss = ACTIVE_BOSSES[chat_id]
 
     # 2. Проверяем таймер: 2 часа = 7200 секунд
-    if current_time - boss["spawn_time"] > 10:
+    if current_time - boss["spawn_time"] > 7200:
         # ВРЕМЯ ВЫШЛО — БОСС СБЕЖАЛ
         # Сортируем участников по урону
         sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
@@ -842,8 +842,12 @@ async def open_case(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     current_time = time.time()
 
-    if user_id in last_time and current_time - last_time[user_id] < 1:
-        return await message.answer("⏳ Подожди 1 сек.")
+        if user_id in last_time and current_time - last_time[user_id] < 10800:
+        remaining_minutes = int((10800 - (current_time - last_time[user_id])) / 60)
+        return await message.answer(
+            f"⏳ **ОСТУДИ ПЯТКИ!** ⏳\n\n"
+            f"❌ Твой рандом ещё перезаряжается! До следующего бесплатного выбивания осталось: **{remaining_minutes} мин.** ⏱"
+        )
 
     # Получаем базовые данные и новые игровые фичи отдельно
     inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
