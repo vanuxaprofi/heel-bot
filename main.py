@@ -161,30 +161,140 @@ last_time = {}
 last_random_time = {}
 @dp.message(F.text == "!спавн")
 async def admin_spawn_boss(message: Message):
-    # Строгая проверка: слушать только тебя
     if message.from_user.id != ADMIN_ID:
         return
 
     chat_id = message.chat.id
-
-    # Запускаем нового босса (или полностью перезаписываем старого, если он был)
     ACTIVE_BOSSES[chat_id] = {
         "hp": 500,
         "max_hp": 500,
         "spawn_time": time.time(),
-        "contributors": {}  # Очищаем список участников и их урон
+        "contributors": {}
     }
 
-    await message.answer(
-        f"🚨 **В ЧАТЕ ПОЯВИЛСЯ БОСС: ГИГАНТСКАЯ ПЯТКА!** 🚨\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"❤️ Здоровье: **500 HP**\n"
-        f"⏱ Время на битву: **2 часа (120 минут)**\n\n"
-        f"👣 Пишите в чат команду **«ударить»**, чтобы атаковать его вместе и разделить куш! "
-        f"Помните: от каждого игрока принимается **строго один удар** за весь рейд. "
-        f"Сила вашего удара зависит от редкости уникальных карт в вашей коллекции! 💰",
+    # Твой File ID для появления босса
+    spawn_photo_id = "AgACAgIAAxkBAAJCG2oS64Eu0yxz3BwZ4GncLZdOnUMFAAK3HWsbsfyYSNCdok1SPIICAQADAgADeQADOwQ"
+    
+    await message.answer_photo(
+        photo=spawn_photo_id,
+        caption=f"🚨 **В ЧАТЕ ПОЯВИЛСЯ БОСС: ГИГАНТСКАЯ ПЯТКА!** 🚨\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"❤️ Здоровье: **500 HP**\n"
+                f"⏱ Время на битву: **2 часа (120 минут)**\n\n"
+                f"👣 Пишите в чат команду **«ударить»**, чтобы атаковать его вместе и разделить куш! "
+                f"Помните: от каждого игрока принимается **строго один удар** за весь рейд. "
+                f"Сила вашего удара зависит от редкости уникальных карт в вашей коллекции! 💰",
         parse_mode="Markdown"
     )
+
+@dp.message(F.text.lower() == "ударить")
+async def hit_boss_cmd(message: Message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    current_time = time.time()
+    
+    if chat_id not in ACTIVE_BOSSES or ACTIVE_BOSSES[chat_id]["hp"] <= 0:
+        return
+
+    boss = ACTIVE_BOSSES[chat_id]
+
+    if current_time - boss["spawn_time"] > 7200:
+        sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
+        fail_text = (
+            f"⏱ **ВРЕМЯ ВЫШЛО! БОСС СБЕЖАЛ!** ⏱\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💨 Гигантская Пятка оказалась вам не по зубам и скрылась в тумане...\n\n"
+            f"📊 **КТО СТАРАЛСЯ БОЛЬШЕ ВСЕХ:**\n"
+        )
+        for info in sorted_contribs:
+            fail_text += f"🎰 {info['name']} — **{info['damage']}** 💥 урона\n"
+        fail_text += f"\n📢 В следующий раз зовите больше друзей в чат! 🦶🛡"
+        
+        ACTIVE_BOSSES[chat_id]["hp"] = 0
+        
+        # Твой File ID для ПОРАЖЕНИЯ
+        lose_photo_id = "AgACAgIAAxkBAAJCH2oS68yhRs-RCVUAAcfqW2Tlg0ZcqQACwB1rG7H8mEisTF-psx1VSgEAAwIAA3kAAzsE"
+        return await message.answer_photo(photo=lose_photo_id, caption=fail_text, parse_mode="Markdown")
+
+    if user_id in boss["contributors"] and user_id != ADMIN_ID:
+        return await message.answer(
+            f"❌ **{message.from_user.full_name}**, ты уже нанёс свой единственный урон в этом рейде! 🛡"
+        )
+
+    inv, balance, _, _, _ = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    if isinstance(inv, str):
+        raw_list = [x.strip() for x in inv.split(",") if x.strip()]
+    else:
+        raw_list = [x.strip() for x in inv if str(x).strip()]
+
+    damage = 0
+    user_inv_set = set(raw_list)
+    for rarity in RARITIES:
+        if rarity in DATA:
+            for card in DATA[rarity].keys():
+                if card in user_inv_set:
+                    if "ОБЫЧНАЯ" in rarity: damage += 1
+                    elif "НЕОБЫЧНАЯ" in rarity: damage += 2
+                    elif "РЕДКАЯ" in rarity: damage += 4
+                    elif "ЭПИЧЕСКАЯ" in rarity: damage += 8
+                    elif "МИФИЧЕСКАЯ" in rarity: damage += 15
+                    elif "ЛЕГЕНДАРНАЯ" in rarity: damage += 30
+                    elif "ИДЕАЛЬНАЯ" in rarity: damage += 60
+
+    if damage == 0 and user_id != ADMIN_ID:
+        return await message.answer(
+            f"🛡 **ВАШ УРОН НУЛЕВОЙ!** 🛡\n\n"
+            f"👤 **{message.from_user.full_name}**, в твоем альбоме нет ни одной мутации! 😭\n"
+            f"Пиши прямо сейчас в чат заветное слово:\n"
+            f"👉 **пятка** 👈\n\n"
+            f"✨ Выбей карту и возвращайся в бой! ⚔️🔥",
+            parse_mode="Markdown"
+        )
+
+    if user_id == ADMIN_ID:
+        damage = 499
+
+    boss["hp"] -= damage
+    boss["contributors"][user_id] = {
+        "name": message.from_user.full_name,
+        "damage": damage
+    }
+
+    if boss["hp"] > 0:
+        await message.answer(
+            f"💥 **{message.from_user.full_name}** нанёс Боссу **{damage}** урона силой своей коллекции!\n"
+            f"❤️ Здоровье Гигантской Пятки: **{boss['hp']}/500**"
+        )
+    else:
+        sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
+        reward_text = (
+            f"🎉 **ГИГАНТСКАЯ ПЯТКА ПОВЕРЖЕНА!** 🎉\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🦾 Команда чата оказалась сильнее мутанта! Золото успешно отправлено в ваши кошельки.\n\n"
+            f"📊 **ТОП ОХОТНИКОВ НА ПЯТКИ:**\n"
+        )
+        
+        for i, info in enumerate(sorted_contribs, 1):
+            reward_coins = info["damage"] * 2
+            for uid, details in boss["contributors"].items():
+                if details["name"] == info["name"]:
+                    cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (reward_coins, uid))
+                    conn.commit()
+                    break
+            
+            if i == 1: medal = "🥇"
+            elif i == 2: medal = "🥈"
+            elif i == 3: medal = "🥉"
+            else: medal = "⏱"
+            reward_text += f"{medal} **{info['name']}** — {info['damage']} 💥 урона *(Награда: +{reward_coins} 💰)*\n"
+            
+        reward_text += f"\n👑 Спасибо за бой! Соберите еще больше редких мутаций к следующему рейду! ⚔️🔥"
+        
+        ACTIVE_BOSSES[chat_id]["hp"] = 0
+        
+        # Твой File ID для ПОБЕДЫ
+        win_photo_id = "AgACAgIAAxkBAAJCHWoS67SOamVtuoBQituzB8vcWjZNAAK_HWsbsfyYSLOdQKAgPaMlAQADAgADeQADOwQ"
+        await message.answer_photo(photo=win_photo_id, caption=reward_text, parse_mode="Markdown")
 
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
