@@ -848,6 +848,9 @@ async def open_case(message: types.Message, state: FSMContext):
             f"⏳ **ОСТУДИ ПЯТКИ!** ⏳\n\n"
             f"❌ Твой рандом ещё перезаряжается! До следующего бесплатного выбивания осталось: **{remaining_minutes} мин.** ⏱"
         )
+    
+    # Записываем время ПЕРЕД открытием, чтобы КД зафиксировался намертво!
+    last_time[user_id] = current_time
 
     # Получаем базовые данные и новые игровые фичи отдельно
     inv, balance, total_opens, duplicates, bet_count = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
