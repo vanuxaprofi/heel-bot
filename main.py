@@ -1850,10 +1850,10 @@ async def accept_duel_callback(call: CallbackQuery):
     op_wins = op_w_row[0] if op_w_row and op_w_row[0] is not None else 0
 
     # Обоим игрокам честно засчитываем участие в дуэли
-        cr_bets += 1
-        op_bets += 1
+    cr_bets += 1
+    op_bets += 1
 
-        if creator_fingers > opponent_fingers:
+    if creator_fingers > opponent_fingers:
             cr_balance += prize
             cr_wins += 1
             update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
