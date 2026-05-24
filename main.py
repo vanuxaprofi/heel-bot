@@ -159,6 +159,33 @@ class LimitState(StatesGroup):
 last_bet_time = {}
 last_time = {}
 last_random_time = {}
+@dp.message(F.text == "!спавн")
+async def admin_spawn_boss(message: Message):
+    # Строгая проверка: слушать только тебя
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    chat_id = message.chat.id
+
+    # Запускаем нового босса (или полностью перезаписываем старого, если он был)
+    ACTIVE_BOSSES[chat_id] = {
+        "hp": 500,
+        "max_hp": 500,
+        "spawn_time": time.time(),
+        "contributors": {}  # Очищаем список участников и их урон
+    }
+
+    await message.answer(
+        f"🚨 **В ЧАТЕ ПОЯВИЛСЯ БОСС: ГИГАНТСКАЯ ПЯТКА!** 🚨\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"❤️ Здоровье: **500 HP**\n"
+        f"⏱ Время на битву: **2 часа (120 минут)**\n\n"
+        f"👣 Пишите в чат команду **«ударить»**, чтобы атаковать его вместе и разделить куш! "
+        f"Помните: от каждого игрока принимается **строго один удар** за весь рейд. "
+        f"Сила вашего удара зависит от редкости уникальных карт в вашей коллекции! 💰",
+        parse_mode="Markdown"
+    )
+
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
     welcome_text = (
