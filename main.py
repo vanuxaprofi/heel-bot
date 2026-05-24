@@ -160,6 +160,37 @@ last_bet_time = {}
 last_time = {}
 last_random_time = {}
 @dp.message(F.text == "!спавн")
+# Функция-будильник, которая сработает сама ровно через 2 часа
+async def boss_timer_task(chat_id: int):
+    await asyncio.sleep(7200) # Ждем ровно 2 часа (7200 секунд)
+    
+    # Проверяем, жив ли еще босс в этом чате по истечении времени
+    if chat_id in ACTIVE_BOSSES and ACTIVE_BOSSES[chat_id]["hp"] > 0:
+        boss = ACTIVE_BOSSES[chat_id]
+        sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
+        
+        fail_text = (
+            f"⏱ **ВРЕМЯ ВЫШЛО! БОСС СБЕЖАЛ!** ⏱\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💨 Гигантская Пятка оказалась вам не по зубам и скрылась в тумане...\n\n"
+            f"📊 **КТО СТАРАЛСЯ БОЛЬШЕ ВСЕХ:**\n"
+        )
+        for info in sorted_contribs:
+            fail_text += f"🎰 {info['name']} — **{info['damage']}** 💥 урона\n"
+        fail_text += f"\n📢 В следующий раз зовите больше друзей в чат! 🦶🛡"
+        
+        # Очищаем босса, так как время вышло
+        del ACTIVE_BOSSES[chat_id]
+        
+        # Твой File ID для ПОРАЖЕНИЯ
+        lose_photo_id = "AgACAgIAAxkBAAJCH2oS68yhRs-RCVUAAcfqW2Tlg0ZcqQACwB1rG7H8mEisTF-psx1VSgEAAwIAA3kAAzsE"
+        try:
+            # Отправляем напрямую в чат группы по его id
+            await bot.send_photo(chat_id=chat_id, photo=lose_photo_id, caption=fail_text, parse_mode="Markdown")
+        except Exception:
+            pass
+
+@dp.message(F.text == "!спавн")
 async def admin_spawn_boss(message: Message):
     if message.from_user.id != ADMIN_ID:
         return
@@ -186,47 +217,35 @@ async def admin_spawn_boss(message: Message):
                 f"Сила вашего удара зависит от редкости уникальных карт в вашей коллекции! 💰",
         parse_mode="Markdown"
     )
+    
+    # ЗАПУСКАЕМ АВТОМАТИЧЕСКИЙ БУДИЛЬНИК НА 2 ЧАСА ПРЯМО В ЧАТЕ
+    asyncio.create_task(boss_timer_task(chat_id))
 
 @dp.message(F.text.lower() == "ударить")
 async def hit_boss_cmd(message: Message):
     chat_id = message.chat.id
     user_id = message.from_user.id
-    current_time = time.time()
     
+    # Если босса нет (или он уже автоматически удален будильником), просто молчим
     if chat_id not in ACTIVE_BOSSES or ACTIVE_BOSSES[chat_id]["hp"] <= 0:
         return
 
     boss = ACTIVE_BOSSES[chat_id]
 
-    if current_time - boss["spawn_time"] > 7200:
-        sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
-        fail_text = (
-            f"⏱ **ВРЕМЯ ВЫШЛО! БОСС СБЕЖАЛ!** ⏱\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"💨 Гигантская Пятка оказалась вам не по зубам и скрылась в тумане...\n\n"
-            f"📊 **КТО СТАРАЛСЯ БОЛЬШЕ ВСЕХ:**\n"
-        )
-        for info in sorted_contribs:
-            fail_text += f"🎰 {info['name']} — **{info['damage']}** 💥 урона\n"
-        fail_text += f"\n📢 В следующий раз зовите больше друзей в чат! 🦶🛡"
-        
-        ACTIVE_BOSSES[chat_id]["hp"] = 0
-        
-        # Твой File ID для ПОРАЖЕНИЯ
-        lose_photo_id = "AgACAgIAAxkBAAJCH2oS68yhRs-RCVUAAcfqW2Tlg0ZcqQACwB1rG7H8mEisTF-psx1VSgEAAwIAA3kAAzsE"
-        return await message.answer_photo(photo=lose_photo_id, caption=fail_text, parse_mode="Markdown")
-
+    # Лимит: 1 удар на человека (кроме админа)
     if user_id in boss["contributors"] and user_id != ADMIN_ID:
         return await message.answer(
             f"❌ **{message.from_user.full_name}**, ты уже нанёс свой единственный урон в этом рейде! 🛡"
         )
 
+    # Загружаем инвентарь игрока
     inv, balance, _, _, _ = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
     if isinstance(inv, str):
         raw_list = [x.strip() for x in inv.split(",") if x.strip()]
     else:
         raw_list = [x.strip() for x in inv if str(x).strip()]
 
+    # Расчет урона по редкостям
     damage = 0
     user_inv_set = set(raw_list)
     for rarity in RARITIES:
@@ -254,6 +273,7 @@ async def hit_boss_cmd(message: Message):
     if user_id == ADMIN_ID:
         damage = 499
 
+    # Наносим урон
     boss["hp"] -= damage
     boss["contributors"][user_id] = {
         "name": message.from_user.full_name,
@@ -266,6 +286,7 @@ async def hit_boss_cmd(message: Message):
             f"❤️ Здоровье Гигантской Пятки: **{boss['hp']}/500**"
         )
     else:
+        # ПОБЕДА!
         sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
         reward_text = (
             f"🎉 **ГИГАНТСКАЯ ПЯТКА ПОВЕРЖЕНА!** 🎉\n"
@@ -290,7 +311,8 @@ async def hit_boss_cmd(message: Message):
             
         reward_text += f"\n👑 Спасибо за бой! Соберите еще больше редких мутаций к следующему рейду! ⚔️🔥"
         
-        ACTIVE_BOSSES[chat_id]["hp"] = 0
+        # Полностью очищаем босса после победы
+        del ACTIVE_BOSSES[chat_id]
         
         # Твой File ID для ПОБЕДЫ
         win_photo_id = "AgACAgIAAxkBAAJCHWoS67SOamVtuoBQituzB8vcWjZNAAK_HWsbsfyYSLOdQKAgPaMlAQADAgADeQADOwQ"
@@ -340,7 +362,7 @@ async def hit_boss_cmd(message: Message):
     boss = ACTIVE_BOSSES[chat_id]
 
     # 2. Проверяем таймер: 2 часа = 7200 секунд
-    if current_time - boss["spawn_time"] > 7200:
+    if current_time - boss["spawn_time"] > 10:
         # ВРЕМЯ ВЫШЛО — БОСС СБЕЖАЛ
         # Сортируем участников по урону
         sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
