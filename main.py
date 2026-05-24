@@ -252,10 +252,10 @@ async def hit_boss_cmd(message: Message):
 
     # 3. Проверяем лимит: 1 игрок = 1 удар за рейд
         if user_id in boss["contributors"] and user_id != ADMIN_ID:
-        return await message.answer(
-            f"❌ **{message.from_user.full_name}**, ты уже нанёс свой единственный урон в этом рейде! "
-            f"Жди результатов битвы или зови друзей на помощь в чат! 🛡"
-        )
+            return await message.answer(
+                f"❌ **{message.from_user.full_name}**, ты уже нанёс свой единственный урон в этом рейде! "
+                f"Жди результатов битвы или зови друзей на помощь в чат! 🛡"
+            )
 
     # 4. Загружаем инвентарь игрока
     inv, balance, _, _, _ = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
