@@ -1886,7 +1886,7 @@ async def accept_duel_callback(call: CallbackQuery):
         result_text = f"🏆 Победитель: **{opponent_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен на баланс!"
 
 
-            result_text += f"🏆 Ничья по пальцам! Но у игрока **{creator_name}** меньше коллекция карточек.\n🏆 Победитель: **[{creator_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен!"
+        result_text += f"🏆 Ничья по пальцам! Но у игрока **{creator_name}** меньше коллекция карточек.\n🏆 Победитель: **[{creator_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен!"
         elif opponent_unique < creator_unique:
             op_balance += prize
             op_wins += 1
