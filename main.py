@@ -1900,7 +1900,7 @@ async def accept_duel_callback(call: CallbackQuery):
             
             result_text = f"🖐 Ничья по пальцам! Но у игрока **{opponent_name}** больше коллекция уникальных карточек.\n🏆 Победитель: **{opponent_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен!"
                 
-                elif opponent_unique < creator_unique:
+            elif opponent_unique < creator_unique:
                 cr_balance += prize
                 cr_wins += 1
                 update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
@@ -1915,7 +1915,7 @@ async def accept_duel_callback(call: CallbackQuery):
                 
                 result_text = f"🖐 Ничья по пальцам! Но у игрока **{creator_name}** больше коллекция уникальных карточек.\n🏆 Победитель: **{creator_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен!"
                 
-                else:
+            else:
                 # Абсолютная ничья — возвращаем ставки обратно игрокам
                 cr_balance += bet
                 op_balance += bet
