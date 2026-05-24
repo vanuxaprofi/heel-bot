@@ -293,6 +293,7 @@ def get_user_game_features(uid):
     return 0, 1, ""
 
 async def check_and_grant_quests(event, uid, inv, balance):
+    # Разруливаем: пришло сообщение или нажатие на кнопку (callback)
     if hasattr(event, "message") and event.message:
         message = event.message
     else:
@@ -305,28 +306,27 @@ async def check_and_grant_quests(event, uid, inv, balance):
 
     counts = {r: 0 for r in RARITIES}
     user_inv_set = set(raw_list)
+    
     for rarity in RARITIES:
         if rarity in DATA:
             for card in DATA[rarity].keys():
                 if card in user_inv_set:
                     counts[rarity] += 1
-
     total_unique = sum(counts.values())
 
-    # Извлекаем данные игрока стандартным методом
+    # Извлекаем данные игрока стандартным методом без ломающих базу запросов
     raw_inventory, _, total_opens, duplicates, bet_count = get_user_data(
         uid, message.from_user.full_name if (message and message.from_user) else "Игрок", ""
     )
-
-    # Получаем количество побед напрямую из базы
-    cursor.execute("SELECT duel_wins, bet_count FROM users WHERE user_id = ?", (uid,))
-    u_row = cursor.fetchone()
-    user_wins = u_row[0] if u_row else 0
     
-    # Теперь дуэли привязаны к bet_count, который мы увеличиваем в команде Дуэль
-    user_duels = u_row[1] if u_row else 0
+    cursor.execute("SELECT duel_wins FROM users WHERE user_id = ?", (uid,))
+    w_row = cursor.fetchone()
+    user_wins = w_row[0] if w_row else 0
+    
+    # Теперь дуэли привязаны к вашей колонке активности
+    user_duels = bet_count
 
-    # Загружаем квесты
+    # 3. Загружаем квесты
     cursor.execute("SELECT * FROM user_quests WHERE user_id = ?", (uid,))
     q = cursor.fetchone()
     if not q:
@@ -343,6 +343,19 @@ async def check_and_grant_quests(event, uid, inv, balance):
     ]
     q_status = {col: q[i+1] for i, col in enumerate(columns)}
 
+    # ИСПРАВЛЕНО: Чтобы считались и проигрыши, и выигрыши,
+    # мы увеличиваем счетчик сыгранных игр на следующем шаге, а здесь берем актуальное значение
+    cursor.execute("SELECT COALESCE(SUM(duel_1 + duel_5 + duel_10), 0) FROM user_quests WHERE user_id = ?", (uid,))
+    games_row = cursor.fetchone()
+    # Если квесты еще не выполнялись, используем победы как отправную точку, иначе берем внутренний прогресс
+    user_duels = max(user_wins, games_row[0] if games_row else 0)
+
+    # Подсчет сундуков из инвентаря
+    db_list = raw_inventory.split(",") if raw_inventory else []
+    opened_epic = db_list.count("⚙_epic_opened")
+    opened_mythic = db_list.count("⚙_mythic_opened")
+    opened_legend = db_list.count("⚙_legend_opened")
+
     new_balance = balance
     triggered = False
 
@@ -350,53 +363,47 @@ async def check_and_grant_quests(event, uid, inv, balance):
     c_mythic = counts.get("🔴 МИФИЧЕСКАЯ (4%)", 0)
     c_legend = counts.get("🟡 ЛЕГЕНДАРНАЯ (2%)", 0)
 
-    # Единая сетка условий со всеми текстами БЕЗ дублирования массивов
     QUESTS_LOGIC = [
-        ("common_10", counts.get("⚪ ОБЫЧНАЯ (45%)", 0), 10, 300, "Ты собрал 10 обычных карточек!\nТвоя награда: 300 монет 💰\n✨ Продолжай в том же духе! ✨"),
-        ("uncommon_10", counts.get("🟢 НЕОБЫЧНАЯ (25%)", 0), 10, 600, "Ты собрал 10 необычных карточек!\nТвоя награда: 600 монет 💰\n✨ Продолжай в том же духе! ✨"),
-        ("rare_10", counts.get("🔵 РЕДКАЯ (15%)", 0), 10, 1200, "Ты собрал 10 редких карточек!\nТвоя награда: 1 200 монет 💰\n✨ Продолжай в том же духе! ✨"),
-        ("epic_10", c_epic, 10, 2500, "Ты собрал 10 эпических карточек!\nТвоя награда: 2 500 монет 💰"),
-        ("mythic_10", c_mythic, 10, 7500, "Ты собрал 10 мифических карточек!\nТвоя награда: 7 500 монет 💰"),
-        ("legend_3", c_legend, 3, 15000, "Ты собрал 3 легендарных карточки!\nТвоя награда: 15 000 монет 💰"),
-        ("perfect_2", counts.get("👑 ИДЕАЛЬНАЯ (1%)", 0), 2, 25000, "Ты собрал 2 идеальных карточки!\nТвоя награда: 25 000 монет 💰"),
-        
-        # Глобальные квесты
-        ("global_10", total_unique, 10, 1500, "🏆 ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН! 🏆\nНачало положено! Ты собрал 10 пяток.\nТвоя награда: 1 500 монет 💰"),
-        ("global_50", total_unique, 50, 10000, "🏆 ГЛОБАЛЬНЫЙ КВЕСТ ВЫПОЛНЕН! 🏆\nВ твоем альбоме уже 50 пяток. Настоящий коллекционер.\nТвоя награда: 10 000 монет 💰"),
-        ("global_100", total_unique, 100, 35000, "🏆 ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ! 🏆\nТы сделал это! 100 ПЯТОК! 👑\nТвоя награда: 35 000 монет 💰"),
-        
-        # Повторки
-        ("dup_10", duplicates, 10, 1500, "Ты собрал 10 повторок! 🔁\nТвоя награда: 1 500 монет 💰"),
-        ("dup_50", duplicates, 50, 5000, "В твоем рюкзаке осело уже 50 повторных пяток! 🎒\nТвоя награда: 5 000 монет 💰"),
-        ("dup_100", duplicates, 100, 15000, "Это безумие! 100 ПОВТОРНЫХ ПЯТОК! 👑\nТвоя награда: 15 000 монет 💰"),
-        
-        # Дуэли (Сыграно)
-        ("duel_1", user_duels, 1, 50, "Ты сыграл свою 1-ю дуэль в группе! ⚔\nНаграда: 50 монет 💰"),
-        ("duel_5", user_duels, 5, 150, "Ты сыграл 5 пяточных дуэлей в чатах! 🛡\nНаграда: 150 монет 💰"),
-        ("duel_10", user_duels, 10, 300, "За твоими плечами уже 10 дуэльных баттлов! 🎪\nНаграда: 300 монет 💰"),
-        
-        # Дуэли (Победы)
-        ("win_1", user_wins, 1, 100, "Ты одержал свою 1-ю победу в дуэли! ⚔\nНаграда: 100 монет 💰"),
-        ("win_5", user_wins, 5, 300, "На твоем счету уже 5 побед в дуэлях! 🌪\nНаграда: 300 монет 💰"),
-        ("win_10", user_wins, 10, 600, "Ты — настоящий король мутантов! Одержано 10 побед! 👑\nНаграда: 600 монет 💰")
+        ("common_10", counts.get("⚪ ОБЫЧНАЯ (45%)", 0), 10, 300, "Ты собрал 10 обычных карточек!\n Твоя награда: 300 монет 💰"),
+        ("uncommon_10", counts.get("🟢 НЕОБЫЧНАЯ (25%)", 0), 10, 600, "Ты собрал 10 необычных карточек!\n Твоя награда: 600 монет 💰"),
+        ("rare_10", counts.get("🔵 РЕДКАЯ (15%)", 0), 10, 1200, "Ты собрал 10 редких карточек!\n Твоя награда: 1 200 монет 💰"),
+        ("epic_10", c_epic, 10, 2500, "Ты собрал 10 эпических карточек!\n Твоя награда: 2 500 монет 💰"),
+        ("mythic_10", c_mythic, 10, 7500, "Ты собрал 10 мифических карточек!\n Твоя награда: 7 500 монет 💰"),
+        ("legend_3", c_legend, 3, 15000, "Ты собрал 3 легендарных карточки!\n Твоя награда: 15 000 монет 💰"),
+        ("perfect_2", counts.get("👑 ИДЕАЛЬНАЯ (1%)", 0), 2, 25000, "Ты собрал 2 идеальных карточки!\n Твоя награда: 25 000 монет 💰"),
+
+        ("global_10", total_unique, 10, 1500, "Ты собрал 10 уникальных пяток!\n Награда: 1 500 монет 💰"),
+        ("global_50", total_unique, 50, 10000, "Ты собрал 50 уникальных пяток!\n Награда: 10 000 монет 💰"),
+        ("global_100", total_unique, 100, 35000, "ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ! 100 ПЯТОК! 👑\n Награда: 35 000 монет 💰"),
+
+        ("dup_10", duplicates, 10, 1500, "Ты собрал 10 повторок! 🔁\n Твоя награда: 1 500 монет 💰"),
+        ("dup_50", duplicates, 50, 5000, "В твоем рюкзаке осело уже 50 повторных пяток! 🎒\n Твоя награда: 5 000 монет 💰"),
+        ("dup_100", duplicates, 100, 15000, "Это безумие! 100 ПОВТОРНЫХ ПЯТОК! 👑\n Твоя награда: 15 000 монет 💰"),
+
+        ("duel_1", user_duels, 1, 50, "Ты сыграл свою 1-ю дуэль в группе! ⚔\n Награда: 50 монет 💰"),
+        ("duel_5", user_duels, 5, 150, "Ты сыграл 5 пяточных дуэлей в чатах! 🛡\n Награда: 150 монет 💰"),
+        ("duel_10", user_duels, 10, 300, "За твоими плечами уже 10 дуэльных баттлов! 🎪\n Награда: 300 монет 💰"),
+
+        ("win_1", user_wins, 1, 100, "Ты одержал свою 1-ю победу в дуэли! ⚔\n Награда: 100 монет 💰"),
+        ("win_5", user_wins, 5, 300, "На твоем счету уже 5 побед в дуэлях! 🌪\n Награда: 300 монет 💰"),
+        ("win_10", user_wins, 10, 600, "Ты — настоящий король мутантов! Одержано 10 побед! 👑\n Награда: 600 монет 💰")
     ]
 
+    # Получаем имя для красивого тега в чате
     user_mention = f"⚠️ [Игрок](tg://user?id={uid})"
 
     for col, current, target, reward, success_text in QUESTS_LOGIC:
         if q_status.get(col, 0) == 0 and current >= target:
             new_balance += reward
             triggered = True
-            
             cursor.execute(f"UPDATE user_quests SET {col} = 1 WHERE user_id = ?", (uid,))
             conn.commit()
             
             await asyncio.sleep(0.3)
             
+            # ИСПРАВЛЕНО: Пишем строго в саму группу с упоминанием игрока
             if col in ["global_100", "dup_100", "win_10"]:
                 await message.answer(f"🏆 **ВЕЛИЧАЙШЕЕ ДОСТИЖЕНИЕ!** 🏆\n{user_mention}, {success_text}", parse_mode="Markdown")
-            elif col.startswith("global"):
-                await message.answer(success_text, parse_mode="Markdown")
             else:
                 await message.answer(f"🏆 **КВЕСТ ВЫПОЛНЕН!** 🏆\n{user_mention}, {success_text}", parse_mode="Markdown")
 
@@ -1854,77 +1861,57 @@ async def accept_duel_callback(call: CallbackQuery):
     op_bets += 1
 
     if creator_fingers > opponent_fingers:
-            cr_balance += prize
-            cr_wins += 1
-            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-            
-            cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (cr_wins, cr_bets, creator_id))
-            cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (op_bets, opponent_id))
-            conn.commit()
-            
-            await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-            await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-            
-            result_text = f"🏆 Победитель: **{creator_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен на баланс!"
-
+        cr_balance += prize
+        cr_wins += 1
+        update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+        update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+        
+        cursor.execute("UPDATE users SET duel_wins = ? WHERE user_id = ?", (cr_wins, creator_id))
+        conn.commit()
+        
+        result_text += f"🏆 Победитель: **[{creator_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
+        
     elif opponent_fingers > creator_fingers:
         op_balance += prize
         op_wins += 1
         update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
         update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
         
-        cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
-        cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (op_wins, op_bets, opponent_id))
+        cursor.execute("UPDATE users SET duel_wins = ? WHERE user_id = ?", (op_wins, opponent_id))
         conn.commit()
         
-        await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-        await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
+        result_text += f"🏆 Победитель: **[{opponent_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен на баланс!"
         
-        result_text = f"🏆 Победитель: **{opponent_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен на баланс!"
-
     else:
         # Ничья по пальцам — решаем по уникальным картам
-                    # Ничья по пальцам — решаем по уникальным картам
-            is_draw_processed = False
+        if creator_unique < opponent_unique:
+            cr_balance += prize
+            cr_wins += 1
+            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+            cursor.execute("UPDATE users SET duel_wins = ? WHERE user_id = ?", (cr_wins, creator_id))
+            conn.commit()
+            result_text += f"🏆 Ничья по пальцам! Но у игрока **{creator_name}** меньше коллекция карточек.\n🏆 Победитель: **[{creator_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен!"
+        elif opponent_unique < creator_unique:
+            op_balance += prize
+            op_wins += 1
+            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+            cursor.execute("UPDATE users SET duel_wins = ? WHERE user_id = ?", (op_wins, opponent_id))
+            conn.commit()
+            result_text += f"🏆 Ничья по пальцам! Но у игрока **{opponent_name}** меньше коллекция карточек.\n🏆 Победитель: **[{opponent_name}]**!\n💰 Выигрыш: **[{prize}]** монет успешно зачислен!"
+        else:
+            # Абсолютная ничья — просто возвращаем монеты
+            cr_balance += bet
+            op_balance += bet
+            update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
+            update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
+            result_text += f"🏆 Победитель: **[Ничья!]**\n🤝 Ставки в размере **[{bet}]** монет полностью возвращены обоим участникам!"
 
-            if creator_unique < opponent_unique and not is_draw_processed:
-                op_balance += prize
-                op_wins += 1
-                update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-                update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-                cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
-                cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (op_wins, op_bets, opponent_id))
-                conn.commit()
-                await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-                await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-                result_text = f"🖐 Ничья по пальцам! Но у игрока **{opponent_name}** больше коллекция уникальных карточек.\n🏆 Победитель: **{opponent_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен!"
-                is_draw_processed = True
-                
-            if opponent_unique < creator_unique and not is_draw_processed:
-                cr_balance += prize
-                cr_wins += 1
-                update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-                update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-                cursor.execute("UPDATE users SET duel_wins = ?, bet_count = ? WHERE user_id = ?", (cr_wins, cr_bets, creator_id))
-                cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (op_bets, opponent_id))
-                conn.commit()
-                await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-                await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-                result_text = f"🖐 Ничья по пальцам! Но у игрока **{creator_name}** больше коллекция уникальных карточек.\n🏆 Победитель: **{creator_name}**!\n🔥 Выигрыш: **{prize}** монет успешно зачислен!"
-                is_draw_processed = True
-                
-            if not is_draw_processed:
-                cr_balance += bet
-                op_balance += bet
-                update_user_stats(creator_id, cr_inv, cr_balance, cr_opens, cr_dups, cr_bets, cr_pity, cr_day, cr_claim)
-                update_user_stats(opponent_id, op_inv, op_balance, op_opens, op_dups, op_bets, op_pity, op_day, op_claim)
-                cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (cr_bets, creator_id))
-                cursor.execute("UPDATE users SET bet_count = ? WHERE user_id = ?", (op_bets, opponent_id))
-                conn.commit()
-                await check_and_grant_quests(call.message, creator_id, cr_inv, cr_balance)
-                await check_and_grant_quests(call.message, opponent_id, op_inv, op_balance)
-                result_text = f"🤝 **ПОЛНАЯ НИЧЬЯ!** Количество пальцев и уникальных карточек совпало! Монеты возвращены обоим игрокам."
+    # Запускаем проверку квестов для обоих игроков сразу после боя
+            # ИСПРАВЛЕНО: Передаем call вместо call.message
+        await check_and_grant_quests(call, creator_id, cr_inv, cr_balance)
+        await check_and_grant_quests(call, opponent_id, op_inv, op_balance)
 
     if msg_id in active_duels:
         del active_duels[msg_id]
