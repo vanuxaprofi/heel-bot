@@ -189,7 +189,7 @@ async def admin_spawn_boss(message: Message):
     
     # Автоматический внутренний будильник на 10 секунд для твоего быстрого теста
     async def boss_timer_task():
-        await asyncio.sleep(10) # ⏳ После теста поменяешь это число 10 на 7200 для релиза!
+        await asyncio.sleep(7200) # ⏳ После теста поменяешь это число 10 на 7200 для релиза!
         
         if chat_id in ACTIVE_BOSSES and ACTIVE_BOSSES[chat_id]["hp"] > 0:
             boss = ACTIVE_BOSSES[chat_id]
