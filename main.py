@@ -1436,9 +1436,9 @@ async def show_quests_list(message: Message):
     # Внутренняя функция для генерации текстового прогресс-бара
     def make_bar(current, target):
         if current >= target:
-            return "██████████"
+            return "▚▚▚▚▚▚▚▚▚▚"
         pct = int((current / target) * 10)
-        return "█" * pct + "░" * (10 - pct)
+        return "▚" * pct + "░" * (10 - pct)
 
     def get_st(val):
         return "✅ Выполнено" if val == 1 else "⏳ В процессе"
