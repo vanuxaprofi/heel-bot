@@ -2029,7 +2029,7 @@ async def create_duel_cmd(message: Message):
         
         # Авто-отмена через 5 минут
         async def auto_cancel():
-            await asyncio.sleep(300)
+            await asyncio.sleep(120)
             if duel_msg.message_id in active_duels and active_duels[duel_msg.message_id]["is_active"]:
                 cursor.execute("SELECT inventory, balance, total_opens, duplicates, bet_count FROM users WHERE user_id = ?", (user_id,))
                 u_row = cursor.fetchone()
