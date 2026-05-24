@@ -160,11 +160,6 @@ last_bet_time = {}
 last_time = {}
 last_random_time = {}
 @dp.message(F.text == "!спавн")
-# Функция-будильник, которая сработает сама ровно через 2 часа
-async def boss_timer_task(chat_id: int):
-    await asyncio.sleep(7200) # Ждем ровно 2 часа (7200 секунд)
-    
-@dp.message(F.text == "!спавн")
 async def admin_spawn_boss(message: Message):
     if message.from_user.id != ADMIN_ID:
         return
@@ -191,6 +186,35 @@ async def admin_spawn_boss(message: Message):
                 f"Сила вашего удара зависит от редкости уникальных карт в вашей коллекции! 💰",
         parse_mode="Markdown"
     )
+    
+    # Автоматический внутренний будильник на 10 секунд для твоего быстрого теста
+    async def boss_timer_task():
+        await asyncio.sleep(10) # ⏳ После теста поменяешь это число 10 на 7200 для релиза!
+        
+        if chat_id in ACTIVE_BOSSES and ACTIVE_BOSSES[chat_id]["hp"] > 0:
+            boss = ACTIVE_BOSSES[chat_id]
+            sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
+            
+            fail_text = (
+                f"⏱ **ВРЕМЯ ВЫШЛО! БОСС СБЕЖАЛ!** ⏱\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"💨 Гигантская Пятка оказалась вам не по зубам и скрылась в тумане...\n\n"
+                f"📊 **КТО СТАРАЛСЯ БОЛЬШЕ ВСЕХ:**\n"
+        )
+            for info in sorted_contribs:
+                fail_text += f"🎰 {info['name']} — **{info['damage']}** 💥 урона\n"
+            fail_text += f"\n📢 В следующий раз зовите больше друзей в чат! 🦶🛡"
+            
+            del ACTIVE_BOSSES[chat_id]
+            
+            lose_photo_id = "AgACAgIAAxkBAAJCH2oS68yhRs-RCVUAAcfqW2Tlg0ZcqQACwB1rG7H8mEisTF-psx1VSgEAAwIAA3kAAzsE"
+            try:
+                await message.bot.send_photo(chat_id=chat_id, photo=lose_photo_id, caption=fail_text, parse_mode="Markdown")
+            except Exception:
+                pass
+
+    # Мягко запускаем таймер в фоновом режиме
+    asyncio.create_task(boss_timer_task())
     
     # Автоматический внутренний будильник на 10 секунд для твоего быстрого теста
     async def boss_timer_task():
