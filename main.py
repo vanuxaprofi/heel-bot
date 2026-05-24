@@ -500,7 +500,8 @@ async def hit_boss_cmd(message: Message):
 conn = libsql.connect(
     "game_db.db",
     sync_url="libsql://heelbot-vanuxaprofi.aws-eu-west-1.turso.io",
-    auth_token="eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Nzk2NDc1OTMsImlkIjoiMDE5ZTViM2QtNDcwMS03M2U4LTlkNTctOTZmODk4Y2I3YjZiIiwicmlkIjoiZThjNjYzNTMtNWQ4NS00OGM0LTkwZTEtNGJmNmNlZTExYTRmIn0.gZTctzC5RvB1Qs6_swH5UXANFGtUZJYHQDpwcX9m23b4okjv3tI29E92qI0W6lO_wUO1kYB9sRRCoRheuOtlBw"
+    auth_token="eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Nzk2NDc1OTMsImlkIjoiMDE5ZTViM2QtNDcwMS03M2U4LTlkNTctOTZmODk4Y2I3YjZiIiwicmlkIjoiZThjNjYzNTMtNWQ4NS00OGM0LTkwZTEtNGJmNmNlZTExYTRmIn0.gZTctzC5RvB1Qs6_swH5UXANFGtUZJYHQDpwcX9m23b4okjv3tI29E92qI0W6lO_wUO1kYB9sRRCoRheuOtlBw",
+    sync_interval=60
 )
 cursor = conn.cursor()
 
