@@ -983,25 +983,48 @@ async def show_shop(message: types.Message):
 @dp.message(F.text == "💰 Профиль")
 async def show_profile(message: Message):
     user_id = message.from_user.id
-    
+
     # Получаем актуальные данные игрока из базы
     inv, balance, total_opens, duplicates, bet_count = get_user_data(
         user_id, message.from_user.full_name, message.from_user.username
     )
     pity_counter, current_day, last_claim_date = get_user_game_features(user_id)
 
+    # Переводим инвентарь в чистый список
+    if isinstance(inv, dict):
+        raw_list = [name for name, count in inv.items() for _ in range(count)]
+    else:
+        raw_list = [x.strip() for x in inv if str(x).strip()]
+
+    # Считаем, сколько уникальных пяток собрал игрок
+    counts = {r: 0 for r in RARITIES}
+    user_inv_set = set(raw_list)
+    for rarity in RARITIES:
+        if rarity in DATA:
+            for card in DATA[rarity].keys():
+                if card in user_inv_set:
+                    counts[rarity] += 1
+                    
+    total_unique = sum(counts.values())
+    
+    # Автоматически считаем, сколько всего карт в игре
+    total_cards_in_game = 0
+    for rarity in DATA:
+        total_cards_in_game += len(DATA[rarity])
+
     # Формируем аккуратный текст профиля без лишнего мусора
     text = (
         f"💰 **ЛИЧНЫЙ ПРОФИЛЬ: {message.from_user.full_name}** 💰\n"
-        f"━━━━━━━━━━━━━━━━━━\n\n"
-        f"💸 Баланс: **{balance}** монет\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"💰 Баланс: **{balance}** монет\n"
         f"📅 Серия дней в календаре: **{current_day}**-й день 🔥\n"
-        f"🔮 Гарант легенды (Pity): **[{pity_counter}/30]** 🪐\n"
+        f"🎯 Гарант легенды (Pity): **{pity_counter}/30** 🔮\n"
         f"📦 Открыто сундуков в лавке: **{total_opens}** шт.\n"
-        f"🔄 Выбито повторок за всё время: **{duplicates}** шт.\n\n"
-        f"━━━━━━━━━━━━━━━━━━"
+        f"📊 Выбито пяток: **{total_unique}/{total_cards_in_game}** шт. 🦶\n"
+        f"🔄 Выбито повторок за всё время: **{duplicates}** шт.\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
     )
-    
+
     try:
         # Автоматически подтягиваем аватарку игрока из Telegram
         user_photos = await message.from_user.get_profile_photos(limit=1)
