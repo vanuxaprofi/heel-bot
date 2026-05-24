@@ -217,6 +217,136 @@ async def start_cmd(message: Message):
     )
     await message.answer(welcome_text, reply_markup=get_kb(), parse_mode="Markdown")
     
+@dp.message(F.text.lower() == "ударить")
+async def hit_boss_cmd(message: Message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    current_time = time.time()
+    
+    # 1. Проверяем, заспавнен ли босс в этом чате
+    if chat_id not in ACTIVE_BOSSES or ACTIVE_BOSSES[chat_id]["hp"] <= 0:
+        return  # Если босса нет, просто молчим
+
+    boss = ACTIVE_BOSSES[chat_id]
+
+    # 2. Проверяем таймер: 2 часа = 7200 секунд
+    if current_time - boss["spawn_time"] > 7200:
+        # ВРЕМЯ ВЫШЛО — БОСС СБЕЖАЛ
+        # Сортируем участников по урону
+        sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
+        
+        fail_text = (
+            f"⏱ **ВРЕМЯ ВЫШЛО! БОСС СБЕЖАЛ!** ⏱\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💨 Гигантская Пятка оказалась вам не по зубам и скрылась в тумане... Вы не успели добить мутанта вовремя.\n\n"
+            f"📊 **КТО СТАРАЛСЯ БОЛЬШЕ ВСЕХ:**\n"
+        )
+        
+        for info in sorted_contribs:
+            fail_text += f"🎰 {info['name']} — **{info['damage']}** 💥 урона\n"
+            
+        fail_text += f"\n📢 **Вывод:** Вам не хватило совсем чуть-чуть! В следующий раз зовите больше друзей в чат и активнее пишите команду **«пятка»**, чтобы выбить редкие карты и поднять общий урон команды! 🦶🛡"
+        
+        ACTIVE_BOSSES[chat_id]["hp"] = 0  # Закрываем босса
+        return await message.answer(fail_text, parse_mode="Markdown")
+
+    # 3. Проверяем лимит: 1 игрок = 1 удар за рейд
+    if user_id in boss["contributors"]:
+        return await message.answer(
+            f"❌ **{message.from_user.full_name}**, ты уже нанёс свой единственный урон в этом рейде! "
+            f"Жди результатов битвы или зови друзей на помощь в чат! 🛡"
+        )
+
+    # 4. Загружаем инвентарь игрока
+    inv, balance, _, _, _ = get_user_data(user_id, message.from_user.full_name, message.from_user.username)
+    
+    if isinstance(inv, str):
+        raw_list = [x.strip() for x in inv.split(",") if x.strip()]
+    else:
+        raw_list = [x.strip() for x in inv if str(x).strip()]
+
+    # Расчет урона по уникалкам
+    damage = 0
+    user_inv_set = set(raw_list)
+    for rarity in RARITIES:
+        if rarity in DATA:
+            for card in DATA[rarity].keys():
+                if card in user_inv_set:
+                    if "ОБЫЧНАЯ" in rarity: damage += 1
+                    elif "НЕОБЫЧНАЯ" in rarity: damage += 2
+                    elif "РЕДКАЯ" in rarity: damage += 4
+                    elif "ЭПИЧЕСКАЯ" in rarity: damage += 8
+                    elif "МИФИЧЕСКАЯ" in rarity: damage += 15
+                    elif "ЛЕГЕНДАРНАЯ" in rarity: damage += 30
+                    elif "ИДЕАЛЬНАЯ" in rarity: damage += 60
+
+    # 5. Защита голого игрока
+    if damage == 0 and user_id != ADMIN_ID:
+        return await message.answer(
+            f"🛡 **ВАШ УРОН НУЛЕВОЙ!** 🛡\n\n"
+            f"👤 **{message.from_user.full_name}**, твои карманы абсолютно пусты, а в альбоме нет ни одной мутации! 😭 "
+            f"С такими силами Гигантскую Пятку не одолеть...\n\n"
+            f"📦 **What to do?**\n"
+            f"Скорее открывай свой первый дроп! Напиши прямо сейчас в чат заветное слово:\n"
+            f"👇👇👇\n"
+            f"👉 **пятка** 👈\n\n"
+            f"✨ Выбей уникальную карту, прокачай свою мощь и возвращайся в бой! ⚔️🔥",
+            parse_mode="Markdown"
+        )
+
+    # 6. Чит-код админа для быстрых тестов
+    if user_id == ADMIN_ID:
+        damage = 250
+
+    # 7. Наносим урон
+    boss["hp"] -= damage
+    boss["contributors"][user_id] = {
+        "name": message.from_user.full_name,
+        "damage": damage
+    }
+
+    # 8. Проверяем исходы боя
+    if boss["hp"] > 0:
+        # Босс еще жив
+        await message.answer(
+            f"💥 **{message.from_user.full_name}** нанёс Боссу **{damage}** урона силой своей коллекции!\n"
+            f"❤️ Здоровье Гигантской Пятки: **{boss['hp']}/500**"
+        )
+    else:
+        # ПОБЕДА! Босс повержен
+        sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
+        
+        reward_text = (
+            f"🎉 **ГИГАНТСКАЯ ПЯТКА ПОВЕРЖЕНА!** 🎉\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🦾 Команда чата оказалась сильнее мутанта! Босс повержен, а золото успешно отправлено в ваши кошельки.\n\n"
+            f"📊 **ТОП ОХОТНИКОВ НА ПЯТКИ:**\n"
+        )
+        
+        for i, info in enumerate(sorted_contribs, 1):
+            # Начисляем монеты: урон * 2
+            reward_coins = info["damage"] * 2
+            
+            # Ищем ID игрока по его имени в словаре участников
+            for uid, details in boss["contributors"].items():
+                if details["name"] == info["name"]:
+                    cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (reward_coins, uid))
+                    conn.commit()
+                    break
+            
+            # Подставляем красивые медали лидерам
+            if i == 1: medal = "🥇"
+            elif i == 2: medal = "🥈"
+            elif i == 3: medal = "🥉"
+            else: medal = "⏱"
+            
+            reward_text += f"{medal} **{info['name']}** — {info['damage']} 💥 урона *(Награда: +{reward_coins} 💰)*\n"
+            
+        reward_text += f"\n👑 Спасибо за бой! Продолжайте собирать редкие мутации, чтобы к следующему рейду стать еще сильнее! ⚔️🔥"
+        
+        ACTIVE_BOSSES[chat_id]["hp"] = 0  # Сбрасываем босса в этом чате
+        await message.answer(reward_text, parse_mode="Markdown")
+
 # БАЗА ДАННЫХ
 import os
 if os.path.exists("game_db.db"):
