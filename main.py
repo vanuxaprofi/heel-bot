@@ -217,22 +217,22 @@ async def admin_spawn_boss(message: Message):
     asyncio.create_task(boss_timer_task())
     
     # Автоматический внутренний будильник на 10 секунд для твоего быстрого теста
-    @ dp. message( F. text == "!спавн")
-async def admin_spawn_boss( message: Message):
-    if message. from_user. id != ADMIN_ID:
+@dp.message(F.text == "!спавн")
+async def admin_spawn_boss(message: Message):
+    if message.from_user.id != ADMIN_ID:
         return
-    chat_id = message. chat. id
-    ACTIVE_BOSSES[ chat_id] = {
+    chat_id = message.chat.id
+    ACTIVE_BOSSES[chat_id] = {
         "hp": 500,
         "max_hp": 500,
-        "spawn_time": time. time(),
+        "spawn_time": time.time(),
         "contributors": {}
     }
     # Твой File ID для появления босса
     spawn_photo_id = "AgACAgIAAxkBAAJCG2oS64Eu0yxz3BwZ4GncLZdOnUMFAAK3HWsbsfyYSNCdok1SPIICAQADAgADeQADOwQ"
-    await message. answer_photo(
-        photo= spawn_photo_id,
-        caption= f"🚨 **В ЧАТЕ ПОЯВИЛСЯ БОСС: ГИГАНТСКАЯ ПЯТКА!** 🚨\n"
+    await message.answer_photo(
+        photo=spawn_photo_id,
+        caption=f"🚨 **В ЧАТЕ ПОЯВИЛСЯ БОСС: ГИГАНТСКАЯ ПЯТКА!** 🚨\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"❤ Здоровье: **500 HP**\n"
         f"⏱ Время на битву: **2 часа (120 минут)**\n\n"
@@ -244,10 +244,10 @@ async def admin_spawn_boss( message: Message):
 
     # Автоматический внутренний будильник на 2 часа (7200 секунд)
     async def boss_timer_task():
-        await asyncio. sleep( 7200)
-        if chat_id in ACTIVE_BOSSES and ACTIVE_BOSSES[ chat_id]["hp"] > 0:
-            boss = ACTIVE_BOSSES[ chat_id]
-            sorted_contribs = sorted( boss["contributors"]. values(), key= lambda x: x["damage"], reverse= True)
+        await asyncio.sleep(7200)
+        if chat_id in ACTIVE_BOSSES and ACTIVE_BOSSES[chat_id]["hp"] > 0:
+            boss = ACTIVE_BOSSES[chat_id]
+            sorted_contribs = sorted(boss["contributors"].values(), key=lambda x: x["damage"], reverse=True)
             fail_text = (
                 f"⏱ **ВРЕМЯ ВЫШЛО! БОСС СБЕЖАЛ!** ⏱\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -255,17 +255,17 @@ async def admin_spawn_boss( message: Message):
                 f"📊 **КТО СТАРАЛСЯ БОЛЬШЕ ВСЕХ:**\n"
             )
             for info in sorted_contribs:
-                fail_text += f"🎰 { info['name']} — **{ info['damage']}** 💥 урона\n"
+                fail_text += f"🎰 {info['name']} — **{info['damage']}** 💥 урона\n"
             fail_text += f"\n 📢 В следующий раз зовите больше друзей в чат! 🦶🛡"
-            del ACTIVE_BOSSES[ chat_id]
+            del ACTIVE_BOSSES[chat_id]
             lose_photo_id = "AgACAgIAAxkBAAJCH2oS68yhRs-RCVUAAcfqW2Tlg0ZcqQACwB1rG7H8mEisTF-psx1VSgEAAwIAA3kAAzsE"
             try:
-                await message. bot. send_photo( chat_id= chat_id, photo= lose_photo_id, caption= fail_text, parse_mode="Markdown")
+                await message.bot.send_photo(chat_id=chat_id, photo=lose_photo_id, caption=fail_text, parse_mode="Markdown")
             except Exception:
                 pass
 
     # Мягко запускаем таймер в фоновом режиме
-    asyncio. create_task( boss_timer_task())
+    asyncio.create_task(boss_timer_task())
 
 @dp.message(F.text.lower() == "ударить")
 async def hit_boss_cmd(message: Message):
